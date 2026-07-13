@@ -8,6 +8,7 @@ import { HomeScreen } from "@/components/menu/home-screen";
 import { MenuDishRow } from "@/components/menu/menu-dish-row";
 import { MenuExplorer } from "@/components/menu/menu-explorer";
 import { BottomNavigation } from "@/components/navigation/bottom-navigation";
+import { InstallPwaPrompt, type PwaPreviewState } from "@/components/feedback/install-pwa-prompt";
 import { OnboardingScreen } from "@/components/onboarding/onboarding-screen";
 import { SplashSequence } from "@/components/onboarding/splash-sequence";
 import { useOnboardingStore } from "@/stores/onboarding";
@@ -42,6 +43,14 @@ const NAV_PREVIEW_PATHS = [
   { path: "/reservar", label: "Reservar" },
   { path: "/carrito", label: "Carrito" },
 ] as const;
+const PWA_PREVIEW_STATES: Array<{ value: PwaPreviewState; label: string }> = [
+  { value: "visible", label: "Elegible" },
+  { value: "closed", label: "Cerrado" },
+  { value: "accepted", label: "Aceptado" },
+  { value: "dismissed", label: "Rechazado" },
+  { value: "standalone", label: "Standalone" },
+  { value: "unsupported", label: "Sin soporte" },
+];
 
 /**
  * Cliente del laboratorio visual. Cada escena monta los componentes REALES
@@ -64,6 +73,7 @@ export function VisualLabClient({
   const [replayKey, setReplayKey] = useState(0);
   const [sceneDone, setSceneDone] = useState(false);
   const [navPreviewPath, setNavPreviewPath] = useState("/");
+  const [pwaPreviewState, setPwaPreviewState] = useState<PwaPreviewState>("visible");
   const [elapsed, setElapsed] = useState(0);
   const startRef = useRef(0);
 
@@ -320,12 +330,33 @@ export function VisualLabClient({
             ) : null}
 
             {scene === "pwa" ? (
-              <div className="flex h-full items-center justify-center p-6 text-center">
-                <p className="text-[13px] leading-relaxed text-muted">
-                  El aviso PWA real depende del evento del navegador
-                  (beforeinstallprompt). Su variante forzada se habilita en la
-                  escena PWA del rediseño.
-                </p>
+              <div className="flex h-full flex-col justify-between p-4 pb-24">
+                <div>
+                  <p className="text-[12px] leading-relaxed text-muted">
+                    Estado controlado: esta escena nunca invoca el diálogo real del navegador.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Estado del prompt PWA">
+                    {PWA_PREVIEW_STATES.map((entry) => (
+                      <button
+                        key={entry.value}
+                        type="button"
+                        aria-pressed={pwaPreviewState === entry.value}
+                        onClick={() => setPwaPreviewState(entry.value)}
+                        className={
+                          pwaPreviewState === entry.value
+                            ? "h-9 rounded-chip bg-action px-3 text-[12px] font-bold text-action-foreground"
+                            : "h-9 rounded-chip border border-border-soft bg-white/6 px-3 text-[12px] font-semibold text-muted"
+                        }
+                      >
+                        {entry.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <InstallPwaPrompt
+                  previewState={pwaPreviewState}
+                  onPreviewStateChange={setPwaPreviewState}
+                />
               </div>
             ) : null}
           </div>

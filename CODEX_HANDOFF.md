@@ -1,11 +1,23 @@
 # CODEX_HANDOFF — Traspaso del rediseño visual de Restaurante2.0
 
 Documento **autocontenido**: permite continuar el rediseño sin leer conversaciones
-previas. Actualizado 2026-07-13, al cerrar la **escena 9**. Próxima tarea: **escena 10
-(prompt PWA)**.
+previas. Actualizado 2026-07-13, al cerrar la **escena 10**. Próxima tarea: **escena 11
+(validación global)**.
 
-> **Actualización 2026-07-13 — escena 9 cerrada.** La próxima tarea es la escena 10
-> (prompt PWA); no repetir las escenas 1–9. La barra móvil es una píldora flotante
+> **Actualización 2026-07-13 — escena 10 cerrada, sin commit.** El prompt PWA es una
+> superficie editorial no modal que solo aparece tras `beforeinstallprompt` real, espera
+> 12 s y se aplaza 30 días con `localStorage["rb-pwa-dismissed"]`. Se oculta en
+> standalone, admin, visual-lab, offline, carrito, detalle, checkout y pedido; es elegible
+> en home, menú, buscar, favoritos y reservas. Se ubica 14 px sobre la píldora móvil y no
+> modifica los CTA de los flujos. `appinstalled` lo elimina, `prompt()` se protege contra
+> doble invocación, y sin `localStorage` solo se suprime durante el montaje. Visual Lab usa
+> estados controlados sin API nativa. Pruebas dirigidas: typecheck, lint, Vitest 7/7, build,
+> 6× Chromium, 6× WebKit, reduced motion, Axe y consola verdes. Evidencia inspeccionada:
+> `artifacts/visual-comparison/work/scene10-pwa-*`. WebKit cubre el contrato sintético;
+> no ofrece `beforeinstallprompt` nativo y por ello producción no muestra prompt allí.
+
+> **Actualización 2026-07-13 — escena 9 cerrada (histórico).** La escena 10 posterior
+> cerró el prompt PWA; no repetir las escenas 1–9. La barra móvil es una píldora flotante
 > de 64 px, `inset-x: 12 px`, `bottom: 10 px + safe-area`, `bg-panel/92`, blur
 > ligero, borde soft y `shadow-sheet`. El indicador usa `layoutId="bottom-nav-active-pill"`
 > con spring suave y transición corta bajo reduced motion.
@@ -90,8 +102,8 @@ el estado real del código manda sobre cualquier documento.
 | 7 | Transición tarjeta → detalle (morph View Transitions) | ✅ COMPLETADA |
 | 8 | Regreso y conservación de estado | ✅ COMPLETADA |
 | 9 | Navegación inferior flotante | ✅ COMPLETADA |
-| 10 | Prompt PWA | ⏳ PENDIENTE (siguiente) |
-| 11 | Validación global, comparación "after", cierre | ⏳ PENDIENTE |
+| 10 | Prompt PWA | ✅ COMPLETADA |
+| 11 | Validación global, comparación "after", cierre | ⏳ PENDIENTE (siguiente) |
 
 Verificación dirigida más reciente (2026-07-13): typecheck ✓, lint ✓, vitest **135/135**,
 build ✓, e2e de escenas 7–8 verdes en chromium+webkit. **Suite E2E global aún NO
@@ -127,7 +139,9 @@ ejecutada** (es la escena 11).
   historial de entrada de la pestaña). `product-detail-screen.tsx` (`goBack` compara
   contra esa marca). `tests/e2e/state-back.spec.ts` (NUEVO), `scripts/capture-scene8.ts` (NUEVO).
 - **Nav inferior (9, COMPLETADA):** `src/components/navigation/bottom-navigation.tsx` (píldora flotante, indicador `layoutId`, badge y vista previa aislada del lab).
-- **PWA (10, PENDIENTE):** `src/components/feedback/install-pwa-prompt.tsx`.
+- **PWA (10, COMPLETADA):** `src/components/feedback/install-pwa-prompt.tsx`, preview
+  determinista en `src/app/visual-lab/lab-client.tsx`, pruebas en
+  `tests/components/install-pwa-prompt.test.tsx` y `tests/e2e/pwa-prompt.spec.ts`.
 - **Tokens de diseño:** `src/styles/globals.css` (`@theme`: paleta, radios, tipografía,
   keyframes, safe-areas, utilidades `dish-*`/`.leaf`).
 - **Contenido comercial:** `src/config/restaurant.ts`.
@@ -253,15 +267,15 @@ ejecutada** (es la escena 11).
 - **Qué NO tocar:** rutas, stores, lógica de negocio, View Transition names, flujos de pago,
   el morph de la escena 7 ni la conservación de estado de la escena 8.
 
-### Escena 10 — Prompt PWA
-- **Objetivo:** rediseñar el prompt de instalación en el lenguaje visual del contrato (§ prompt PWA),
-  conservando su lógica (retraso, rechazo 30 días, detección standalone).
-- **Archivo inicial:** `src/components/feedback/install-pwa-prompt.tsx`.
-- **Pruebas relacionadas:** `tests/components/install-pwa-prompt.test.tsx`, `misc.spec.ts` (PWA/SEO).
-- **Criterios:** mantener las 4 pruebas de componente; no cachear rutas prohibidas en `sw.js`;
-  a11y y reduced motion; evidencia.
-- **Qué NO tocar:** el service worker salvo lo estrictamente visual del prompt; la lógica de
-  elegibilidad.
+### Escena 10 — Prompt PWA (COMPLETADA 2026-07-13)
+- **Implementación:** `install-pwa-prompt.tsx` conserva el evento real, retraso de 12 s,
+  aplazamiento de 30 días y standalone; añade `appinstalled`, bloqueo de doble `prompt()`,
+  Escape y exclusiones de ruta. Visual Lab reproduce visible/cerrado/aceptado/rechazado/
+  standalone/no compatible sin disparar el navegador.
+- **Convivencia:** por encima de navegación móvil con 14 px; oculto en CTA/flujos especiales.
+  No se modificaron SW, manifest, rutas, stores ni CTAs.
+- **Validación:** typecheck/lint/build, Vitest 7/7, PWA E2E 6× Chromium + 6× WebKit,
+  reduced motion, Axe y consola verdes. Evidencia `scene10-pwa-*` inspeccionada.
 
 ### Escena 11 — Validación global, comparaciones "after" y cierre
 - **Objetivo:** correr la SUITE GLOBAL, generar las comparaciones "after" lado a lado de todas
@@ -274,7 +288,14 @@ ejecutada** (es la escena 11).
 
 ---
 
-## 10. Punto exacto de continuación (actualizado tras escena 9)
+## 10. Punto exacto de continuación (actualizado tras escena 10)
+
+- **Siguiente tarea:** escena 11, validación global y cierre; no rediseñar ni repetir escenas.
+- **Primeros comandos:** confirmar puertos 3005/3100 libres, `npm run check` y `npm run test:e2e`.
+- **Después:** generar e inspeccionar comparaciones after de todas las escenas y actualizar el cierre.
+- **Estado PWA:** código y evidencia de escena 10 sin commit, listos para revisión.
+
+### Instrucciones históricas de escena 10
 
 - **Primer archivo a leer:** `src/components/feedback/install-pwa-prompt.tsx` (y el contrato
   §9 en `references/analysis/VISUAL_CONTRACT.md`).
@@ -291,7 +312,7 @@ ejecutada** (es la escena 11).
 
 ---
 
-## 11. Prompt inicial para Codex (listo para copiar)
+## 11. Prompt inicial para Codex (histórico; sustituido por la continuación de escena 11)
 
 ```
 Trabaja en el rediseño visual de Restaurante2.0 (C:\Users\alex\Desktop\Restaurante2.0).

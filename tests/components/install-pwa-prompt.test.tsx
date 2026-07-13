@@ -4,7 +4,7 @@ import { InstallPwaPrompt } from "@/components/feedback/install-pwa-prompt";
 import { renderWithProviders } from "./render";
 
 type InstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
+  prompt: ReturnType<typeof vi.fn>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
@@ -14,87 +14,117 @@ function dispatchInstallEvent(outcome: "accepted" | "dismissed" = "accepted") {
     prompt: vi.fn().mockResolvedValue(undefined),
     userChoice: Promise.resolve({ outcome }),
   });
-  act(() => {
-    window.dispatchEvent(event);
-  });
+  act(() => window.dispatchEvent(event));
+  return event;
+}
+
+function showPrompt(outcome: "accepted" | "dismissed" = "accepted") {
+  const event = dispatchInstallEvent(outcome);
+  act(() => vi.advanceTimersByTime(12_000));
   return event;
 }
 
 describe("InstallPwaPrompt", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-13T12:00:00Z"));
     window.localStorage.clear();
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
-  it("no se muestra sin evento de instalación válido", () => {
+  it("no aparece sin evidencia de instalación ni en standalone", () => {
     renderWithProviders(<InstallPwaPrompt />);
-    act(() => {
-      vi.advanceTimersByTime(30_000);
-    });
-    expect(screen.queryByRole("dialog", { name: "Instalar aplicación" })).not.toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(30_000));
+    expect(screen.queryByRole("region", { name: /pide más rápido/i })).not.toBeInTheDocument();
   });
 
-  it("espera un tiempo prudente tras el evento antes de mostrarse", () => {
+  it("captura beforeinstallprompt y aparece solo tras los 12 segundos", () => {
     renderWithProviders(<InstallPwaPrompt />);
-    dispatchInstallEvent();
-
-    // Inmediatamente después del evento NO aparece (no interrumpe).
-    expect(screen.queryByRole("dialog", { name: "Instalar aplicación" })).not.toBeInTheDocument();
-
-    act(() => {
-      vi.advanceTimersByTime(12_000);
-    });
-    expect(screen.getByRole("dialog", { name: "Instalar aplicación" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Instalar aplicación" })).toBeInTheDocument();
+    const event = dispatchInstallEvent();
+    expect(event.defaultPrevented).toBe(true);
+    expect(screen.queryByRole("region", { name: /pide más rápido/i })).not.toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(11_999));
+    expect(screen.queryByRole("region", { name: /pide más rápido/i })).not.toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(1));
+    expect(screen.getByRole("region", { name: /pide más rápido/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Instalar" })).toBeInTheDocument();
   });
 
-  it("se puede cerrar y recuerda el rechazo", () => {
+  it("invoca prompt una sola vez y oculta al aceptar", async () => {
+    renderWithProviders(<InstallPwaPrompt />);
+    const event = showPrompt("accepted");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Instalar" }));
+      fireEvent.click(screen.getByRole("button", { name: "Instalar" }));
+      await Promise.resolve();
+    });
+    expect(event.prompt).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("region", { name: /pide más rápido/i })).not.toBeVisible();
+  });
+
+  it("recuerda el rechazo manual durante 30 días y vuelve a ser elegible después", () => {
     const { unmount } = renderWithProviders(<InstallPwaPrompt />);
-    dispatchInstallEvent();
-    act(() => {
-      vi.advanceTimersByTime(12_000);
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "Cerrar aviso de instalación" }));
+    showPrompt();
+    fireEvent.click(screen.getByRole("button", { name: "Ahora no" }));
     expect(window.localStorage.getItem("rb-pwa-dismissed")).toBeTruthy();
 
-    // Nueva visita: con el rechazo reciente ya no vuelve a aparecer.
     unmount();
+    const recentVisit = renderWithProviders(<InstallPwaPrompt />);
+    showPrompt();
+    expect(screen.queryByRole("region", { name: /pide más rápido/i })).not.toBeInTheDocument();
+
+    vi.setSystemTime(new Date("2026-08-13T12:00:01Z"));
+    recentVisit.unmount();
     renderWithProviders(<InstallPwaPrompt />);
-    dispatchInstallEvent();
-    act(() => {
-      vi.advanceTimersByTime(30_000);
-    });
-    expect(screen.queryByRole("dialog", { name: "Instalar aplicación" })).not.toBeInTheDocument();
+    showPrompt();
+    expect(screen.getByRole("region", { name: /pide más rápido/i })).toBeInTheDocument();
   });
 
-  it("no aparece cuando la aplicación ya está instalada (standalone)", () => {
-    const original = window.matchMedia;
-    Object.defineProperty(window, "matchMedia", {
-      writable: true,
-      value: vi.fn().mockImplementation((query: string) => ({
-        matches: query.includes("display-mode: standalone"),
-        media: query,
-        onchange: null,
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      })),
+  it("guarda el rechazo del diálogo nativo y se cierra con Escape o appinstalled", async () => {
+    const initialVisit = renderWithProviders(<InstallPwaPrompt />);
+    showPrompt("dismissed");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Instalar" }));
+      await Promise.resolve();
     });
+    expect(window.localStorage.getItem("rb-pwa-dismissed")).toBeTruthy();
 
+    initialVisit.unmount();
+    window.localStorage.clear();
+    const escapeVisit = renderWithProviders(<InstallPwaPrompt />);
+    showPrompt();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.getByRole("region", { name: /pide más rápido/i })).not.toBeVisible();
+
+    escapeVisit.unmount();
     renderWithProviders(<InstallPwaPrompt />);
-    dispatchInstallEvent();
-    act(() => {
-      vi.advanceTimersByTime(30_000);
-    });
-    expect(screen.queryByRole("dialog", { name: "Instalar aplicación" })).not.toBeInTheDocument();
+    showPrompt();
+    act(() => window.dispatchEvent(new Event("appinstalled")));
+    expect(screen.queryByRole("region", { name: /pide más rápido/i })).not.toBeInTheDocument();
+  });
 
-    Object.defineProperty(window, "matchMedia", { writable: true, value: original });
+  it("no aparece cuando la aplicación ya está instalada", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockImplementation((query: string) => ({ matches: query.includes("standalone") })),
+    );
+    renderWithProviders(<InstallPwaPrompt />);
+    showPrompt();
+    expect(screen.queryByRole("region", { name: /pide más rápido/i })).not.toBeInTheDocument();
+  });
+
+  it("expone solo en preview los estados controlados del visual lab", () => {
+    const onPreviewStateChange = vi.fn();
+    const { rerender } = renderWithProviders(
+      <InstallPwaPrompt previewState="visible" onPreviewStateChange={onPreviewStateChange} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Instalar" }));
+    expect(onPreviewStateChange).toHaveBeenCalledWith("accepted");
+    rerender(<InstallPwaPrompt previewState="standalone" onPreviewStateChange={onPreviewStateChange} />);
+    expect(screen.queryByRole("region", { name: /pide más rápido/i })).not.toBeInTheDocument();
   });
 });

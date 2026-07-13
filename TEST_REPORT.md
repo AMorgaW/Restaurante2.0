@@ -2,6 +2,15 @@
 
 Fecha de la verificación final: **2026-07-11** · Entorno: Windows 10, Node 22.18, npm 10.9.
 
+> **Adenda — escena 10, prompt PWA (2026-07-13):** `npm run typecheck`, `npm run lint`,
+> Vitest dirigido `tests/components/install-pwa-prompt.test.tsx` (**7/7**), y `npm run build`
+> finalizaron en 0. `pwa-prompt.spec.ts` finalizó **6/6 mobile-chromium** y **6/6
+> mobile-webkit**, en serie por el ciclo global de hidratación/evento. Incluye `prompt()` único,
+> rechazo/recarga, `appinstalled`, standalone, rutas excluidas, teclado, reduced motion, Axe
+> sin critical/serious, consola limpia y ausencia de scroll horizontal. WebKit cubre el evento
+> sintético; no ofrece `beforeinstallprompt` nativo, por lo que el fallback real es no mostrar
+> prompt. Build: 43 rutas. Suite E2E global no ejecutada (reservada para escena 11).
+
 > **Adenda — sesión de calibración de movimiento (2026-07-11, tarde)**: ver la
 > sección “Sesión de movimiento” al final; incluye los resultados de la
 > re-verificación tras los cambios de animación.

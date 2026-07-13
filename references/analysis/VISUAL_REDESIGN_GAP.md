@@ -42,7 +42,7 @@ implementación agrupa el trabajo en 11 escenas; el mapeo y el estado real:
 | 9 Tarjeta → Detalle ("LA MÁS CRÍTICA") | impl. 7 (morph View Transitions) | ✅ RESUELTA (morph del disco compartido; sin doble imagen ni flash) |
 | 11 Regreso | impl. 8 (regreso y conservación de estado) | ✅ RESUELTA (filtros/scroll/no-reanimación; fallback de "Volver" endurecido). Nota: restauración de scroll HORIZONTAL de carruseles descartada por frágil (DECISIONS §45) |
 | 12 Navegación inferior | impl. 9 | ✅ RESUELTA (píldora flotante, indicador activo visible y separación de CTA) |
-| 13 Prompt PWA | impl. 10 | ⏳ PENDIENTE |
+| 13 Prompt PWA | impl. 10 | ✅ RESUELTA (superficie editorial no modal, rutas excluidas y separación de navegación/CTA) |
 | Validación global / cierre "after" | impl. 11 | ⏳ PENDIENTE |
 
 Evidencia "after" por escena en `artifacts/visual-comparison/work/` (scene5-*,
@@ -293,11 +293,14 @@ ocultamiento en desktop.
 
 ## Escena 13 — Prompt PWA
 
-Sin equivalente en el video. Reglas actuales (12 s + evento real + rechazo
-30 días + standalone) son correctas; el rediseño solo lo re-estiliza al
-lenguaje nuevo y se verifica que no tape CTA/nav/buscador. En visual-lab y
-capturas queda suprimido vía `rb-pwa-dismissed`.
-**Prioridad:** baja.
+✅ **RESUELTA en la escena 10.** Sin equivalente en el video, por lo que se mantuvo el
+contrato funcional y se rediseñó solo la superficie: panel navy translúcido, icono, CTA y
+posposición, no modal. Se muestra únicamente después de `beforeinstallprompt` real + 12 s;
+el rechazo usa `rb-pwa-dismissed` por 30 días y standalone no muestra aviso. Queda 14 px
+encima de la navegación flotante y se excluye de admin, lab, offline, carrito, detalle,
+checkout y pedido. Visual Lab lo reproduce de forma controlada. Evidencia inspeccionada:
+`artifacts/visual-comparison/work/scene10-pwa-*` (320/390/430, desktop, ocultamientos,
+entrada, cierre y reduced motion).
 
 ---
 
