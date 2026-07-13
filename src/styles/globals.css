@@ -1,0 +1,304 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Tokens de diseño — identidad "app gastronómica premium".
+   Toda la paleta se centraliza aquí; cambiar un valor aquí
+   actualiza la aplicación completa.
+   ============================================================ */
+@theme {
+  /* Paleta semántica */
+  --color-background: #020118; /* fondo azul marino muy oscuro */
+  --color-background-secondary: #020228;
+  --color-surface: #031c80; /* superficies azul cobalto */
+  --color-surface-elevated: #082a8f;
+  --color-panel: #031f78; /* panel inferior */
+  --color-action: #fdf501; /* botones de acción amarillos */
+  --color-action-foreground: #111111;
+  --color-lime: #b7ff3c; /* acento lima */
+  --color-foreground: #ffffff;
+  --color-muted: #b6bfdc; /* texto secundario */
+  --color-faint: rgba(182, 191, 220, 0.65);
+  --color-border-soft: rgba(255, 255, 255, 0.1);
+  --color-border-strong: rgba(255, 255, 255, 0.22);
+  --color-success: #34d399;
+  --color-error: #fb7185;
+  --color-warning: #fb923c; /* diferenciado del amarillo CTA */
+  --color-overlay: rgba(2, 1, 24, 0.72);
+
+  /* Radios */
+  --radius-card: 1.5rem; /* 24px — tarjetas */
+  --radius-chip: 1.375rem; /* 22px — chips */
+  --radius-button: 1.125rem; /* 18px — botones */
+  --radius-sheet: 1.75rem; /* 28px — panel inferior */
+
+  /* Tipografía */
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Breakpoint extra para teléfonos medianos */
+  --breakpoint-xs: 25rem; /* 400px */
+
+  /* Sombras suaves sobre navy */
+  --shadow-card: 0 10px 30px -12px rgba(0, 0, 20, 0.55);
+  --shadow-sheet: 0 -18px 50px -20px rgba(0, 0, 20, 0.8);
+  --shadow-glow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 18px 40px -18px rgba(8, 42, 143, 0.9);
+
+  /* Animaciones utilitarias */
+  --animate-skeleton: skeleton-pulse 1.6s ease-in-out infinite;
+  --animate-fade-in: fade-in 240ms ease-out both;
+  --animate-overlay-in: fade-in 200ms ease-out both;
+  --animate-dialog-in: dialog-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-sheet-in: sheet-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @keyframes skeleton-pulse {
+    0%,
+    100% {
+      opacity: 0.55;
+    }
+    50% {
+      opacity: 0.9;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+  @keyframes sheet-in {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+}
+
+/* Con movimiento reducido, los paneles aparecen sin desplazamiento. */
+@media (prefers-reduced-motion: reduce) {
+  [data-state="open"] {
+    animation-duration: 1ms !important;
+  }
+}
+
+/* ============================================================
+   Base
+   ============================================================ */
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+  /* Evita scroll horizontal global sin romper position: sticky */
+  overflow-x: clip;
+  /* Nunca mostrar blanco durante el primer paint (arranque en frío). */
+  background-color: var(--color-background);
+}
+
+/*
+ * Anti-destello del onboarding: un script inline en <head> añade esta
+ * clase ANTES del primer paint cuando la bienvenida aún no se ha visto
+ * (solo en la ruta raíz); el gate la retira al montar el overlay.
+ */
+html.onb-pending body {
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  min-height: 100dvh;
+  overflow-x: clip;
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Foco visible de alto contraste en toda la aplicación */
+:focus-visible {
+  outline: 2px solid var(--color-lime);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+::selection {
+  background: var(--color-action);
+  color: var(--color-action-foreground);
+}
+
+/* Scrollbars discretos en superficies con scroll interno */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(182, 191, 220, 0.35) transparent;
+}
+
+/* ============================================================
+   Utilidades de safe-area (notch / barras del sistema)
+   ============================================================ */
+.safe-top {
+  padding-top: max(env(safe-area-inset-top), 0px);
+}
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+}
+.safe-x {
+  padding-left: max(env(safe-area-inset-left), 0px);
+  padding-right: max(env(safe-area-inset-right), 0px);
+}
+/* Altura de la navegación inferior + safe area, para compensar contenido */
+.pb-bottom-nav {
+  padding-bottom: calc(4.75rem + max(env(safe-area-inset-bottom), 0px));
+}
+
+/* Oculta scrollbar en carruseles horizontales controlados */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Tipografía fluida para títulos de tarjeta (nunca por debajo de 16px) */
+.text-card-title {
+  font-size: clamp(1rem, 0.92rem + 0.5vw, 1.125rem);
+  line-height: 1.35;
+}
+.text-screen-title {
+  font-size: clamp(1.625rem, 1.35rem + 1.4vw, 2rem);
+  line-height: 1.15;
+}
+.text-hero-title {
+  font-size: clamp(2rem, 1.6rem + 2.2vw, 2.5rem);
+  line-height: 1.1;
+}
+
+/* ============================================================
+   Lenguaje circular de platos (VISUAL_CONTRACT §0)
+   La foto vive en un disco: viñeta radial que funde el borde con
+   el navy, sombra de suspensión y halo de acento por plato.
+   ============================================================ */
+.dish-circle {
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+  /* Aísla el transform de zoom del propio pop de carga de la imagen */
+  transform: translateZ(0);
+}
+.dish-circle::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+/* Héroes (onboarding, home, detalle): fusión fuerte con el fondo */
+.dish-circle-strong::after {
+  background: radial-gradient(
+    closest-side,
+    transparent 55%,
+    rgba(2, 1, 24, 0.38) 82%,
+    rgba(2, 1, 24, 0.9) 100%
+  );
+}
+/* Filas y tarjetas: fusión suave (el plato se lee más completo) */
+.dish-circle-soft::after {
+  background: radial-gradient(
+    closest-side,
+    transparent 66%,
+    rgba(2, 1, 24, 0.2) 88%,
+    rgba(2, 1, 24, 0.5) 100%
+  );
+}
+/* Halo ambiental (el color se asigna inline por plato) */
+.dish-halo {
+  position: absolute;
+  inset: -16%;
+  border-radius: 9999px;
+  pointer-events: none;
+}
+/* Sombra elíptica de apoyo bajo el disco (sin filtros animables) */
+.dish-ground {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 74%;
+  height: 30px;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(0, 0, 14, 0.6), transparent 72%);
+  pointer-events: none;
+}
+/* Hojas decorativas orgánicas (onboarding/héroes) */
+.leaf {
+  display: block;
+  border-radius: 62% 38% 55% 45% / 55% 45% 62% 38%;
+  background: linear-gradient(135deg, var(--color-lime), #3f8a33);
+}
+.leaf-warm {
+  background: linear-gradient(135deg, var(--color-action), #d97b1f);
+}
+
+/* ============================================================
+   View Transitions (transición compartida tarjeta → detalle)
+   ============================================================ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 260ms;
+}
+
+/* Morph del disco compartido (foto de la tarjeta → héroe del detalle): más
+   largo que el crossfade del fondo y con desaceleración suave, para que la
+   fotografía sea el elemento dominante del viaje. El universal (*) cubre el
+   único grupo `dish-<slug>` activo por documento sin conocer el slug — el
+   prefijo `dish-*` NO es sintaxis válida de View Transitions. El grupo `root`
+   es estático (no cambia de tamaño), así que esta duración no lo altera; su
+   fundido real lo fijan las reglas ::view-transition-old/new(root) de arriba.
+   Halo, anillo y sombra del detalle son hermanos del disco (no llevan name):
+   entran con el crossfade del fondo, no viajan con el morph. */
+::view-transition-group(*) {
+  animation-duration: 470ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/* ============================================================
+   Skeletons — sin shimmer agresivo, respetando reduced motion
+   ============================================================ */
+.skeleton {
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.07) 0%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.07) 100%
+  );
+  animation: var(--animate-skeleton);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    opacity: 0.7;
+  }
+}

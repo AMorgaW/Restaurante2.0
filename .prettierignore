@@ -1,0 +1,12 @@
+node_modules
+.next
+out
+public/generated
+artifacts
+playwright-report
+test-results
+coverage
+src/data/generated
+package-lock.json
+*.md
+supabase/migrations

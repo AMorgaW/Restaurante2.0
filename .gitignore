@@ -1,0 +1,37 @@
+# Dependencias
+node_modules/
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Builds y cachés
+*.tsbuildinfo
+coverage/
+
+# Pruebas
+playwright-report/
+test-results/
+artifacts/
+
+# Entorno (nunca subir secretos)
+.env*
+!.env.example
+
+# Logs y procesos temporales
+*.log
+logs/
+*.pid
+*.pid.lock
+
+# Temporales y caches locales
+*.tmp
+*.temp
+tmp/
+temp/
+.cache/
+
+# Sistema
+.DS_Store
+Thumbs.db
