@@ -163,7 +163,7 @@ body {
 }
 /* Altura de la navegación inferior + safe area, para compensar contenido */
 .pb-bottom-nav {
-  padding-bottom: calc(4.75rem + max(env(safe-area-inset-bottom), 0px));
+  padding-bottom: calc(5.5rem + max(env(safe-area-inset-bottom), 0px));
 }
 
 /* Oculta scrollbar en carruseles horizontales controlados */

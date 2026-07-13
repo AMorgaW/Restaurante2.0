@@ -62,6 +62,13 @@ describe("BottomNavigation", () => {
       expect(screen.getByLabelText("3 productos en el carrito")).toBeInTheDocument();
     });
   });
+
+  it("permite previsualizar cada destino activo sin cambiar rutas", () => {
+    renderWithProviders(<BottomNavigation activePathname="/reservar" previewCartCount={2} />);
+    expect(screen.getByRole("link", { name: "Reservar" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Inicio" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByLabelText("2 productos en el carrito")).toBeInTheDocument();
+  });
 });
 
 describe("ReservationForm", () => {

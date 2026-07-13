@@ -41,7 +41,7 @@ implementación agrupa el trabajo en 11 escenas; el mapeo y el estado real:
 | 10 Detalle | impl. 6 (detalle inmersivo) | ✅ RESUELTA |
 | 9 Tarjeta → Detalle ("LA MÁS CRÍTICA") | impl. 7 (morph View Transitions) | ✅ RESUELTA (morph del disco compartido; sin doble imagen ni flash) |
 | 11 Regreso | impl. 8 (regreso y conservación de estado) | ✅ RESUELTA (filtros/scroll/no-reanimación; fallback de "Volver" endurecido). Nota: restauración de scroll HORIZONTAL de carruseles descartada por frágil (DECISIONS §45) |
-| 12 Navegación inferior | impl. 9 | ⏳ PENDIENTE |
+| 12 Navegación inferior | impl. 9 | ✅ RESUELTA (píldora flotante, indicador activo visible y separación de CTA) |
 | 13 Prompt PWA | impl. 10 | ⏳ PENDIENTE |
 | Validación global / cierre "after" | impl. 11 | ⏳ PENDIENTE |
 

@@ -35,6 +35,13 @@ const SCENES: Array<{ id: SceneId; label: string }> = [
 ];
 
 const WIDTHS = [320, 390, 430] as const;
+const NAV_PREVIEW_PATHS = [
+  { path: "/", label: "Inicio" },
+  { path: "/menu", label: "Menú" },
+  { path: "/buscar", label: "Buscar" },
+  { path: "/reservar", label: "Reservar" },
+  { path: "/carrito", label: "Carrito" },
+] as const;
 
 /**
  * Cliente del laboratorio visual. Cada escena monta los componentes REALES
@@ -56,6 +63,7 @@ export function VisualLabClient({
   const [reduced, setReduced] = useState(false);
   const [replayKey, setReplayKey] = useState(0);
   const [sceneDone, setSceneDone] = useState(false);
+  const [navPreviewPath, setNavPreviewPath] = useState("/");
   const [elapsed, setElapsed] = useState(0);
   const startRef = useRef(0);
 
@@ -280,11 +288,34 @@ export function VisualLabClient({
             ) : null}
 
             {scene === "nav" ? (
-              <div className="flex h-full flex-col justify-end pb-0">
-                <p className="p-4 text-[12px] text-muted">
-                  Navegación inferior (estado activo según la ruta actual).
-                </p>
-                <BottomNavigation />
+              <div className="flex h-full flex-col justify-between p-4 pb-24">
+                <div>
+                  <p className="text-[12px] leading-relaxed text-muted">
+                    Vista previa aislada: píldora activa, contador y movimiento de la navegación móvil.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Estado activo de navegación">
+                    {NAV_PREVIEW_PATHS.map((item) => (
+                      <button
+                        key={item.path}
+                        type="button"
+                        aria-pressed={navPreviewPath === item.path}
+                        onClick={() => setNavPreviewPath(item.path)}
+                        className={
+                          navPreviewPath === item.path
+                            ? "h-9 rounded-chip bg-action px-3 text-[12px] font-bold text-action-foreground"
+                            : "h-9 rounded-chip border border-border-soft bg-white/6 px-3 text-[12px] font-semibold text-muted"
+                        }
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <BottomNavigation
+                  activePathname={navPreviewPath}
+                  previewCartCount={3}
+                  ariaLabel="Vista previa de navegación"
+                />
               </div>
             ) : null}
 

@@ -135,3 +135,22 @@ contador, opacidad final), sin sleeps largos ni timeouts inflados.
 - Suite E2E global completa (`npm run test:e2e` = build + chromium + webkit + desktop en secuencia).
 - `screenshots.spec.ts` (40 capturas), `a11y.spec.ts` completo por todas las rutas, `console.spec.ts`, `desktop.spec.ts` como barrido global.
 - Comparaciones "after" de fidelidad visual global.
+
+---
+
+## Adenda — rediseño visual, escena 9 (2026-07-13)
+
+| Verificación | Resultado |
+|---|---|
+| Typecheck + lint + build | ✅ |
+| Componentes afectados | ✅ `navigation-and-forms.test.tsx` 6/6 |
+| Navegación Chromium | ✅ `navigation.spec.ts` 5/5 |
+| Navegación WebKit | ✅ `navigation.spec.ts` 5/5 |
+| Reduced motion | ✅ incluido en ambos motores |
+| Axe y consola dirigidos | ✅ 16/16 Chromium, 0 critical/serious y 0 errores |
+
+`navigation.spec.ts` verifica los cinco destinos, `aria-current` único, teclado e historial,
+targets de 64 px, separación CTA/nav, badge, ausencia de scroll horizontal, favoritos sin
+destino activo y ocultación en detalle/checkout/admin. `/visual-lab` usa exclusivamente una
+vista previa aislada. Evidencia inspeccionada: siete PNG, dos WEBM y dos hojas de contacto
+`scene9-nav-*` en `artifacts/visual-comparison/work/`. La suite E2E global no se ejecutó.

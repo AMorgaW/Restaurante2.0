@@ -16,7 +16,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <SkipLink />
       <OfflineBanner />
       <MobileHeader />
-      <main id="contenido" className="mx-auto w-full max-w-6xl flex-1 md:px-6">
+      <main id="contenido" className="mx-auto w-full max-w-6xl flex-1 pb-bottom-nav md:px-6 md:pb-0">
         {children}
       </main>
       <div className="pb-bottom-nav md:pb-0">

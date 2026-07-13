@@ -1,8 +1,27 @@
 # CODEX_HANDOFF — Traspaso del rediseño visual de Restaurante2.0
 
 Documento **autocontenido**: permite continuar el rediseño sin leer conversaciones
-previas. Creado 2026-07-13, al cerrar la **escena 8**. Próxima tarea: **escena 9
-(navegación inferior flotante)**.
+previas. Actualizado 2026-07-13, al cerrar la **escena 9**. Próxima tarea: **escena 10
+(prompt PWA)**.
+
+> **Actualización 2026-07-13 — escena 9 cerrada.** La próxima tarea es la escena 10
+> (prompt PWA); no repetir las escenas 1–9. La barra móvil es una píldora flotante
+> de 64 px, `inset-x: 12 px`, `bottom: 10 px + safe-area`, `bg-panel/92`, blur
+> ligero, borde soft y `shadow-sheet`. El indicador usa `layoutId="bottom-nav-active-pill"`
+> con spring suave y transición corta bajo reduced motion.
+>
+> **Visibilidad:** home, menú, buscar, reservas y carrito la muestran; favoritos la
+> muestra sin ítem activo (no es uno de los cinco destinos); detalle, checkout y pedido
+> la ocultan por el grupo `(flow)`; administración usa su shell propio; `/visual-lab`
+> monta solo una vista previa aislada; escritorio la oculta; standalone/PWA hereda la
+> misma safe area. El CTA del carrito queda 8 px por encima de la barra; el prompt PWA
+> continúa por encima de ella y no se modificó en esta escena.
+>
+> **Validación:** typecheck, lint, build, Vitest dirigido (6), `navigation.spec.ts`
+> 5×chromium + 5×webkit (incluido reduced motion), axe y consola dirigidos verdes.
+> Evidencia inspeccionada: `scene9-nav-{home-320,home-390,menu-430,favorites-390,cart-count-390,detail-390,desktop}.png`,
+> `scene9-nav-tabs-390.webm` y `scene9-nav-reduced-motion-390.webm` en
+> `artifacts/visual-comparison/work/`. La suite E2E global sigue pendiente para escena 11.
 
 ---
 
@@ -70,8 +89,8 @@ el estado real del código manda sobre cualquier documento.
 | 6 | Detalle inmersivo (héroe circular) | ✅ COMPLETADA |
 | 7 | Transición tarjeta → detalle (morph View Transitions) | ✅ COMPLETADA |
 | 8 | Regreso y conservación de estado | ✅ COMPLETADA |
-| 9 | Navegación inferior flotante | ⏳ PENDIENTE (siguiente) |
-| 10 | Prompt PWA | ⏳ PENDIENTE |
+| 9 | Navegación inferior flotante | ✅ COMPLETADA |
+| 10 | Prompt PWA | ⏳ PENDIENTE (siguiente) |
 | 11 | Validación global, comparación "after", cierre | ⏳ PENDIENTE |
 
 Verificación dirigida más reciente (2026-07-13): typecheck ✓, lint ✓, vitest **135/135**,
@@ -107,7 +126,7 @@ ejecutada** (es la escena 11).
 - **Regreso (8):** `src/app/layout.tsx` (`ENTRY_HISTORY_SCRIPT`: marca la longitud de
   historial de entrada de la pestaña). `product-detail-screen.tsx` (`goBack` compara
   contra esa marca). `tests/e2e/state-back.spec.ts` (NUEVO), `scripts/capture-scene8.ts` (NUEVO).
-- **Nav inferior (9, PENDIENTE):** `src/components/navigation/bottom-navigation.tsx`.
+- **Nav inferior (9, COMPLETADA):** `src/components/navigation/bottom-navigation.tsx` (píldora flotante, indicador `layoutId`, badge y vista previa aislada del lab).
 - **PWA (10, PENDIENTE):** `src/components/feedback/install-pwa-prompt.tsx`.
 - **Tokens de diseño:** `src/styles/globals.css` (`@theme`: paleta, radios, tipografía,
   keyframes, safe-areas, utilidades `dish-*`/`.leaf`).
@@ -218,7 +237,7 @@ ejecutada** (es la escena 11).
 
 ## 9. Próximas fases para Codex
 
-### Escena 9 — Navegación inferior flotante
+### Escena 9 — Navegación inferior flotante (COMPLETADA 2026-07-13)
 - **Objetivo:** convertir la barra inferior en FLOTANTE según contrato §7: inset-x 12 px,
   bottom 10 px + safe area, alto 64 px, radio 999, `bg-panel/92` + blur sm + borde soft +
   sombra sheet; 5 ítems (Inicio/Menú/Buscar/Reservar/Carrito) con icono 24 + etiqueta 10–11 px;
@@ -255,20 +274,20 @@ ejecutada** (es la escena 11).
 
 ---
 
-## 10. Punto exacto de continuación
+## 10. Punto exacto de continuación (actualizado tras escena 9)
 
-- **Primer archivo a leer:** `src/components/navigation/bottom-navigation.tsx` (y el contrato
-  §7 en `references/analysis/VISUAL_CONTRACT.md`).
+- **Primer archivo a leer:** `src/components/feedback/install-pwa-prompt.tsx` (y el contrato
+  §9 en `references/analysis/VISUAL_CONTRACT.md`).
 - **Primer comando:** `npm run build` y luego `npm run start:e2e` (prod en :3100) para revisión
   visual — o `npm run dev` (:3005). Antes: comprobar que :3100/:3005 estén libres.
 - **Prueba dirigida inicial (baseline antes de tocar):**
-  `npx tsc --noEmit && npx eslint . && npx vitest run` (debe dar 135/135) y, tras build,
+  `npx tsc --noEmit && npx eslint . && npx vitest run` y, tras build,
   `npx playwright test misc.spec.ts a11y.spec.ts --project=mobile-chromium`.
 - **Puerto recomendado:** 3100 (producción) para captura/E2E; 3005 para `dev`.
-- **Condición para empezar la escena 9:** baseline verde reproducido (typecheck/lint/vitest/build)
+- **Condición para empezar la escena 10:** baseline verde reproducido (typecheck/lint/vitest/build)
   y :3100 libre.
-- **NO repitas las escenas 1–8** (ya completadas y validadas). Trabaja SOLO la escena 9;
-  detente antes de la 10.
+- **NO repitas las escenas 1–9** (ya completadas y validadas). Trabaja SOLO la escena 10;
+  detente antes de la 11.
 
 ---
 

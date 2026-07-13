@@ -1,13 +1,13 @@
 # HANDOFF — Estado final del proyecto
 
 Fecha base: **2026-07-11** · Sesión: verificación final, depuración y cierre.
-Actualización: **2026-07-13** · Rediseño visual en curso (escenas 1–8 de 11 completadas).
+Actualización: **2026-07-13** · Rediseño visual en curso (escenas 1–9 de 11 completadas).
 
 ## Estado exacto
 
 **FUNCIONALIDAD: COMPLETA Y VERDE.** Las 13 fases del prompt maestro están implementadas y verificadas. Todos los comandos de verificación funcional terminaron con código de salida 0. No quedan tareas requeridas pendientes ni `TODO` en funcionalidades exigidas.
 
-**REDISEÑO VISUAL: escenas 1–8 completadas y validadas (traspaso a Codex).** El rediseño mobile-first (contrato `references/analysis/VISUAL_CONTRACT.md`) va por: 1–2 onboarding/splash ✅ · 3–4 home editorial ✅ · 5 tarjetas+menú ✅ · 6 detalle inmersivo ✅ · 7 transición tarjeta→detalle (morph View Transitions) ✅ · 8 regreso y conservación de estado ✅ · **pendientes: 9 nav inferior flotante, 10 prompt PWA, 11 validación global**. La lógica de negocio (carrito/checkout/reservas/modificadores/stores/Supabase/API) NO se ha tocado. **Documento de traspaso autocontenido: `CODEX_HANDOFF.md` (raíz).** Detalle por escena: `VISUAL_REDESIGN_HANDOFF.md`. Última verificación dirigida (2026-07-13): typecheck ✓, lint ✓, vitest 135/135, build ✓, e2e dirigidas de escenas 7–8 verdes en chromium+webkit; suite E2E global aún NO ejecutada (es la escena 11).
+**REDISEÑO VISUAL: escenas 1–9 completadas y validadas (traspaso a Codex).** El rediseño mobile-first (contrato `references/analysis/VISUAL_CONTRACT.md`) va por: 1–2 onboarding/splash ✅ · 3–4 home editorial ✅ · 5 tarjetas+menú ✅ · 6 detalle inmersivo ✅ · 7 transición tarjeta→detalle (morph View Transitions) ✅ · 8 regreso y conservación de estado ✅ · 9 navegación inferior flotante ✅ · **pendientes: 10 prompt PWA, 11 validación global**. La lógica de negocio (carrito/checkout/reservas/modificadores/stores/Supabase/API) NO se ha tocado. **Documento de traspaso autocontenido: `CODEX_HANDOFF.md` (raíz).** Detalle por escena: `VISUAL_REDESIGN_HANDOFF.md`. Última verificación dirigida (2026-07-13): typecheck ✓, lint ✓, pruebas de componente ✓, build ✓, e2e de navegación 5×(chromium+webkit), axe y consola verdes; suite E2E global aún NO ejecutada (es la escena 11).
 
 ## Datos del menú
 

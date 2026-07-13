@@ -246,8 +246,8 @@ export function CartScreen({ menuItems }: { menuItems: MenuItem[] }) {
         <CartSummary totals={totals} fulfillmentType={fulfillmentType} />
       </section>
 
-      {/* CTA fijo sobre la navegación inferior */}
-      <div className="fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 border-t border-border-soft bg-panel/95 px-4 py-3 backdrop-blur-sm md:static md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+      {/* CTA fijo separado de la navegación flotante por 8 px. */}
+      <div className="fixed inset-x-0 bottom-[calc(5.125rem+env(safe-area-inset-bottom))] z-30 px-4 py-3 md:static md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
         <div className="mx-auto max-w-lg md:max-w-none">
           <Button
             fullWidth
