@@ -1,6 +1,21 @@
 # VISUAL_REDESIGN_HANDOFF — Traspaso para trabajo visual
 
-Fecha original: 2026-07-11. Última actualización: **2026-07-13 (escenas 1–10 completadas; próxima: 11 validación global — ver `CODEX_HANDOFF.md`)**.
+- **Mantenimiento 2026-07-21 (no es escena):** se reconstruyó y validó el grafo completo
+  del proyecto en `graphify-out/` sin modificar código funcional. Cubre 248/248 archivos
+  seleccionados y produce 1.112 nodos, 2.532 aristas y 91 comunidades; excluye capturas,
+  logs, temporales y salidas de herramientas. Ver `CODEX_HANDOFF.md` y
+  `graphify-out/GRAPH_REPORT.md` para el alcance y la advertencia de integridad del extractor.
+
+- **Corrección 2026-07-14:** la ruta `/` se separó del shell comercial; `inicio.png` sigue
+  estática, visible y sin View Transition/layout animation. Durante hidratación o redirect se
+  monta navy de viewport completo, nunca body oculto ni main vacío. No se rediseñaron tarjetas,
+  colores, rutas comerciales ni flujos.
+
+- **DECISIÓN DE PRODUCTO 2026-07-14 (no es escena 12):** onboarding estático de una sola composición con `inicio.png` inmóvil, sin carrusel ni puntos; entrada declarativa breve con fallback reduced motion. Al completar, conserva `rb-onboarding` y entra directamente a `/menu`. Se desmontó la navegación inferior y su reserva de safe-area; menú conserva buscador, chips, contador y Recomendados. `MenuDishRow` adopta superficie cobalto viva, radios orgánicos y halo suave; el morph tarjeta→detalle se conserva sin duplicar `viewTransitionName`.
+
+Fecha original: 2026-07-11. Última actualización: **2026-07-13 (escenas 1–11 completadas; rediseño cerrado — ver `CODEX_HANDOFF.md`)**.
+
+- **ESCENA 11 (VALIDACIÓN GLOBAL Y CIERRE) COMPLETADA (2026-07-13):** checkpoint previo `929e2de Escena 10 prompt PWA`. Typecheck/lint ✓; Vitest **14 archivos / 139 pruebas** ✓; build de producción **43 rutas** ✓; E2E global: **80/80 Chromium**, **65/65 WebKit + 1 omitida** (Tab es comportamiento de plataforma WebKit) y **3/3 desktop**. El único retry inicial de WebKit (diálogo de cancelación de reserva) no se reprodujo: spec aislada 3/3 y proyecto WebKit completo con `--retries=0` verdes. Reduced motion, Axe sin critical/serious y consola ✓. Evidencia final inspeccionada: 44 PNG en `after/screens`, 14 before/after en `after/side-by-side` y 9 `.webm` + 9 hojas de contacto con 12 muestras distribuidas en `after/videos`. No se rediseñó ni alteró lógica de negocio; no hay regresiones bloqueantes. PWA no cuenta con before equivalente y conserva su evidencia after de escena 10.
 
 - **ESCENA 10 (PROMPT PWA) COMPLETADA Y VALIDADA (2026-07-13):** `install-pwa-prompt.tsx` conserva el contrato real: captura `beforeinstallprompt`, `preventDefault`, retraso de 12 s, única llamada a `prompt()`, `userChoice`, evento `appinstalled`, standalone y aplazamiento de 30 días en `localStorage["rb-pwa-dismissed"]`. Es una superficie editorial no modal con icono, texto breve, CTA y posposición; en móvil queda 14 px sobre la píldora de escena 9 y respeta safe area. Está excluida de admin, visual-lab, offline, carrito, detalle, checkout y pedido; home/menú/buscar/favoritos/reservas son elegibles. Sin almacenamiento el rechazo dura el montaje; WebKit no aporta evento nativo y se mantiene oculto en producción. Visual Lab monta estados deterministas aislados. Pruebas: typecheck/lint/build ✓; Vitest 7/7; `pwa-prompt.spec.ts` 6×chromium + 6×webkit, reduced motion, Axe y consola ✓. Evidencia inspeccionada: `scene10-pwa-*` (8 PNG, 3 webm y 3 hojas de contacto). Suite E2E global no ejecutada.
 
@@ -9,7 +24,7 @@ Fecha original: 2026-07-11. Última actualización: **2026-07-13 (escenas 1–10
 ## 0. PUNTO DE REANUDACIÓN ACTUAL (2026-07-12)
 
 - **Fase 0 completada.** Baseline verificado: el primer `npm run check` falló por typecheck en `tests/e2e/reduced-motion.spec.ts` (Playwright instalado 1.61.1 vía `^1.50.0` ya no expone `reducedMotion` como test option directa). Arreglo aplicado: `test.use({ contextOptions: { reducedMotion: "reduce" } })` (+ comentario). Segundo `npm run check` → **exit 0** (generate 6/6 → lint limpio → typecheck limpio → vitest 133/133 → build 42/42). No re-ejecutar el baseline completo sin causa; pruebas dirigidas por escena.
-- Sigue **sin repositorio Git** (verificado 2026-07-12).
+- Histórico (2026-07-12): aún no existía repositorio Git; hoy existe el checkpoint local `929e2de`.
 - **Análisis del video hecho con fotogramas reales** (no solo docs): recortes de la zona del teléfono generados en `references/analysis/keyframes/phone-crops/` (16+ PNG, cajas por segmento porque la cámara se mueve). Estructura de referencia confirmada: onboarding (navy + plato circular grande arriba + hojas flotando + título con palabra lima + CTA amarillo presente desde el inicio) → CTA → pausa navy → splash (marca circular céntrica, bloom) → home (saludo grande "Hello, World 👋", chips emoji Popular/Healthy/Soup, contador "10 Recipes", **lista vertical** con foto circular grande a la izquierda solapando tarjeta y texto a la derecha: tag lima + nombre + snippet gris) → tap: **la foto circular viaja sola al top-center sobre fondo vacío** → detalle (título arriba, foto circular con anillo, fila stats 650/30/40 kcal-protein-prep, chips de ingredientes píldora) → regreso restaura lista. **El video NO muestra buscador ni bottom nav** (diseñarlos en el mismo lenguaje).
 - **Las 6 fotos inspeccionadas** (todas con marca de agua dreamstime — registrar en GAP): ternera (113 chars) y falda casi cenitales = mejores héroes circulares; cebolleta = plato oscuro que funde con navy; sopa limpia sobre blanco; arroz-amarillo ¾ brillante; plato-de-carne closeup lateral. Estrategia elegida: **máscara circular CSS + object-position/scale por plato + viñeta radial de fusión a navy + halo tenue** (sin nuevos binarios; `public/generated/editorial/` solo si hiciera falta).
 - Paleta actual (`globals.css @theme`) ya coincide con el video (navy #020118, amarillo #fdf501, lima #b7ff3c): **la brecha es de composición, no de color**.
@@ -55,9 +70,9 @@ Fecha original: 2026-07-11. Última actualización: **2026-07-13 (escenas 1–10
   - **Pruebas verdes:** typecheck ✓, lint ✓, vitest **135/135**, build ✓; e2e — nuevo `state-back.spec.ts` **6×(chromium+webkit)** (búsqueda+categoría+orden+scroll con atrás del navegador; favoritos→detalle→volver; URL directa→fallback /menu; botón Volver interno; no-reanimación+sin-skeletons; reduced motion) + `detail.spec` **7×2** + `transition.spec` **3×2**, todo verde. NO se corrió la suite global (es la escena 11).
   - **Evidencia cinética inspeccionada** (fotograma a fotograma en las hojas de contacto, muestreo `fps=3` que cubre TODO el viaje): `artifacts/visual-comparison/work/scene8-{menu-state-back,menu-scroll-back,home-back,favorites-back,reduced-motion,menu-state-back-webkit}-390.webm` + `-sheet.png` + `scripts/capture-scene8.ts`. Confirmado: filtros/búsqueda/contador ("5 platos") restaurados; scroll profundo restaurado (no salta al tope); favoritos vuelve a /favoritos con el plato (skeleton SOLO en la primera hidratación real, no al volver); home intacto sin re-coreografía; héroe único, sin flash ni imagen duplicada; consola limpia en la captura.
   - **Notas menores no bloqueantes:** (1) el carrusel de destacados del home vuelve a su inicio al regresar (restauración horizontal descartada, ver arriba). (2) El scroll vertical se restaura a la posición que el contenido permite (si el filtro activo acorta la lista, la posición se acota) — comportamiento nativo esperado. (3) Diagnóstico dev-only de hidratación en MenuGrid bajo reduced motion sigue vigente (DECISIONS §41, no visible en producción).
-- **PRÓXIMO: Escena 11 — VALIDACIÓN GLOBAL (traspaso a Codex).** Ejecutar únicamente el cierre definido en `CODEX_HANDOFF.md`: suite global, comparaciones after y documentación final. No rediseñar nuevas escenas. No quedan servidores background activos (3005/3100 libres).
+- **ESTADO ACTUAL: rediseño visual cerrado.** La continuación es mantenimiento ordinario. No quedan servidores background activos (3005/3100 libres).
 
-Fecha: 2026-07-11. Solo hechos verificados (comandos ejecutados e inspeccionados). El rediseño visual en código **aún no ha empezado** (nada público modificado salvo el fix de la prueba).
+Instantánea histórica de 2026-07-11: solo hechos verificados (comandos ejecutados e inspeccionados). En ese momento el rediseño visual en código **aún no había empezado**.
 
 ## 1–2. Estado del repositorio, rama y git status
 
@@ -150,3 +165,54 @@ Para ver la app: `npm run dev` (o `npm run build && npm run start`). Suite compl
 - **Ninguno.** Todas las verificaciones de la última cadena terminaron con exit 0 y la documentación está sincronizada (TEST_REPORT, HANDOFF, DECISIONS, GAP_ANALYSIS).
 - Residuo menor no bloqueante: los `page@*.webm` duplicados en `reports/app-before|app-after` pueden borrarse sin pérdida (los flujos nombrados son las copias canónicas).
 - Recordatorio ya documentado: sin Git no hay red de seguridad para el rediseño — inicializarlo primero.
+
+## 16. Actualización 2026-07-21 — interfaz ABC
+
+Se completó una integración visual coherente entre portada, catálogo editorial
+y detalle de producto. La portada usa la imagen existente en una composición
+ovalada/orbital; la cabecera del menú organiza marca, usuario futuro, búsqueda,
+categorías y orden; las filas conservan fotos circulares solapadas y el nombre
+de transición `dish-<slug>`; el detalle revela progresivamente modificadores y
+notas mediante `details/summary`, sin alterar validación, importes o carrito.
+
+Archivos principales de esta iteración:
+
+- `src/components/onboarding/onboarding-screen.tsx`
+- `src/components/navigation/user-entry-button.tsx`
+- `src/components/layout/mobile-header.tsx`
+- `src/components/menu/{menu-explorer,search-field,category-chips,menu-dish-row}.tsx`
+- `src/components/product/product-detail-screen.tsx`
+- `src/styles/globals.css`
+- pruebas dirigidas en `tests/e2e/`
+
+La evidencia canónica está en
+`artifacts/visual-comparison/work/interface-abc-redesign/`. Se inspeccionaron
+los estados before/after y se validaron 320×568, 390×844, 430×932, 625×795,
+768×900, 1260×800 y 1440×1000. Chromium y WebKit pasaron sin retries; axe no
+reportó violaciones critical/serious y la auditoría de runtime no encontró
+errores de consola, hidratación, `pageerror` ni fallos de red inesperados.
+
+## 17. Escena servicio–menú–detalle cerrada (2026-07-21)
+
+Las dos referencias adjuntas gobiernan esta iteración: se trasladaron al menú la jerarquía
+navy/cobalto/lima, el selector de servicio no interactivo, el bloque compacto de sopas, las
+fotografías circulares solapadas y las acciones amarillas; al detalle, el hero rectangular,
+la jerarquía nombre/precio/cantidad, el selector compacto de sopa, el resumen y la CTA estable.
+No se copiaron controles ajenos al producto ni se reemplazaron las seis imágenes existentes.
+
+La fuente temporal es `src/lib/menu/service-period.ts` y la actualización cliente está en
+`src/hooks/use-service-period.ts`. `America/Bogota` define almuerzo 07:00–16:59:59, cena
+17:00–21:59:59 y cerrado 22:00–06:59:59. El catálogo y el detalle reciben snapshot SSR y se
+actualizan automáticamente en el próximo límite. Las sopas se derivan de los productos reales
+con `src/lib/menu/included-soups.ts`; no se duplican nombres ni precios.
+
+El detalle ya no consulta relacionados ni crea término, extras o notas para nuevas órdenes.
+Almuerzo serializa exactamente una opción de `included-lunch-soup` (incluido `no-soup`) con
+precio cero; cena serializa una lista de modificadores vacía. Cerrado desactiva la CTA sin borrar
+el carrito existente. El resultado compacto de 320×568 conserva targets ≥44 px y 0 px de
+overflow horizontal; requiere 97 px de recorrido vertical y, al final, el resumen queda 19 px
+por encima de la CTA fija. Se conservan capturas separadas del estado inicial y del resumen.
+
+Evidencia canónica: `artifacts/visual-comparison/work/service-menu-redesign/`. Pruebas y
+comandos completos: última adenda de `TEST_REPORT.md`. Escena completada; detenerse antes de
+iniciar cualquier otra.

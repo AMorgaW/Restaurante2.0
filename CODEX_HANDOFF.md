@@ -1,8 +1,36 @@
 # CODEX_HANDOFF — Traspaso del rediseño visual de Restaurante2.0
 
+> **Mantenimiento 2026-07-21 — grafo completo reconstruido (no es una escena):**
+> `graphify-out/` contiene `graph.json`, `graph.html` y `GRAPH_REPORT.md` para un corpus
+> filtrado de **248 archivos** (`src`, `tests`, `public`, `scripts`, configuración,
+> Supabase, `AGENTS.md` y documentación). Validación: **248/248 fuentes cubiertas**, sin
+> fugas desde dependencias, builds, reportes, capturas, logs ni temporales; **1.112 nodos**,
+> **2.532 aristas** y **91 comunidades** etiquetadas. Se instaló el extra SQL de Graphify
+> para incluir las dos migraciones. El diagnóstico conserva una advertencia honesta de
+> **337 aristas colgantes** y **9 pares colapsados** del extractor; no hay endpoints
+> ausentes ni self-loops. Benchmark: **7,9× menos tokens por consulta**. No se modificó
+> código funcional ni se abrió una escena nueva.
+
+> **Decisión de producto 2026-07-14 — onboarding → menú:** no existe escena 12. La raíz es exclusivamente el onboarding de primera visita (`rb-onboarding`); `Comenzar` persiste el estado y navega a `/menu`, y las visitas recurrentes se reemplazan a esa ruta. `images/inicio.png` es estática, no participa en View Transitions ni carruseles. La barra inferior dejó de montarse y el menú concentra búsqueda, categorías, contador y Recomendados; rutas comerciales siguen disponibles por enlaces contextuales. Las filas usan el token cobalto vivo y la transición tarjeta→detalle continúa con el nombre único `dish-<slug>`.
+
 Documento **autocontenido**: permite continuar el rediseño sin leer conversaciones
-previas. Actualizado 2026-07-13, al cerrar la **escena 10**. Próxima tarea: **escena 11
-(validación global)**.
+previas. Actualizado 2026-07-13, con las **escenas 1–11 cerradas**. Próxima tarea:
+**mantenimiento ordinario**.
+
+> **Cierre 2026-07-13 — escena 11 completada.** Checkpoint de escena 10:
+> `929e2de Escena 10 prompt PWA`; base validada en `master`. Validación final: typecheck y
+> lint limpios; Vitest **14 archivos / 139 pruebas**; build de **43 rutas**; E2E global:
+> **80/80 Chromium**, **65/65 WebKit + 1 skip histórico justificado**, y **3/3 desktop**.
+> La primera pasada WebKit tuvo un retry de reserva no reproducible; `reservation.spec.ts`
+> 3/3 aislada y el proyecto WebKit completo con `--retries=0` terminaron verdes. Axe no
+> registra critical/serious y consola/page errors están limpios según sus specs. No hubo cambios
+> de producto en escena 11.
+>
+> **Evidencia final inspeccionada:** 44 PNG after en `artifacts/visual-comparison/after/screens`,
+> 14 comparaciones before/after en `after/side-by-side`, y 9 videos consolidados con hojas de
+> contacto de 12 muestras distribuidas en `after/videos`. El inventario reutiliza capturas
+> globales de carrito/checkout/reservas/errores y los estados finales de detalle, nav y PWA de
+> escenas 6–10; PWA no tiene referencia before equivalente. Puertos 3005/3100 libres.
 
 > **Actualización 2026-07-13 — escena 10 cerrada, sin commit.** El prompt PWA es una
 > superficie editorial no modal que solo aparece tras `beforeinstallprompt` real, espera
@@ -33,9 +61,19 @@ previas. Actualizado 2026-07-13, al cerrar la **escena 10**. Próxima tarea: **e
 > 5×chromium + 5×webkit (incluido reduced motion), axe y consola dirigidos verdes.
 > Evidencia inspeccionada: `scene9-nav-{home-320,home-390,menu-430,favorites-390,cart-count-390,detail-390,desktop}.png`,
 > `scene9-nav-tabs-390.webm` y `scene9-nav-reduced-motion-390.webm` en
-> `artifacts/visual-comparison/work/`. La suite E2E global sigue pendiente para escena 11.
+> `artifacts/visual-comparison/work/`. En aquel cierre histórico la suite E2E global seguía
+> pendiente para escena 11.
 
 ---
+
+> **CorrecciÃ³n 2026-07-14 â€” regresiÃ³n de onboarding cerrada.** `/` vive ahora en
+> `src/app/page.tsx`, fuera de `(shell)`: no monta `AppShell`, `MobileHeader`, footer ni
+> padding comercial. `OnboardingGate` espera `rb-onboarding` con `hasHydrated` real de
+> Zustand y renderiza una superficie navy completa mientras hidrata o redirige. `Comenzar`
+> persiste y hace `replace("/menu")` con bloqueo contra doble activaciÃ³n. WebKit usa el
+> fallback nativo de router porque su View Transition deja la navegaciÃ³n pendiente; Chromium
+> conserva View Transitions. Evidencia nueva: `artifacts/screenshots/onboarding-{320x568,
+> 390x844,430x932,1440x1000}.png` y `onboarding-menu-{after-start,returning}-390x844.png`.
 
 ## 1. Proyecto
 
@@ -103,11 +141,11 @@ el estado real del código manda sobre cualquier documento.
 | 8 | Regreso y conservación de estado | ✅ COMPLETADA |
 | 9 | Navegación inferior flotante | ✅ COMPLETADA |
 | 10 | Prompt PWA | ✅ COMPLETADA |
-| 11 | Validación global, comparación "after", cierre | ⏳ PENDIENTE (siguiente) |
+| 11 | Validación global, comparación "after", cierre | ✅ COMPLETADA |
 
-Verificación dirigida más reciente (2026-07-13): typecheck ✓, lint ✓, vitest **135/135**,
-build ✓, e2e de escenas 7–8 verdes en chromium+webkit. **Suite E2E global aún NO
-ejecutada** (es la escena 11).
+Verificación global más reciente (2026-07-13): typecheck ✓, lint ✓, Vitest **139/139**,
+build ✓, Chromium **80/80**, WebKit **65/65 + 1 skip histórico**, desktop **3/3**;
+reduced motion, Axe y consola ✓.
 
 ---
 
@@ -207,8 +245,8 @@ ejecutada** (es la escena 11).
 - **Patrón anti-carrera de hidratación:** en WebKit, antes de la 1.ª interacción de una
   página espera una señal observable (o `expect(async () => {…}).toPass()`), nunca timeouts
   arbitrarios (DECISIONS §33).
-- **Pendiente para la escena 11:** suite E2E GLOBAL (`npm run test:e2e`), `screenshots.spec.ts`
-  completo, barrido axe/consola/desktop global, comparación "after" lado a lado.
+- **Cierre escena 11:** suite E2E GLOBAL, `screenshots.spec.ts`, Axe/consola/desktop y
+  comparaciones after ejecutados e inspeccionados; no queda una escena posterior.
 
 ---
 
@@ -277,9 +315,14 @@ ejecutada** (es la escena 11).
 - **Validación:** typecheck/lint/build, Vitest 7/7, PWA E2E 6× Chromium + 6× WebKit,
   reduced motion, Axe y consola verdes. Evidencia `scene10-pwa-*` inspeccionada.
 
-### Escena 11 — Validación global, comparaciones "after" y cierre
-- **Objetivo:** correr la SUITE GLOBAL, generar las comparaciones "after" lado a lado de todas
-  las escenas, verificar fidelidad frame a frame y cerrar el rediseño.
+### Escena 11 — Validación global, comparaciones "after" y cierre (COMPLETADA 2026-07-13)
+- **Resultado:** `npm run typecheck`, `npm run lint`, Vitest 14/139, build 43 rutas y
+  `npm run test:e2e` verdes: 80 Chromium, 65 WebKit + 1 skip histórico y 3 desktop.
+  Repetición WebKit sin retries: 65/65 + 1 skip.
+- **Evidencia:** 44 capturas after, 14 comparaciones y 9 videos/9 hojas de contacto en
+  `artifacts/visual-comparison/after/`; inspeccionados en móvil, desktop, reduced motion y WebKit.
+- **Nota menor:** el build mantiene el aviso informativo del nombre comercial de 113 caracteres;
+  su render responsive está cubierto por pruebas. No hay regresiones bloqueantes.
 - **Comandos:** `npm run check` + `npm run test:e2e` (build + 3 motores en secuencia) +
   scripts de comparación (`scripts/capture-visual-comparison.ts`, `compose-side-by-side.ts`).
 - **Criterios:** todo verde sin reintentos; 0 violaciones axe critical/serious; consola limpia;
@@ -288,12 +331,11 @@ ejecutada** (es la escena 11).
 
 ---
 
-## 10. Punto exacto de continuación (actualizado tras escena 10)
+## 10. Punto exacto de continuación (actualizado tras escena 11)
 
-- **Siguiente tarea:** escena 11, validación global y cierre; no rediseñar ni repetir escenas.
-- **Primeros comandos:** confirmar puertos 3005/3100 libres, `npm run check` y `npm run test:e2e`.
-- **Después:** generar e inspeccionar comparaciones after de todas las escenas y actualizar el cierre.
-- **Estado PWA:** código y evidencia de escena 10 sin commit, listos para revisión.
+- **Siguiente tarea:** mantenimiento ordinario; no hay una escena 12.
+- **Base de cierre:** `929e2de` sobre `b816970` y `eb6d6b7`.
+- **Reverificación recomendada:** `npm run check` y `npm run test:e2e` con 3005/3100 libres.
 
 ### Instrucciones históricas de escena 10
 
@@ -315,6 +357,24 @@ ejecutada** (es la escena 11).
 ## 11. Prompt inicial para Codex (histórico; sustituido por la continuación de escena 11)
 
 ```
+
+---
+
+## Corrección localizada posterior: árbol real de `/menu`
+
+- `MenuGrid` conserva `MenuDishRow` en todos los tamaños: una columna hasta
+  1023 px y dos columnas desde `lg`; no existe un render alternativo de `FoodCard`.
+- `BottomNavigation` no tiene consumidor; `AppShell` no la monta.
+- Evidencia revisada: `artifacts/visual-comparison/work/menu-real-layout-fix/`.
+- Verificado: `npm run build`, `npm run lint`, `npm run typecheck` y Playwright
+  dirigido Chromium 11/11 y WebKit 10/10 + 1 skip de captura, sin retries.
+
+### Estabilización posterior de portada
+
+- `OnboardingScreen()` no acepta callbacks: navega internamente a `/menu` con
+  `router.push` y bloqueo temporal del CTA.
+- La portada se compone en flujo normal (marca, imagen, contenido) y su evidencia
+  está en `artifacts/visual-comparison/work/landing-runtime-layout-fix/`.
 Trabaja en el rediseño visual de Restaurante2.0 (C:\Users\alex\Desktop\Restaurante2.0).
 
 1. Lee CODEX_HANDOFF.md completo y verifica el estado real del código (no asumas).
@@ -336,3 +396,66 @@ Trabaja en el rediseño visual de Restaurante2.0 (C:\Users\alex\Desktop\Restaura
    VISUAL_REDESIGN_GAP.md y CODEX_HANDOFF.md, deja los servidores detenidos, y
    DETENTE antes de la escena 10.
 ```
+
+---
+
+## Integración visual ABC — portada, menú y detalle (COMPLETADA 2026-07-21)
+
+- **Alcance:** mejora exclusivamente presentacional de `/`, `/menu` y
+  `/plato/[slug]`; no se modificaron datos de platos, contratos, stores
+  comerciales, servicios, Supabase, PWA, paquetes, autenticación ni sesiones.
+- **Portada:** composición responsive editorial, fotografía ovalada con halo,
+  anillo y arco lima, separador alineado, CTA con estados accesibles y entrada
+  visual de usuario sin navegación ni lógica de sesión.
+- **Menú:** el mismo control de usuario en cabecera; título, buscador, chips,
+  contador y ordenamiento organizados como un sistema; `MenuDishRow` conserva
+  su estructura horizontal y `dish-<slug>`, con foto circular decorada, panel
+  realzado y microinteracciones de transform/opacity.
+- **Detalle:** cantidad y validación comercial intactas; personalizaciones y
+  notas dentro de `details/summary` semántico. Los grupos obligatorios abren la
+  sección inicialmente y las selecciones persisten al cerrarla.
+- **Reduced motion:** sin stagger ni escalado no esencial; se corrigió la
+  reconciliación SSR de chips para que nunca permanezcan en `opacity: 0`.
+- **Pruebas:** typecheck, lint, build y `git diff --check` verdes; Vitest dirigido
+  26/26; Playwright dirigido Chromium y WebKit con `--retries=0`, incluyendo
+  hidratación en 7 viewports, búsqueda, filtros, orden, favoritos, carrito,
+  detalle, regreso/scroll, View Transitions, axe, consola y reduced motion.
+- **Evidencia inspeccionada:**
+  `artifacts/visual-comparison/work/interface-abc-redesign/` contiene pares
+  before/after de portada y menú, tarjetas normal/hover, detalle inicial,
+  colapsado/expandido, validación y reduced motion.
+- **Integridad protegida:** hash agregado estable
+  `4D43E6FDB9501C0475D1732A6C1BF0DBB87AC3B7EED2F6145FE326F287890E03`.
+- **Nota Git:** el worktree ya contenía numerosos cambios ajenos a esta tarea;
+  se conservaron y no se ejecutaron comandos destructivos, commit ni push.
+
+---
+
+## Escena independiente — servicio, menú y detalle (COMPLETADA 2026-07-21)
+
+- El período comercial se resuelve en `src/lib/menu/service-period.ts` con la zona
+  `America/Bogota`: almuerzo `[07:00,17:00)`, cena `[17:00,22:00)` y cerrado el resto.
+  Las páginas entregan un snapshot SSR y `useServicePeriod` sincroniza el reloj cliente y
+  programa el siguiente límite, sin derivar `Date` dentro del JSX ni crear mismatch.
+- `/menu` no permite cambiar el servicio: almuerzo muestra platos secos y el banner de sopas
+  reales; cena elimina toda referencia a sopa; cerrado conserva consulta/favoritos y desactiva
+  nuevas adiciones. Los `+` de almuerzo abren el detalle para decidir la sopa.
+- Todos los platos secos reciben el grupo estable `included-lunch-soup`, construido desde los
+  productos reales de la categoría `sopas`, a precio cero y con `no-soup`. El servidor continúa
+  validando producto, opción y precio mediante su flujo existente. Se retiraron de la fuente de
+  nuevas órdenes los grupos demo de término y extras; el detalle dejó de producir notas.
+- El detalle conserva solo hero `dish-<slug>`, datos esenciales, favorito, cantidad, sopa en
+  almuerzo, resumen y CTA. No renderiza término, notas ni relacionados. En 320×568 conserva
+  opciones ≥44 px y 0 px horizontal; requiere 97 px de scroll vertical y al final deja 19 px
+  entre resumen y CTA. 390×844 y 430×932 caben en una pantalla.
+- Las tarjetas usan vidrio azul teñido y un reflejo CSS de 760 ms, una sola vez por sesión; el
+  retorno no lo repite y reduced motion lo elimina. WebKit usa navegación nativa para evitar el
+  bloqueo conocido de View Transitions; Chromium conserva el morph.
+- Evidencia inspeccionada: `artifacts/visual-comparison/work/service-menu-redesign/` (before +
+  19 PNG after, incluidos almuerzo/cena/cerrado, reflejo, reduced motion y 320→1440).
+- Validación: typecheck, lint y build verdes; Vitest 16 archivos / 153 pruebas; núcleo Playwright
+  Chromium 31/31 y WebKit 29/29 + 2 capturas omitidas intencionalmente; checkout 6/6 por motor;
+  axe/consola 16/16. Todo sin retries. Una combinación WebKit de 36 casos produjo dos fallos por
+  contención; ambos casos pasaron después secuenciales con un worker, sin cambiar timeouts.
+- Estado de continuación: escena cerrada; volver a mantenimiento ordinario. No abrir otra escena
+  como parte de esta tarea. No hubo commit, push, instalación ni cambios de API/Supabase/PWA.

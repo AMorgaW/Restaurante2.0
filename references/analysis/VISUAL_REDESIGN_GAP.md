@@ -1,5 +1,14 @@
 # VISUAL_REDESIGN_GAP — Auditoría before (2026-07-12)
 
+> **Adenda 2026-07-14:** la regresión no era visual: `/` heredaba `(shell)` y el gate devolvía
+> `null` antes de terminar la persistencia de Zustand o durante navegación. Ahora es página
+> independiente con superficie navy plena. Evidencia actual: `artifacts/screenshots/onboarding-*`
+> y `onboarding-menu-*-390x844.png`; el contrato visual de onboarding se conserva.
+
+## Decisión posterior de producto — 2026-07-14 (no escena 12)
+
+El rediseño cerrado de escenas 1–11 se conserva como histórico. Una decisión de producto nueva sustituye la raíz por onboarding estático con `inicio.png` y entrada al menú, elimina la navegación principal inferior y convierte `/menu` en la única sección principal. Búsqueda integrada, chips, contador, Recomendados, carrito/favoritos/rutas comerciales y morph tarjeta→detalle permanecen. Las filas se recalibran a cobalto vivo y no reaniman al regresar; reduced motion conserva visibilidad inmediata.
+
 Comparación real entre el video de referencia (fotogramas en
 `references/analysis/keyframes/phone-crops/`, secuencias t1–t6) y el estado
 actual de la aplicación (build de producción, capturas de viewport en
@@ -43,11 +52,13 @@ implementación agrupa el trabajo en 11 escenas; el mapeo y el estado real:
 | 11 Regreso | impl. 8 (regreso y conservación de estado) | ✅ RESUELTA (filtros/scroll/no-reanimación; fallback de "Volver" endurecido). Nota: restauración de scroll HORIZONTAL de carruseles descartada por frágil (DECISIONS §45) |
 | 12 Navegación inferior | impl. 9 | ✅ RESUELTA (píldora flotante, indicador activo visible y separación de CTA) |
 | 13 Prompt PWA | impl. 10 | ✅ RESUELTA (superficie editorial no modal, rutas excluidas y separación de navegación/CTA) |
-| Validación global / cierre "after" | impl. 11 | ⏳ PENDIENTE |
+| Validación global / cierre "after" | impl. 11 | ✅ RESUELTA (suite global, evidencia after y comparaciones inspeccionadas) |
 
-Evidencia "after" por escena en `artifacts/visual-comparison/work/` (scene5-*,
-scene6-*, scene7-*, scene8-*). La comparación "after" global lado a lado es
-parte de la escena 11.
+Evidencia por escena en `artifacts/visual-comparison/work/` y cierre global en
+`artifacts/visual-comparison/after/`: 44 PNG after, 14 comparaciones y 9 videos con
+hojas de contacto. Escena 11 verificó typecheck/lint, Vitest 139/139, build 43 rutas,
+Chromium 80/80, WebKit 65/65 + 1 omisión de plataforma y desktop 3/3; reduced motion,
+Axe y consola verdes. PWA no tiene before visual equivalente y conserva evidencia after.
 
 ---
 

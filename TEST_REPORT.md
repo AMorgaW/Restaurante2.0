@@ -1,6 +1,29 @@
 # TEST_REPORT — Informe de pruebas (resultados reales)
 
+> **Corrección onboarding 2026-07-14:** typecheck, lint, Vitest (14 archivos / 136 pruebas) y
+> build (43 rutas) verdes. Onboarding: 5/5 sin retries en Chromium y WebKit; navegación 2/2,
+> reduced motion 1/1, Axe+consola 16/16. Evidencia inspeccionada: `artifacts/screenshots/
+> onboarding-{320x568,390x844,430x932,1440x1000}.png` y
+> `onboarding-menu-{after-start,returning}-390x844.png`. La E2E global llegó a 70 verdes antes de
+> fallar fuera de alcance en badge de carrito, foco de skip-link y ChunkLoadError del PWA bajo
+> carga paralela; no se registra como cierre global.
+
+> **Actualización 2026-07-14:** typecheck y lint ✓; Vitest **14 archivos / 136 pruebas** ✓; build ✓ (43 rutas). E2E dirigido de onboarding, menú sin barra, transición tarjeta→detalle y reduced motion: 10/10 Chromium y 10/10 WebKit (el proceso de Playwright demoró su teardown). La primera corrida global fue interrumpida por un `ChunkLoadError` de servidor de pruebas tras su rebuild y una aserción PWA de altura fija, sustituida por `window.innerHeight`; no altera el comportamiento de producción ni se registran resultados globales como cierre histórico.
+
 Fecha de la verificación final: **2026-07-11** · Entorno: Windows 10, Node 22.18, npm 10.9.
+
+> **Cierre global — escena 11 (2026-07-13, commit `929e2de`):** `npm run typecheck` y
+> `npm run lint` terminaron limpios; `npm run test` pasó **14 archivos / 139 pruebas**,
+> sin fallos ni omisiones; `npm run build` pasó con **43 rutas** y shared JS de 102 kB.
+> `npm run test:e2e` ejecutó **80/80 mobile-chromium**, **65/65 mobile-webkit + 1 skip**
+> (Tab es comportamiento del sistema en WebKit) y **3/3 desktop**. La primera pasada
+> WebKit reintentó una cancelación de reserva que no encontró el diálogo: aislada con
+> `--retries=0` pasó 3/3 y el proyecto WebKit completo pasó 65/65 + 1 skip sin retries;
+> no se aplicó cambio de código al no ser reproducible. Axe no tiene critical/serious,
+> consola/page errors están limpios y reduced motion pasa en ambos motores. Evidencia final
+> inspeccionada: 44 PNG after, 14 composiciones y 9 videos con 12 muestras distribuidas.
+> Advertencia no bloqueante: el generador informa el nombre de plato de 113 caracteres; sus
+> pruebas responsive son verdes. Puertos 3005/3100 libres al cierre.
 
 > **Adenda — escena 10, prompt PWA (2026-07-13):** `npm run typecheck`, `npm run lint`,
 > Vitest dirigido `tests/components/install-pwa-prompt.test.tsx` (**7/7**), y `npm run build`
@@ -139,7 +162,7 @@ contador, opacidad final), sin sleeps largos ni timeouts inflados.
 - Escena 7: `artifacts/visual-comparison/work/scene7-*` (home/menu→detail, back, reduced, webkit) + hojas de contacto + `scripts/capture-scene7.ts`.
 - Escena 8: `artifacts/visual-comparison/work/scene8-{menu-state-back,menu-scroll-back,home-back,favorites-back,reduced-motion,menu-state-back-webkit}-390.webm` + `-sheet.png` + `scripts/capture-scene8.ts` (consola limpia durante la captura). Hojas muestreadas a `fps=3` para cubrir todo el viaje abrir→detalle→volver.
 
-### Suites todavía NO ejecutadas (pendientes para la escena 11)
+### Suites todavía NO ejecutadas (histórico, previo a la escena 11)
 
 - Suite E2E global completa (`npm run test:e2e` = build + chromium + webkit + desktop en secuencia).
 - `screenshots.spec.ts` (40 capturas), `a11y.spec.ts` completo por todas las rutas, `console.spec.ts`, `desktop.spec.ts` como barrido global.
@@ -163,3 +186,38 @@ targets de 64 px, separación CTA/nav, badge, ausencia de scroll horizontal, fav
 destino activo y ocultación en detalle/checkout/admin. `/visual-lab` usa exclusivamente una
 vista previa aislada. Evidencia inspeccionada: siete PNG, dos WEBM y dos hojas de contacto
 `scene9-nav-*` en `artifacts/visual-comparison/work/`. La suite E2E global no se ejecutó.
+
+---
+
+## Adenda — servicio, menú y detalle (2026-07-21)
+
+| Verificación | Resultado |
+|---|---|
+| Unitarias/componentes dirigidas | ✅ 4 archivos / 32 pruebas |
+| Vitest global | ✅ 16 archivos / 153 pruebas |
+| Typecheck (`npm run typecheck`) | ✅ limpio |
+| ESLint (`npm run lint`) | ✅ limpio |
+| Build de producción (`npm run build`) | ✅; `/menu`, `/menu/[category]` y `/plato/[slug]` dinámicas |
+| E2E núcleo Chromium, `--retries=0` | ✅ 31/31 |
+| E2E núcleo WebKit, `--retries=0` | ✅ 29/29 + 2 capturas Chromium-only omitidas |
+| Checkout dirigido | ✅ 6/6 Chromium y 6/6 WebKit |
+| Axe + consola Chromium | ✅ 16/16; 0 critical/serious, console/page errors limpios |
+| Detalle 320×568 | ✅ 0 px horizontal; 97 px vertical; resumen con 19 px de separación de CTA; radios ≥44 px |
+| Evidencia | ✅ 6 before + 19 after inspeccionadas |
+
+Cobertura nueva: seis fronteras horarias con reloj inyectado; indicador no interactivo;
+sopas visibles solo en almuerzo; selección real y `Sin sopa`; carrito con opción estable a
+precio cero; cena sin modificadores de sopa; cerrado sin nuevas adiciones; ausencia de término,
+notas y relacionados; unicidad `dish-<slug>`; regreso/scroll; reduced motion; hidratación; siete
+viewports entre 320×568 y 1440×1000. No se usaron retries ni se ampliaron timeouts.
+
+La primera ejecución WebKit reveló un bloqueo de navegación de `next-view-transitions`; se
+reprodujo y corrigió con fallback nativo limitado a WebKit, y la corrida completa posterior quedó
+verde. Un proceso `next dev` huérfano en :3000 estaba escribiendo `.next` durante el build; se
+identificaron y detuvieron únicamente sus PID antes de la validación final. No quedó servidor de
+la tarea deliberadamente activo.
+
+Una corrida combinada de 36 casos WebKit produjo dos fallos bajo contención (prefetch RSC abortado
+y store hidratado tarde). Los dos casos exactos pasaron inmediatamente de forma secuencial con
+`--workers=1 --retries=0` (1/1 + 1/1), sin aumentar timeouts. La política final para WebKit sigue
+siendo secuencial por spec en este host.

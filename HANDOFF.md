@@ -1,13 +1,15 @@
 # HANDOFF — Estado final del proyecto
 
+> **Actualización de producto 2026-07-14:** después del onboarding de primera visita la única sección principal es `/menu`. Las demás rutas comerciales permanecen, pero no hay navegación inferior persistente. El onboarding usa `images/inicio.png` sin animarla; las tarjetas del menú usan azul cobalto semántico y reduced motion muestra el contenido inmediatamente.
+
 Fecha base: **2026-07-11** · Sesión: verificación final, depuración y cierre.
-Actualización: **2026-07-13** · Rediseño visual en curso (escenas 1–10 de 11 completadas).
+Actualización: **2026-07-13** · Rediseño visual cerrado (escenas 1–11 completadas).
 
 ## Estado exacto
 
 **FUNCIONALIDAD: COMPLETA Y VERDE.** Las 13 fases del prompt maestro están implementadas y verificadas. Todos los comandos de verificación funcional terminaron con código de salida 0. No quedan tareas requeridas pendientes ni `TODO` en funcionalidades exigidas.
 
-**REDISEÑO VISUAL: escenas 1–10 completadas y validadas (traspaso a Codex).** El rediseño mobile-first (contrato `references/analysis/VISUAL_CONTRACT.md`) incluye ya el prompt PWA editorial: evento real y retraso de 12 s, aplazamiento de 30 días, standalone, `appinstalled`, rutas excluidas y convivencia 14 px sobre la navegación flotante. Home/menú/buscar/favoritos/reservas son elegibles; carrito/detalle/checkout/pedido/admin/visual-lab no lo son. La lógica de negocio (carrito/checkout/reservas/modificadores/stores/Supabase/API) NO se ha tocado. Última verificación dirigida (2026-07-13): typecheck ✓, lint ✓, Vitest PWA 7/7, build ✓, PWA E2E 6×(chromium+webkit), reduced motion, Axe y consola verdes; evidencia `scene10-pwa-*` inspeccionada. Suite E2E global aún NO ejecutada (escena 11).
+**REDISEÑO VISUAL: escenas 1–11 completadas y validadas.** La lógica de negocio (carrito/checkout/reservas/modificadores/stores/Supabase/API), rutas, SEO, service worker, accesibilidad, reduced motion y View Transitions se conservaron. Cierre global (2026-07-13, commit base `929e2de`): typecheck ✓, lint ✓, Vitest **14/139**, build **43 rutas**, Chromium **80/80**, WebKit **65/65 + 1 omitida por plataforma**, y desktop **3/3**. Reduced motion, Axe sin critical/serious, consola y rutas principales ✓. Un retry WebKit de reserva no se reprodujo en `reservation.spec.ts` ni en la repetición completa sin retries. Evidencia final: 44 PNG after, 14 comparaciones y 9 videos con hojas de contacto en `artifacts/visual-comparison/after/`. No quedan regresiones bloqueantes.
 
 ## Datos del menú
 
@@ -74,7 +76,7 @@ Supabase (migración `0001_initial.sql` con RLS + seed + repositorios tipados + 
 - Métricas Lighthouse no medidas en este entorno (CLS protegido por diseño; JS compartido ~102 kB).
 - Firefox no instalado en el host (cobertura chromium + webkit).
 - Integraciones externas no probadas contra servicios reales (sin credenciales, por diseño del encargo).
-- Sin repositorio Git (nunca existió en la carpeta; inicializarlo es opcional y trivial: `git init && git add -A && git commit`).
+- Nota histórica: el proyecto ya cuenta con repositorio Git local; checkpoint de escena 10 `929e2de`.
 
 ## Siguiente acción
 

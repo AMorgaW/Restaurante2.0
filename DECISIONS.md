@@ -1,5 +1,18 @@
 # DECISIONS — Registro de decisiones técnicas
 
+53. **Raíz independiente e hidratación real del onboarding (2026-07-14)** — `/` se trasladó a
+`src/app/page.tsx`, fuera de `(shell)`. `OnboardingGate` espera `hasHydrated` desde
+`persist.onRehydrateStorage` y siempre pinta navy `min-h-dvh` al hidratar/redirigir. Se retiró
+el script pre-paint que ocultaba el body y su `suppressHydrationWarning`, causa del overlay de
+mismatch. `Comenzar` hace `replace("/menu")`; Chromium conserva View Transitions y WebKit usa
+`useRouter().replace` porque `next-view-transitions` puede dejar la navegación pendiente.
+
+50. **Onboarding único hacia el menú (2026-07-14)** — se reutiliza `rb-onboarding` en `localStorage`; `markSeen()` persiste antes de `useTransitionRouter().push("/menu")` y la raíz recurrente hace `replace("/menu")`. No se crean cookies, backend ni segunda persistencia. `inicio.png` se importa estáticamente desde `images/`, no lleva Motion, transform, hover ni `viewTransitionName`; el generador la ignora como recurso de interfaz.
+
+51. **Sin navegación principal persistente (2026-07-14)** — `AppShell` no monta `BottomNavigation` ni deja `pb-bottom-nav`; la cabecera conserva acciones contextuales de favoritos y carrito. PWA se reposiciona a 14 px + safe area. No se eliminan rutas, stores ni flujos.
+
+52. **Superficie editorial de menú (2026-07-14)** — `--color-menu-card-*` centraliza el cobalto vivo, borde y texto secundario. Filas y skeleton comparten el token; la entrada escalonada solo ocurre en el primer montaje válido de menú y no se repite al volver ni al cambiar filtros.
+
 Cada decisión relevante tomada durante la implementación, con su justificación.
 Formato: fecha · decisión · motivo.
 
@@ -110,3 +123,25 @@ Formato: fecha · decisión · motivo.
 48. **Navegación inferior flotante, contenida por el shell (escena 9)** — la barra móvil es una píldora de 64 px separada de los bordes (`inset-x: 12 px`, `bottom: 10 px + safe-area`) con panel translúcido, blur ligero y sombra. El indicador activo usa `layoutId="bottom-nav-active-pill"` y spring suave; reduced motion conserva el cambio con color/fondo y duración corta. `AppShell` reserva `5.5rem + safe-area` para que ni últimas tarjetas ni formularios queden tapados. El CTA fijo del carrito se coloca 8 px sobre la barra; detalle/checkout/pedido permanecen en `(flow)` sin navegación. Favoritos conserva la barra pero no marca un destino inexistente; administración no la monta; Visual Lab usa props de preview aisladas. No se modificó PWA: su z-index y offset actual la mantienen sobre la barra y fuera de flujos con CTA de detalle.
 
 49. **Prompt PWA editorial por evidencia real (escena 10)** — producción no inventa instalabilidad: solo captura `beforeinstallprompt`, espera 12 s y conserva el evento hasta una única llamada a `prompt()`. `userChoice` aceptado registra analytics; rechazo, Escape o cierre escriben `localStorage["rb-pwa-dismissed"]` por 30 días; sin almacenamiento solo se oculta durante el montaje. `appinstalled` lo elimina. Se excluye de `/admin`, `/visual-lab`, `/offline`, `/carrito`, `/plato`, `/checkout` y `/pedido`; en rutas elegibles queda 14 px por encima de la píldora de escena 9. Standalone se oculta; WebKit carece del evento nativo y por tanto no muestra un prompt falso. El preview determinista se limita a Visual Lab y nunca llama APIs reales.
+
+## 2026-07-21 (servicio automático y menú gastronómico)
+
+50. **Un único reloj zonificado, con snapshot SSR y frontera programada** — `resolveServicePeriod`
+usa `Intl.DateTimeFormat` con `restaurantConfig.timezone` (`America/Bogota`) y segundos exactos:
+`[07:00,17:00)` lunch, `[17:00,22:00)` dinner, resto closed. Las páginas dinámicas entregan el
+snapshot inicial; el hook cliente sincroniza tras montar y agenda el siguiente límite. Así no se
+congela la hora en SSG ni se produce HTML distinto durante hidratación.
+
+51. **Sopa incluida como modificador estable derivado del catálogo real** —
+`included-lunch-soup` se construye desde la categoría `sopas`, con cada opción disponible a cero
+y `no-soup`. Almuerzo obliga a explicitar la decisión en detalle; cena omite el grupo; cerrado no
+admite nuevas líneas. Se reutiliza la validación/recalculado servidor existente y no se cambia API.
+
+52. **Término, extras demo, notas y relacionados fuera del flujo nuevo por su fuente** — los
+grupos demo se eliminaron de `menu-overrides.ts` (no CSS); el detalle no mantiene estado ni envía
+notas y dejó de derivar/renderizar relacionados. Se conserva compatibilidad de tipos y lectura de
+órdenes históricas; solo cambia la creación desde esta experiencia.
+
+53. **Reflejo visual efímero sin estado global** — el vidrio es un panel cobalto translúcido con
+borde, brillo interior y sombra. Un pseudo-elemento recorre el panel 760 ms una sola vez, guardado
+por tarjeta en memoria de sesión; el regreso no lo repite. Reduced motion lo deja estático.
