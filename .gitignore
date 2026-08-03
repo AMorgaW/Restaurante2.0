@@ -26,6 +26,8 @@ logs/
 *.pid.lock
 
 # Temporales y caches locales
+.codex/
+graphify-out/
 *.tmp
 *.temp
 tmp/
