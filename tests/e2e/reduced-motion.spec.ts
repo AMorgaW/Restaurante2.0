@@ -9,18 +9,20 @@ test("reduced motion: flujo completo sin contenido invisible", async ({ page }) 
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
-  const dialog = page.getByRole("dialog", { name: /bienvenida/i });
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: "Explorar menú" }).click();
-  await expect(dialog).toBeHidden({ timeout: 10_000 });
-  await expect(page.getByRole("heading", { name: "¿Qué te gustaría comer hoy?" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Destacados" })).toBeVisible();
-  await expect(page.locator("article").first()).toBeVisible();
-
-  // El catálogo completo (whileInView) vive en /menu tras el rediseño:
-  // la protección contra tarjetas invisibles se verifica allí.
-  await page.getByRole("link", { name: "Ver menú" }).click();
+  const onboarding = page.getByTestId("landing-page");
+  await expect(onboarding).toBeVisible();
+  await expect(onboarding.getByRole("img", { name: /pescado frito/i })).toHaveCSS("transform", "none");
+  await onboarding.getByRole("button", { name: "Comenzar" }).click();
+  await expect(page).toHaveURL(/\/menu$/);
   await expect(page.getByRole("heading", { name: "Menú", exact: true })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Filtrar por categoría" }).locator("..")).toHaveCSS(
+    "opacity",
+    "1",
+  );
+  await expect(page.getByRole("button", { name: "Todas", exact: true }).locator("..")).toHaveCSS(
+    "opacity",
+    "1",
+  );
   await expect(page.locator("article").first()).toBeVisible();
 
   // Tras scrollear hasta el fondo, TODAS las tarjetas quedan reveladas

@@ -21,13 +21,13 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(functi
   const id = providedId ?? generatedId;
 
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("menu-search-field relative rounded-full", className)}>
       <label htmlFor={id} className="sr-only">
         {label}
       </label>
       <Search
         aria-hidden
-        className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-faint"
+        className="pointer-events-none absolute left-[1.125rem] top-1/2 size-5 -translate-y-1/2 text-faint transition-colors duration-200"
       />
       <input
         ref={ref}
@@ -39,8 +39,8 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(functi
         value={value}
         onChange={(event) => onValueChange(event.target.value)}
         className={cn(
-          "h-12 min-h-12 w-full rounded-full border border-border-soft bg-white/6 pl-11 pr-11 text-[15px] text-foreground",
-          "placeholder:text-faint outline-none transition-colors focus:border-lime/60 focus:bg-white/8",
+          "h-14 min-h-14 w-full rounded-full border border-border-soft bg-white/6 pl-12 pr-12 text-[15px] text-foreground",
+          "placeholder:text-faint outline-none transition-[background-color,border-color,box-shadow] duration-200 focus:border-lime/60 focus:bg-white/8 focus:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_12px_30px_-24px_rgba(183,255,60,0.68)]",
           "[&::-webkit-search-cancel-button]:hidden",
         )}
         {...rest}
@@ -50,7 +50,7 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(functi
           type="button"
           aria-label="Limpiar búsqueda"
           onClick={() => onValueChange("")}
-          className="absolute right-2.5 top-1/2 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-muted transition-colors hover:text-foreground"
+          className="absolute right-2 top-1/2 inline-flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-muted transition-[background-color,color,transform] hover:bg-white/14 hover:text-foreground active:scale-95 motion-reduce:active:scale-100"
         >
           <X aria-hidden className="size-4" />
         </button>

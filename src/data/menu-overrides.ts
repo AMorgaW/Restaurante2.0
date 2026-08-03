@@ -29,32 +29,6 @@ export const menuOverrides: Record<string, MenuItemOverride> = {
       "Crema",
       "Lima",
     ],
-    modifierGroups: [
-      {
-        id: "termino",
-        name: "Término de la carne",
-        required: true,
-        minSelections: 1,
-        maxSelections: 1,
-        options: [
-          { id: "medio", name: "Término medio", additionalPrice: 0, available: true },
-          { id: "tres-cuartos", name: "Tres cuartos", additionalPrice: 0, available: true },
-          { id: "bien-asado", name: "Bien asado", additionalPrice: 0, available: true },
-        ],
-      },
-      {
-        id: "extras",
-        name: "Extras",
-        required: false,
-        minSelections: 0,
-        maxSelections: 3,
-        options: [
-          { id: "guacamole-extra", name: "Guacamole extra", additionalPrice: 4000, available: true },
-          { id: "arroz-adicional", name: "Arroz adicional", additionalPrice: 3500, available: true },
-          { id: "tortillas", name: "Porción de tortillas", additionalPrice: 2500, available: true },
-        ],
-      },
-    ],
   },
   "plato-de-carne-asada": {
     featured: true,

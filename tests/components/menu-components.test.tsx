@@ -50,7 +50,7 @@ beforeEach(() => {
 
 describe("MenuDishRow", () => {
   it("muestra nombre, categoría, precio y enlace con el nombre completo", () => {
-    renderWithProviders(<MenuDishRow item={makeItem()} />);
+    renderWithProviders(<MenuDishRow item={makeItem()} servicePeriod="dinner" />);
     expect(screen.getByRole("heading", { name: "Carne asada" })).toBeInTheDocument();
     expect(screen.getByText("Carnes")).toBeInTheDocument();
     expect(screen.getByText(/40\.000/)).toBeInTheDocument();
@@ -69,7 +69,7 @@ describe("MenuDishRow", () => {
 
   it("añade al carrito con la acción rápida (sin modificadores)", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<MenuDishRow item={makeItem()} />);
+    renderWithProviders(<MenuDishRow item={makeItem()} servicePeriod="dinner" />);
     await user.click(screen.getByRole("button", { name: "Añadir Carne asada al carrito" }));
     expect(useCartStore.getState().items).toHaveLength(1);
     // Aparece el toast de confirmación

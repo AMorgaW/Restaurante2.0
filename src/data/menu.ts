@@ -2,6 +2,11 @@ import { menuManifest } from "@/data/generated/menu-manifest";
 import { menuOverrides } from "@/data/menu-overrides";
 import { CATEGORIES, getCategoryBySlug } from "@/lib/menu/categories";
 import { demoDescriptionFor, demoPriceFor } from "@/lib/demo/pricing";
+import {
+  createIncludedLunchSoupGroup,
+  getIncludedLunchSoups,
+  isSoupItem,
+} from "@/lib/menu/included-soups";
 import type { CategoryInfo, MenuItem } from "@/types/menu";
 
 /**
@@ -10,7 +15,7 @@ import type { CategoryInfo, MenuItem } from "@/types/menu";
  * en modo local.
  */
 function buildMenuItems(): MenuItem[] {
-  const items = menuManifest.map((manifestItem, index): MenuItem => {
+  const baseItems = menuManifest.map((manifestItem, index): MenuItem => {
     const override = menuOverrides[manifestItem.slug] ?? {};
     const categorySlug = override.categorySlug ?? manifestItem.categorySlug;
     const fullName = override.fullName ?? manifestItem.fullName;
@@ -42,6 +47,14 @@ function buildMenuItems(): MenuItem[] {
       modifierGroups: override.modifierGroups ?? [],
     };
   });
+
+  const soups = getIncludedLunchSoups(baseItems);
+  const includedSoupGroup = createIncludedLunchSoupGroup(soups);
+  const items = baseItems.map((item) =>
+    isSoupItem(item)
+      ? item
+      : { ...item, modifierGroups: [...item.modifierGroups, includedSoupGroup] },
+  );
 
   return items.sort((a, b) => {
     const categoryA = getCategoryBySlug(a.categorySlug).displayOrder;

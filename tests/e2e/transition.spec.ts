@@ -36,14 +36,6 @@ test.describe("Transición tarjeta → detalle", () => {
       listNames.length,
     );
 
-    await page.goto("/");
-    await expect(page.getByRole("heading", { name: "¿Qué te gustaría comer hoy?" })).toBeVisible();
-    const homeNames = await dishViewTransitionNames(page);
-    expect(homeNames.length).toBeGreaterThan(0);
-    expect(new Set(homeNames).size, `duplicados en /: ${homeNames.join(", ")}`).toBe(
-      homeNames.length,
-    );
-
     await page.goto(`/plato/${SIMPLE_DISH_SLUG}`);
     await expect(page.getByRole("heading", { level: 1, name: SIMPLE_DISH_NAME })).toBeVisible();
     const detailNames = await dishViewTransitionNames(page);

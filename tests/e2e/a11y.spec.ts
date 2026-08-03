@@ -5,6 +5,7 @@ import {
   MODIFIER_DISH_SLUG,
   SIMPLE_DISH_NAME,
   SIMPLE_DISH_SLUG,
+  addSimpleDishToCart,
   skipOnboarding,
 } from "./helpers";
 
@@ -33,7 +34,7 @@ test.describe("Accesibilidad (axe)", () => {
   });
 
   const routes: Array<{ path: string; ready: string }> = [
-    { path: "/", ready: "¿Qué te gustaría comer hoy?" },
+    { path: "/", ready: "Sabores del Sinú en cada bocado" },
     { path: "/menu", ready: "Menú" },
     { path: `/plato/${SIMPLE_DISH_SLUG}`, ready: SIMPLE_DISH_NAME },
     // Detalle con modificadores obligatorios (fieldsets radio/checkbox + badges).
@@ -48,6 +49,10 @@ test.describe("Accesibilidad (axe)", () => {
       await page.goto(route.path);
       // El encabezado evita coincidir con enlaces ocultos de navegación.
       await expect(page.getByRole("heading", { name: route.ready }).first()).toBeVisible();
+      const detailPanel = page.getByTestId("product-info-panel");
+      if ((await detailPanel.count()) > 0) {
+        await expect(detailPanel).toHaveCSS("opacity", "1");
+      }
       // El detalle anima los chips de ingredientes (fade/pop); axe debe medir
       // el estado ASENTADO, no un fotograma intermedio con opacidad reducida.
       const ingredientChips = page.locator('[aria-labelledby="ingredientes-titulo"] li');
@@ -59,16 +64,14 @@ test.describe("Accesibilidad (axe)", () => {
   }
 
   test("sin violaciones críticas en el carrito con productos", async ({ page }) => {
-    await page.goto("/menu");
-    await page.getByRole("button", { name: `Añadir ${SIMPLE_DISH_NAME} al carrito` }).click();
+    await addSimpleDishToCart(page);
     await page.goto("/carrito");
     await expect(page.getByText(SIMPLE_DISH_NAME)).toBeVisible();
     await expectNoSeriousViolations(page, "/carrito");
   });
 
   test("sin violaciones críticas en el checkout", async ({ page }) => {
-    await page.goto("/menu");
-    await page.getByRole("button", { name: `Añadir ${SIMPLE_DISH_NAME} al carrito` }).click();
+    await addSimpleDishToCart(page);
     await page.goto("/checkout");
     await expect(page.getByText("Finalizar pedido")).toBeVisible();
     await expectNoSeriousViolations(page, "/checkout");
@@ -78,7 +81,11 @@ test.describe("Accesibilidad (axe)", () => {
     const context = await browser.newContext();
     const page = await context.newPage();
     await page.goto("/");
-    await expect(page.getByRole("dialog", { name: /bienvenida/i })).toBeVisible();
+    await expect(page.getByTestId("landing-page")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Comenzar" }).locator("..")).toHaveCSS(
+      "opacity",
+      "1",
+    );
     await expectNoSeriousViolations(page, "onboarding");
     await context.close();
   });

@@ -30,13 +30,19 @@ export function CategoryChips({
   const animate = entrance && !reduced;
 
   const chipWrapper = (index: number) =>
-    animate
+    reduced
+      ? {
+          initial: false as const,
+          animate: { opacity: 1, x: 0 },
+          transition: { duration: 0.01 },
+        }
+      : animate
       ? {
           initial: { opacity: 0, x: 24 },
           animate: { opacity: 1, x: 0 },
           transition: {
-            delay: entranceDelay + 0.15 + index * 0.12,
-            duration: 0.25,
+            delay: entranceDelay + 0.1 + index * 0.07,
+            duration: 0.24,
             ease: EASE_OUT,
           },
         }
@@ -49,7 +55,7 @@ export function CategoryChips({
       className="no-scrollbar -mx-4 flex snap-x gap-2 overflow-x-auto px-4 py-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0"
     >
       <m.div {...chipWrapper(0)} className="snap-start">
-        <Chip selected={selected === null} onClick={() => onSelect(null)} className="gap-1.5">
+        <Chip selected={selected === null} onClick={() => onSelect(null)} className="menu-category-chip gap-1.5">
           <span aria-hidden>🍽️</span>
           Todas
         </Chip>
@@ -62,7 +68,7 @@ export function CategoryChips({
               onSelect(category.slug);
               track("select_category", { category: category.slug });
             }}
-            className="gap-1.5"
+            className="menu-category-chip gap-1.5"
           >
             <span aria-hidden>{getCategoryEmoji(category.slug)}</span>
             {category.name}

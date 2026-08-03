@@ -1,106 +1,47 @@
 import { expect, test } from "@playwright/test";
 import { expectNoHorizontalScroll, SIMPLE_DISH_NAME, skipOnboarding } from "./helpers";
 
-const NAV_ITEMS = [
-  { label: "Inicio", path: "/" },
-  { label: "Menú", path: "/menu" },
-  { label: "Buscar", path: "/buscar" },
-  { label: "Reservar", path: "/reservar" },
-  { label: "Carrito", path: "/carrito" },
-] as const;
+test.describe("Menú sin navegación principal persistente", () => {
+  test.beforeEach(async ({ page }) => skipOnboarding(page));
 
-function bottomNav(page: import("@playwright/test").Page) {
-  return page.getByRole("navigation", { name: "Navegación principal" });
-}
-
-test.describe("Navegación inferior flotante", () => {
-  test.beforeEach(async ({ page }) => {
-    await skipOnboarding(page);
-  });
-
-  test("mantiene un único destino activo al navegar por clic", async ({ page }) => {
-    await page.goto("/");
-
-    for (const item of NAV_ITEMS) {
-      const nav = bottomNav(page);
-      await nav.getByRole("link", { name: item.label, exact: true }).click();
-      await expect(page).toHaveURL(item.path === "/" ? /\/$/ : new RegExp(`${item.path}$`));
-      await expect(nav.getByRole("link", { name: item.label, exact: true })).toHaveAttribute(
-        "aria-current",
-        "page",
-      );
-      await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
-      await expect(nav.getByTestId("bottom-nav-active-pill")).toBeVisible();
-      expect(await expectNoHorizontalScroll(page)).toBe(true);
-    }
-  });
-
-  test("funciona con teclado y conserva historial", async ({ page }) => {
-    await page.goto("/");
-    const menuLink = bottomNav(page).getByRole("link", { name: "Menú", exact: true });
-    await menuLink.focus();
-    await expect(menuLink).toBeFocused();
-    await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(/\/menu$/);
-    await page.goBack();
-    await expect(page).toHaveURL(/\/$/);
-    await expect(bottomNav(page).getByRole("link", { name: "Inicio", exact: true })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-  });
-
-  test("respeta geometría, targets y separación del CTA del carrito", async ({ page }) => {
+  test("no monta barra inferior ni reserva espacio vacío", async ({ page }) => {
     await page.goto("/menu");
+    await expect(page.getByRole("navigation", { name: "Navegación principal" })).toHaveCount(0);
+    await expect(page.getByTestId("bottom-nav-active-pill")).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Menú", exact: true })).toBeVisible();
+    await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "instant" }));
+    await expect(page.locator("article").last()).toBeVisible();
+    expect(await expectNoHorizontalScroll(page)).toBe(true);
+  });
+
+  test("conserva buscador, categorías, recomendados y acciones contextuales", async ({ page }) => {
+    // Esta prueba verifica la acción rápida de añadir en el contrato de
+    // cena; en almuerzo el CTA correcto es "Elegir sopa".
+    await page.clock.setFixedTime(new Date("2026-07-21T18:00:00-05:00"));
+    await page.goto("/menu");
+    await expect(page.getByRole("searchbox")).toBeVisible();
+    await expect(page.getByRole("group", { name: "Filtrar por categoría" })).toBeVisible();
+    await expect(page.getByLabel("Ordenar por")).toHaveValue("recomendados");
     await page.getByRole("button", { name: `Añadir ${SIMPLE_DISH_NAME} al carrito` }).click();
-    await page.goto("/carrito");
-
-    const nav = bottomNav(page);
-    await expect(nav.getByLabel("1 producto en el carrito")).toBeVisible();
-    const navBox = await nav.boundingBox();
-    const cartLinkBox = await nav.getByTestId("bottom-nav-carrito").boundingBox();
-    const ctaBox = await page.getByRole("button", { name: "Continuar con el pedido" }).boundingBox();
-    expect(navBox).not.toBeNull();
-    expect(cartLinkBox).not.toBeNull();
-    expect(ctaBox).not.toBeNull();
-    expect(navBox?.x).toBeGreaterThanOrEqual(11);
-    expect(navBox?.height).toBeGreaterThanOrEqual(64);
-    expect(cartLinkBox?.height).toBeGreaterThanOrEqual(44);
-    expect((ctaBox?.y ?? 0) + (ctaBox?.height ?? 0)).toBeLessThanOrEqual((navBox?.y ?? 0) - 7);
-    expect(await expectNoHorizontalScroll(page)).toBe(true);
+    await page.getByRole("link", { name: /ver carrito/i }).click();
+    await expect(page).toHaveURL(/\/carrito$/);
+    await expect(page.getByRole("navigation", { name: "Navegación principal" })).toHaveCount(0);
   });
 
-  test("se oculta en flujos, administración y deja favoritos sin destino activo", async ({ page }) => {
-    await page.goto("/favoritos");
-    await expect(bottomNav(page).locator('[aria-current="page"]')).toHaveCount(0);
-
-    await page.goto("/plato/carne-asada-plato-con-cebolleta");
-    await expect(bottomNav(page)).toHaveCount(0);
-    await page.goto("/checkout");
-    await expect(bottomNav(page)).toHaveCount(0);
-    await page.goto("/admin");
-    await expect(bottomNav(page)).toHaveCount(0);
-    await page.goto("/visual-lab");
-    await page.getByLabel("Escena").selectOption("nav");
-    await expect(page.getByRole("navigation", { name: "Vista previa de navegación" })).toBeVisible();
-    await expect(bottomNav(page)).toHaveCount(0);
-  });
-});
-
-test.describe("Navegación inferior con reduced motion", () => {
-  test.use({ contextOptions: { reducedMotion: "reduce" } });
-
-  test("cambia el destino activo sin ocultar contenido", async ({ page }) => {
-    await skipOnboarding(page);
-    await page.goto("/");
-    const nav = bottomNav(page);
-    await nav.getByRole("link", { name: "Menú", exact: true }).click();
-    await expect(page).toHaveURL(/\/menu$/);
-    await expect(nav.getByRole("link", { name: "Menú", exact: true })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-    await expect(nav.getByTestId("bottom-nav-active-pill")).toBeVisible();
-    expect(await expectNoHorizontalScroll(page)).toBe(true);
+  test("el panel visible de cada plato es azul y no usa borde blanco", async ({ page }) => {
+    await page.goto("/menu");
+    const panel = page.getByTestId("menu-card-panel").first();
+    await expect(panel).toBeVisible();
+    const styles = await panel.evaluate((element) => {
+      const computed = getComputedStyle(element);
+      return {
+        background: computed.background,
+        borderColor: computed.borderColor,
+        opacity: computed.opacity,
+      };
+    });
+    expect(styles.background).toContain("rgba(31, 62, 158, 0.84)");
+    expect(styles.borderColor).not.toBe("rgb(255, 255, 255)");
+    expect(styles.opacity).toBe("1");
   });
 });

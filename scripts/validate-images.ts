@@ -11,6 +11,7 @@ import { menuManifest } from "../src/data/generated/menu-manifest";
 import { hasSupportedExtension } from "../src/lib/images/naming";
 
 const PROJECT_ROOT = process.cwd();
+const NON_MENU_IMAGE_FILENAMES = new Set(["inicio.png"]);
 
 async function fileExists(filePath: string): Promise<boolean> {
   try {
@@ -72,7 +73,7 @@ async function main(): Promise<void> {
   const entries = await fs.readdir(imagesDir);
   const manifested = new Set(menuManifest.map((item) => item.image.originalFilename));
   for (const entry of entries) {
-    if (hasSupportedExtension(entry) && !manifested.has(entry)) {
+    if (hasSupportedExtension(entry) && !NON_MENU_IMAGE_FILENAMES.has(entry.toLowerCase()) && !manifested.has(entry)) {
       warnings.push(`images/${entry} no está en el manifiesto; ejecuta npm run generate:menu.`);
     }
   }

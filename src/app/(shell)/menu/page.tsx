@@ -4,6 +4,9 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { getCategoriesInUse, menuItems } from "@/data/menu";
 import { menuJsonLd } from "@/lib/seo/structured-data";
 import { siteUrl } from "@/lib/env/client";
+import { createServiceSnapshot } from "@/lib/menu/service-period";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Menú",
@@ -13,11 +16,17 @@ export const metadata: Metadata = {
 };
 
 export default function MenuPage() {
+  const initialServiceSnapshot = createServiceSnapshot(new Date());
   return (
-    <div className="flex flex-col gap-4 px-4 pt-5 md:px-0">
+    <div className="flex flex-col gap-4 px-4 pb-8 pt-4 md:px-0 md:pt-7">
       <JsonLd data={menuJsonLd(menuItems)} />
-      <h1 className="text-screen-title font-extrabold tracking-tight">Menú</h1>
-      <MenuExplorer items={menuItems} categories={getCategoriesInUse()} showSort />
+      <MenuExplorer
+        items={menuItems}
+        categories={getCategoriesInUse()}
+        initialServiceSnapshot={initialServiceSnapshot}
+        showSort
+        title="Menú"
+      />
     </div>
   );
 }

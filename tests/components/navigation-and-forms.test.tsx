@@ -1,74 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { BottomNavigation } from "@/components/navigation/bottom-navigation";
 import { ReservationForm } from "@/components/reservations/reservation-form";
-import { useCartStore } from "@/stores/cart";
 import { useReservationsStore } from "@/stores/reservations";
 import { todayIso } from "@/lib/utils";
 import { restaurantConfig } from "@/config/restaurant";
-import type { MenuItem } from "@/types/menu";
 import { renderWithProviders } from "./render";
 
-function makeItem(): MenuItem {
-  return {
-    id: "carne-asada",
-    slug: "carne-asada",
-    fullName: "Carne asada",
-    categorySlug: "carnes",
-    shortDescription: "",
-    price: 40000,
-    available: true,
-    featured: false,
-    tags: [],
-    displayOrder: 0,
-    image: {
-      originalFilename: "carne.jpg",
-      publicPath: "/generated/menu/carne-asada.jpg",
-      width: 100,
-      height: 100,
-      aspectRatio: 1,
-      hasAlpha: false,
-      blurDataURL: "data:image/webp;base64,x",
-      bytes: 1,
-    },
-    modifierGroups: [],
-  };
-}
-
 beforeEach(() => {
-  useCartStore.setState({ items: [] });
   useReservationsStore.setState({ reservations: [] });
   window.localStorage.clear();
   vi.restoreAllMocks();
-});
-
-describe("BottomNavigation", () => {
-  it("muestra los cinco destinos con el activo marcado", () => {
-    renderWithProviders(<BottomNavigation />);
-    const nav = screen.getByRole("navigation", { name: "Navegación principal" });
-    expect(nav).toBeInTheDocument();
-    for (const label of ["Inicio", "Menú", "Buscar", "Reservar", "Carrito"]) {
-      expect(screen.getByRole("link", { name: new RegExp(label, "i") })).toBeInTheDocument();
-    }
-    // usePathname está mockeado a "/" → Inicio activo
-    expect(screen.getByRole("link", { name: "Inicio" })).toHaveAttribute("aria-current", "page");
-  });
-
-  it("muestra el badge con la cantidad del carrito tras montar", async () => {
-    useCartStore.getState().addItem(makeItem(), { quantity: 3 });
-    renderWithProviders(<BottomNavigation />);
-    await waitFor(() => {
-      expect(screen.getByLabelText("3 productos en el carrito")).toBeInTheDocument();
-    });
-  });
-
-  it("permite previsualizar cada destino activo sin cambiar rutas", () => {
-    renderWithProviders(<BottomNavigation activePathname="/reservar" previewCartCount={2} />);
-    expect(screen.getByRole("link", { name: "Reservar" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: "Inicio" })).not.toHaveAttribute("aria-current");
-    expect(screen.getByLabelText("2 productos en el carrito")).toBeInTheDocument();
-  });
 });
 
 describe("ReservationForm", () => {

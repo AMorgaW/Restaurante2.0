@@ -1,11 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { SIMPLE_DISH_NAME, skipOnboarding } from "./helpers";
-
-async function addSimpleDish(page: import("@playwright/test").Page): Promise<void> {
-  await page.goto("/menu");
-  await page.getByRole("button", { name: `Añadir ${SIMPLE_DISH_NAME} al carrito` }).click();
-  await expect(page.getByText("Añadido al carrito").first()).toBeVisible();
-}
+import { addSimpleDishToCart, SIMPLE_DISH_NAME, skipOnboarding } from "./helpers";
 
 test.describe("Carrito y checkout demo", () => {
   test.beforeEach(async ({ page }) => {
@@ -20,12 +14,12 @@ test.describe("Carrito y checkout demo", () => {
   });
 
   test("añade, cambia cantidades, aplica cupón y elimina", async ({ page }) => {
-    await addSimpleDish(page);
+    await addSimpleDishToCart(page);
     await page.goto("/carrito");
     await expect(page.getByText(SIMPLE_DISH_NAME)).toBeVisible();
 
     // Badge de navegación con cantidad.
-    await expect(page.getByLabel(/producto(s)? en el carrito/)).toBeVisible();
+    await expect(page.getByRole("link", { name: /ver carrito \(1 productos?\)/i })).toBeVisible();
 
     // Cupón inválido → error accesible.
     await page.getByLabel("Código de cupón").fill("NOEXISTE");
@@ -52,7 +46,7 @@ test.describe("Carrito y checkout demo", () => {
   });
 
   test("vaciar el carrito pide confirmación", async ({ page }) => {
-    await addSimpleDish(page);
+    await addSimpleDishToCart(page);
     await page.goto("/carrito");
     await page.getByRole("button", { name: "Vaciar" }).click();
     const dialog = page.getByRole("dialog", { name: "¿Vaciar el carrito?" });
@@ -66,7 +60,7 @@ test.describe("Carrito y checkout demo", () => {
   });
 
   test("checkout completo en modo demostración", async ({ page }) => {
-    await addSimpleDish(page);
+    await addSimpleDishToCart(page);
     await page.goto("/carrito");
     await page.getByRole("button", { name: "Continuar con el pedido" }).click();
     await expect(page).toHaveURL(/\/checkout/);

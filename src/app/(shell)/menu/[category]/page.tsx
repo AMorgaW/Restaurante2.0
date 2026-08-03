@@ -5,17 +5,13 @@ import { MenuExplorer } from "@/components/menu/menu-explorer";
 import { getCategoriesInUse, getItemsByCategory, menuItems } from "@/data/menu";
 import { getCategoryBySlug } from "@/lib/menu/categories";
 import { siteUrl } from "@/lib/env/client";
+import { createServiceSnapshot } from "@/lib/menu/service-period";
 
 interface CategoryPageProps {
   params: Promise<{ category: string }>;
 }
 
-/** Categorías conocidas en build: slugs desconocidos → 404 real. */
-export const dynamicParams = false;
-
-export function generateStaticParams() {
-  return getCategoriesInUse().map((category) => ({ category: category.slug }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
   const { category: categorySlug } = await params;
@@ -37,6 +33,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     notFound();
   }
   const category = getCategoryBySlug(categorySlug);
+  const initialServiceSnapshot = createServiceSnapshot(new Date());
 
   return (
     <div className="flex flex-col gap-4 md:px-0">
@@ -46,6 +43,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         <MenuExplorer
           items={menuItems}
           categories={getCategoriesInUse()}
+          initialServiceSnapshot={initialServiceSnapshot}
           lockedCategory={categorySlug}
           showSort
         />

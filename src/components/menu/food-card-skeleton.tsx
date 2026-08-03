@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function FoodCardSkeleton() {
   return (
     <div aria-hidden className="relative flex min-h-[9rem] items-center">
-      <div className="absolute inset-y-1.5 left-16 right-0 rounded-[24px] bg-white/[0.04] ring-1 ring-white/[0.05]" />
+      <div className="menu-card-panel absolute inset-y-1.5 left-[3.7rem] right-0 rounded-[28px]" />
       <Skeleton className="relative size-32 shrink-0 rounded-full" />
       <div className="relative min-w-0 flex-1 py-4 pl-3 pr-4">
         <Skeleton className="h-3 w-16" />

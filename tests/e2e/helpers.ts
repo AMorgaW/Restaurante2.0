@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 /**
  * Marca la bienvenida como vista ANTES de cargar la página (los stores
@@ -30,3 +30,14 @@ export const MODIFIER_DISH_SLUG =
 
 export const LONG_DISH_NAME =
   "Carne asada ternera a la parrilla con cebollas, jalapeño, frijoles, arroz, pico de gallo, guacamole, crema y lima";
+
+/** Añade el plato simple recorriendo el contrato de almuerzo completo. */
+export async function addSimpleDishToCart(page: Page): Promise<void> {
+  await page.clock.setFixedTime(new Date("2026-07-21T12:00:00-05:00"));
+  await page.goto("/menu");
+  await page.getByRole("link", { name: `Elegir sopa para ${SIMPLE_DISH_NAME}` }).click();
+  await expect(page.getByTestId("included-soup-selector")).toBeVisible();
+  await page.getByRole("radio", { name: /Sopa de/ }).first().click();
+  await page.getByRole("button", { name: "Añadir al carrito" }).click();
+  await expect(page.getByText("Añadido al carrito").first()).toBeVisible();
+}

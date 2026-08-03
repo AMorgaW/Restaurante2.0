@@ -36,6 +36,8 @@ export interface ModifierOption {
 
 export interface ModifierGroup {
   id: string;
+  /** Tipo comercial estable; evita inferir reglas a partir del texto visible. */
+  kind?: "includedLunchSoup";
   name: string;
   required: boolean;
   minSelections: number;

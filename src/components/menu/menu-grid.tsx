@@ -1,11 +1,12 @@
 "use client";
 
 import { m, useReducedMotion } from "motion/react";
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { FoodCardSkeleton } from "@/components/menu/food-card-skeleton";
 import { MenuDishRow } from "@/components/menu/menu-dish-row";
 import { EASE_OUT } from "@/components/motion/variants";
 import type { MenuItem } from "@/types/menu";
+import type { ServicePeriod } from "@/lib/menu/service-period";
 
 /**
  * Materialización de tarjetas calibrada con el video de referencia
@@ -17,9 +18,29 @@ import type { MenuItem } from "@/types/menu";
  * - Regreso desde el detalle u otros remontajes: SIN animación (el
  *   prompt maestro prohíbe re-animar al volver; prevalece sobre el video).
  */
-let sessionFirstGridDone = false;
+const GRID_VISITED_KEY = "rb-menu-grid-visited";
 
-type AnimateMode = "in-view" | "filter" | "none";
+// WebKit uses a full document navigation for the detail link. Persisting the
+// one-time entrance marker in the tab session keeps the list settled when the
+// browser returns, while the SSR branch remains deterministic (no window
+// access on the server).
+let sessionFirstGridDone = false;
+if (typeof window !== "undefined") {
+  try {
+    sessionFirstGridDone = window.sessionStorage.getItem(GRID_VISITED_KEY) === "1";
+  } catch {
+    /* La animación inicial sigue siendo válida si sessionStorage no existe. */
+  }
+}
+
+type AnimateMode = "in-view" | "none";
+
+function settleMenuGridRows() {
+  document.querySelectorAll<HTMLElement>('[data-testid="menu-grid"] > div').forEach((row) => {
+    row.style.opacity = "1";
+    row.style.transform = "none";
+  });
+}
 
 export function MenuGrid({
   items,
@@ -27,6 +48,8 @@ export function MenuGrid({
   skeletonCount = 6,
   filterKey = "",
   entranceDelay = 0,
+  servicePeriod = "dinner",
+  hasAvailableSoup = false,
 }: {
   items: MenuItem[];
   loading?: boolean;
@@ -35,37 +58,53 @@ export function MenuGrid({
   filterKey?: string;
   /** Retraso base (s) para la coreografía post-onboarding del home. */
   entranceDelay?: number;
+  servicePeriod?: ServicePeriod;
+  hasAvailableSoup?: boolean;
 }) {
   const reduced = useReducedMotion() ?? false;
+  const gridWasVisited = sessionFirstGridDone;
 
-  const isFirstInstance = useRef(!sessionFirstGridDone);
-  const prevFilter = useRef(filterKey);
-  const inViewDisabled = useRef(false);
+  const [restoredFromHistory, setRestoredFromHistory] = useState(false);
 
   useEffect(() => {
     sessionFirstGridDone = true;
+    try {
+      window.sessionStorage.setItem(GRID_VISITED_KEY, "1");
+    } catch {
+      /* La navegación sigue siendo correcta aunque sessionStorage falle. */
+    }
+    if (gridWasVisited) {
+      const frame = window.requestAnimationFrame(settleMenuGridRows);
+      return () => window.cancelAnimationFrame(frame);
+    }
+  }, [gridWasVisited]);
+
+  useEffect(() => {
+    const settleBeforeHistory = () => {
+      setRestoredFromHistory(true);
+      settleMenuGridRows();
+    };
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) settleBeforeHistory();
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    window.addEventListener("pagehide", settleBeforeHistory);
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+      window.removeEventListener("pagehide", settleBeforeHistory);
+    };
   }, []);
 
-  const filterChanged = filterKey !== prevFilter.current;
-  if (filterChanged) {
-    inViewDisabled.current = true;
-  }
-  useEffect(() => {
-    prevFilter.current = filterKey;
-  });
-
-  const mode: AnimateMode = filterChanged
-    ? "filter"
-    : isFirstInstance.current && !inViewDisabled.current
-      ? "in-view"
-      : "none";
+  // Filtros y restauraciones mantienen su geometría asentada: no se vuelve
+  // a animar la lista completa al cambiar categoría, volver o mutar acciones.
+  const mode: AnimateMode = !restoredFromHistory && !sessionFirstGridDone ? "in-view" : "none";
 
   if (loading) {
     return (
       <div
         aria-busy="true"
         aria-label="Cargando platos"
-        className="flex flex-col gap-3 md:grid md:grid-cols-2 md:gap-4 xl:grid-cols-3"
+        className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:gap-4"
       >
         {Array.from({ length: skeletonCount }, (_, index) => (
           <FoodCardSkeleton key={index} />
@@ -75,17 +114,6 @@ export function MenuGrid({
   }
 
   const itemMotion = (index: number) => {
-    if (mode === "filter") {
-      return {
-        initial: reduced ? { opacity: 0 } : { opacity: 0, y: 8 },
-        animate: { opacity: 1, y: 0 },
-        transition: {
-          duration: reduced ? 0.1 : 0.22,
-          ease: EASE_OUT,
-          delay: reduced ? 0 : Math.min(index * 0.03, 0.18),
-        },
-      };
-    }
     if (mode === "in-view") {
       return {
         initial: reduced ? { opacity: 0 } : { opacity: 0, y: 16 },
@@ -97,7 +125,7 @@ export function MenuGrid({
         transition: {
           duration: reduced ? 0.15 : 0.3,
           ease: EASE_OUT,
-          delay: entranceDelay + (reduced ? 0 : (index % 4) * 0.06),
+          delay: entranceDelay + (reduced ? 0 : Math.min(index * 0.065, 0.34)),
         },
       };
     }
@@ -111,11 +139,16 @@ export function MenuGrid({
     <div
       key={filterKey}
       data-testid="menu-grid"
-      className="flex flex-col gap-3 md:grid md:grid-cols-2 md:gap-4 xl:grid-cols-3"
+      className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:gap-4"
     >
       {items.map((item, index) => (
         <m.div key={item.slug} {...itemMotion(index)}>
-          <MenuDishRow item={item} priority={index < 2} />
+          <MenuDishRow
+            item={item}
+            priority={index < 2}
+            servicePeriod={servicePeriod}
+            hasAvailableSoup={hasAvailableSoup}
+          />
         </m.div>
       ))}
     </div>

@@ -7,7 +7,6 @@ import { HeroDishCard } from "@/components/menu/hero-dish-card";
 import { HomeScreen } from "@/components/menu/home-screen";
 import { MenuDishRow } from "@/components/menu/menu-dish-row";
 import { MenuExplorer } from "@/components/menu/menu-explorer";
-import { BottomNavigation } from "@/components/navigation/bottom-navigation";
 import { InstallPwaPrompt, type PwaPreviewState } from "@/components/feedback/install-pwa-prompt";
 import { OnboardingScreen } from "@/components/onboarding/onboarding-screen";
 import { SplashSequence } from "@/components/onboarding/splash-sequence";
@@ -21,7 +20,6 @@ type SceneId =
   | "tarjetas"
   | "categoria"
   | "transicion"
-  | "nav"
   | "pwa";
 
 const SCENES: Array<{ id: SceneId; label: string }> = [
@@ -31,18 +29,10 @@ const SCENES: Array<{ id: SceneId; label: string }> = [
   { id: "tarjetas", label: "Tarjetas" },
   { id: "categoria", label: "Categorías" },
   { id: "transicion", label: "Tarjeta → detalle" },
-  { id: "nav", label: "Nav inferior" },
   { id: "pwa", label: "Prompt PWA" },
 ];
 
 const WIDTHS = [320, 390, 430] as const;
-const NAV_PREVIEW_PATHS = [
-  { path: "/", label: "Inicio" },
-  { path: "/menu", label: "Menú" },
-  { path: "/buscar", label: "Buscar" },
-  { path: "/reservar", label: "Reservar" },
-  { path: "/carrito", label: "Carrito" },
-] as const;
 const PWA_PREVIEW_STATES: Array<{ value: PwaPreviewState; label: string }> = [
   { value: "visible", label: "Elegible" },
   { value: "closed", label: "Cerrado" },
@@ -72,7 +62,6 @@ export function VisualLabClient({
   const [reduced, setReduced] = useState(false);
   const [replayKey, setReplayKey] = useState(0);
   const [sceneDone, setSceneDone] = useState(false);
-  const [navPreviewPath, setNavPreviewPath] = useState("/");
   const [pwaPreviewState, setPwaPreviewState] = useState<PwaPreviewState>("visible");
   const [elapsed, setElapsed] = useState(0);
   const startRef = useRef(0);
@@ -236,12 +225,7 @@ export function VisualLabClient({
                   </button>
                 </div>
               ) : (
-                <OnboardingScreen
-                  image={dish.image}
-                  imageAlt={`Fotografía de ${dish.fullName}`}
-                  dishSlug={dish.slug}
-                  onFinished={() => setSceneDone(true)}
-                />
+                <OnboardingScreen />
               )
             ) : null}
 
@@ -294,38 +278,6 @@ export function VisualLabClient({
                 {others.map((item) => (
                   <MenuDishRow key={item.slug} item={item} />
                 ))}
-              </div>
-            ) : null}
-
-            {scene === "nav" ? (
-              <div className="flex h-full flex-col justify-between p-4 pb-24">
-                <div>
-                  <p className="text-[12px] leading-relaxed text-muted">
-                    Vista previa aislada: píldora activa, contador y movimiento de la navegación móvil.
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Estado activo de navegación">
-                    {NAV_PREVIEW_PATHS.map((item) => (
-                      <button
-                        key={item.path}
-                        type="button"
-                        aria-pressed={navPreviewPath === item.path}
-                        onClick={() => setNavPreviewPath(item.path)}
-                        className={
-                          navPreviewPath === item.path
-                            ? "h-9 rounded-chip bg-action px-3 text-[12px] font-bold text-action-foreground"
-                            : "h-9 rounded-chip border border-border-soft bg-white/6 px-3 text-[12px] font-semibold text-muted"
-                        }
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <BottomNavigation
-                  activePathname={navPreviewPath}
-                  previewCartCount={3}
-                  ariaLabel="Vista previa de navegación"
-                />
               </div>
             ) : null}
 

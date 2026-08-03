@@ -165,7 +165,7 @@ export function InstallPwaPrompt({ previewState, onPreviewStateChange }: Install
           transition={{ duration: reduced ? 0.15 : 0.24, ease: [0.22, 1, 0.36, 1] }}
           role="region"
           aria-labelledby="pwa-prompt-title"
-          className="fixed inset-x-3 bottom-[calc(5.625rem+env(safe-area-inset-bottom))] z-[65] mx-auto max-w-lg rounded-card border border-border-soft bg-panel/94 p-3 shadow-sheet backdrop-blur-sm md:bottom-6"
+          className="fixed inset-x-3 bottom-[calc(0.875rem+env(safe-area-inset-bottom))] z-[65] mx-auto max-w-lg rounded-card border border-border-soft bg-panel/94 p-3 shadow-sheet backdrop-blur-sm md:bottom-6"
         >
           <div className="flex items-start gap-3">
             <div className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-background/70 text-action">

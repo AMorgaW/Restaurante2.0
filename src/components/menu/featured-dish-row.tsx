@@ -48,7 +48,7 @@ export function FeaturedDishRow({
       <div
         aria-hidden
         className={cn(
-          "absolute inset-y-1.5 right-0 rounded-[24px] bg-white/[0.055] ring-1 ring-white/[0.06]",
+          "menu-card-panel absolute inset-y-1.5 right-0 rounded-[28px]",
           isRail ? "left-14" : "left-[4.5rem]",
         )}
       />

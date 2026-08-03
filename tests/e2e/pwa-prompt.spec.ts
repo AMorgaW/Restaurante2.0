@@ -6,7 +6,11 @@ import { expectNoHorizontalScroll, skipOnboarding } from "./helpers";
 // prompt scenarios serial so their timing remains representative in WebKit too.
 test.describe.configure({ mode: "serial" });
 
-const PROMPT_NAME = /pide más rápido desde tu inicio/i;
+const PROMPT_TITLE = "Pide más rápido desde tu inicio";
+
+function promptRegion(page: import("@playwright/test").Page) {
+  return page.locator('[role="region"][aria-labelledby="pwa-prompt-title"]');
+}
 
 async function dispatchInstallEvent(
   page: import("@playwright/test").Page,
@@ -33,13 +37,20 @@ async function showPrompt(
   page: import("@playwright/test").Page,
   outcome: "accepted" | "dismissed" = "accepted",
 ) {
-  const prompt = page.getByRole("region", { name: PROMPT_NAME });
+  const prompt = promptRegion(page);
+
+  // La navegación ya terminó cuando page.goto/page.reload resuelve. Esperar
+  // sólo DOMContentLoaded evita que una petición persistente de WebKit deje
+  // bloqueado networkidle; el toPass siguiente comprueba de forma observable
+  // que el listener de hidratación ya está listo.
+  await page.waitForLoadState("domcontentloaded");
 
   // The application listener is registered after hydration. Retry only the
   // synthetic browser event until that listener is ready.
   await expect(async () => {
     await dispatchInstallEvent(page, outcome);
     await expect(prompt).toBeVisible({ timeout: 1_000 });
+    await expect(page.locator("#pwa-prompt-title")).toHaveText(PROMPT_TITLE);
   }).toPass({ timeout: 15_000 });
 
   return prompt;
@@ -56,7 +67,7 @@ test.describe("Prompt PWA editorial", () => {
     await skipOnboarding(page);
   });
 
-  test("aparece sobre la navegación, instala una vez y conserva la consola limpia", async ({ page }) => {
+  test("respeta la safe area sin navegación, instala una vez y conserva la consola limpia", async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("console", (message) => {
@@ -64,12 +75,10 @@ test.describe("Prompt PWA editorial", () => {
     });
     await page.goto("/");
     const prompt = await showPrompt(page, "accepted");
-    const nav = page.getByRole("navigation", { name: "Navegación principal" });
     const promptBox = await prompt.boundingBox();
-    const navBox = await nav.boundingBox();
     expect(promptBox).not.toBeNull();
-    expect(navBox).not.toBeNull();
-    expect((promptBox?.y ?? 0) + (promptBox?.height ?? 0)).toBeLessThanOrEqual((navBox?.y ?? 0) - 12);
+    expect((promptBox?.y ?? 0) + (promptBox?.height ?? 0)).toBeLessThanOrEqual(await page.evaluate(() => window.innerHeight));
+    await expect(page.getByRole("navigation", { name: "Navegación principal" })).toHaveCount(0);
     await page.getByRole("button", { name: "Instalar" }).click();
     await expect(prompt).not.toBeVisible();
     expect(
@@ -86,17 +95,17 @@ test.describe("Prompt PWA editorial", () => {
     await showPrompt(page, "dismissed");
     await page.getByRole("button", { name: "Cerrar aviso de instalación" }).focus();
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("region", { name: PROMPT_NAME })).not.toBeVisible();
+    await expect(promptRegion(page)).not.toBeVisible();
 
     await page.reload();
     await dispatchInstallEvent(page);
-    await expect(page.getByRole("region", { name: PROMPT_NAME })).toHaveCount(0);
+    await expect(promptRegion(page)).toHaveCount(0);
 
     await page.evaluate(() => localStorage.removeItem("rb-pwa-dismissed"));
     await page.reload();
     await showPrompt(page);
     await page.evaluate(() => window.dispatchEvent(new Event("appinstalled")));
-    await expect(page.getByRole("region", { name: PROMPT_NAME })).not.toBeVisible();
+    await expect(promptRegion(page)).not.toBeVisible();
   });
 
   test("se oculta en standalone", async ({ page }) => {
@@ -105,7 +114,7 @@ test.describe("Prompt PWA editorial", () => {
     });
     await page.goto("/");
     await dispatchInstallEvent(page);
-    await expect(page.getByRole("region", { name: PROMPT_NAME })).toHaveCount(0);
+    await expect(promptRegion(page)).toHaveCount(0);
 
   });
 
@@ -113,7 +122,7 @@ test.describe("Prompt PWA editorial", () => {
     for (const route of ["/carrito", "/plato/carne-asada-plato-con-cebolleta", "/checkout", "/pedido/demo", "/admin", "/visual-lab"]) {
       await page.goto(route);
       await dispatchInstallEvent(page);
-      await expect(page.getByRole("region", { name: PROMPT_NAME })).toHaveCount(0);
+      await expect(promptRegion(page)).toHaveCount(0);
     }
   });
 

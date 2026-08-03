@@ -9,7 +9,7 @@
  * - NUNCA se cachean: /api/, /checkout, /admin, /pedido (datos sensibles
  *   o dinámicos; los precios confirmados no se sirven desde caché).
  */
-const VERSION = "v1";
+const VERSION = "v2";
 const SHELL_CACHE = `shell-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 const OFFLINE_URL = "/offline";
@@ -42,6 +42,12 @@ self.addEventListener("activate", (event) => {
 
 function shouldNeverCache(url) {
   return NEVER_CACHE.some((prefix) => url.pathname.startsWith(prefix));
+}
+
+function isImmutableResponse(response) {
+  if (!response || !response.ok) return false;
+  const cacheControl = response.headers.get("cache-control") || "";
+  return /(?:^|,|\s)immutable(?:\s|,|$)/i.test(cacheControl) && !/no-store|no-cache/i.test(cacheControl);
 }
 
 self.addEventListener("fetch", (event) => {
@@ -84,7 +90,7 @@ self.addEventListener("fetch", (event) => {
         (cached) =>
           cached ||
           fetch(request).then((response) => {
-            if (response.ok) {
+            if (isImmutableResponse(response)) {
               const copy = response.clone();
               caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
             }

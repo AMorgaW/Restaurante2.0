@@ -14,9 +14,12 @@ test.describe("Rutas, PWA y estados generales", () => {
   });
 
   test("un plato inexistente devuelve 404", async ({ page }) => {
-    const response = await page.goto("/plato/plato-inventado");
-    expect(response?.status()).toBe(404);
+    // En rutas dinámicas con streaming, Next puede entregar HTTP 200 aunque
+    // `notFound()` haya renderizado correctamente la pantalla 404.
+    await page.goto("/plato/plato-inventado");
     await expect(page.getByText("404")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Ir al inicio" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Ver el menú" })).toBeVisible();
   });
 
   test("la página offline existe y ofrece reintento", async ({ page }) => {
@@ -68,7 +71,7 @@ test.describe("Rutas, PWA y estados generales", () => {
   });
 
   test("las páginas informativas cargan y son navegables desde el pie", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/menu");
     for (const [link, heading] of [
       ["Preguntas frecuentes", "Preguntas frecuentes"],
       ["Privacidad", "Política de privacidad"],
@@ -76,7 +79,7 @@ test.describe("Rutas, PWA y estados generales", () => {
       ["Cookies", "Política de cookies"],
       ["Alérgenos", "Alérgenos e ingredientes"],
     ] as const) {
-      await page.goto("/");
+      await page.goto("/menu");
       await page.getByRole("contentinfo").getByRole("link", { name: link }).click();
       await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
       expect(await expectNoHorizontalScroll(page)).toBe(true);
@@ -114,7 +117,7 @@ test.describe("Rutas, PWA y estados generales", () => {
       browserName === "webkit",
       "webkit (macOS) no mueve el foco a enlaces con Tab por defecto del sistema",
     );
-    await page.goto("/");
+    await page.goto("/menu");
     await page.keyboard.press("Tab");
     const skipLink = page.getByRole("link", { name: "Saltar al contenido" });
     await expect(skipLink).toBeFocused();

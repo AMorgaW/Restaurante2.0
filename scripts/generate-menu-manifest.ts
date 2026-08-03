@@ -31,6 +31,8 @@ const ICONS_DIR = path.join(PROJECT_ROOT, "public", "icons");
 const OG_IMAGE = path.join(PROJECT_ROOT, "public", "generated", "og-image.jpg");
 
 const IGNORED_FILENAMES = new Set(["thumbs.db", "desktop.ini", ".ds_store"]);
+// Recurso de onboarding que comparte carpeta con las fotos, pero no es plato.
+const NON_MENU_IMAGE_FILENAMES = new Set(["inicio.png"]);
 
 interface ExclusionEntry {
   file: string;
@@ -171,6 +173,10 @@ async function main(): Promise<void> {
     }
     if (!hasSupportedExtension(name)) {
       ignored.push({ file: name, reason: "Extensión no soportada (no es imagen)" });
+      continue;
+    }
+    if (NON_MENU_IMAGE_FILENAMES.has(name.toLowerCase())) {
+      ignored.push({ file: name, reason: "Recurso de interfaz, no es un plato del menú" });
       continue;
     }
     // Protección anti path-traversal: el archivo debe residir dentro de images/.

@@ -2,23 +2,17 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProductDetailScreen } from "@/components/product/product-detail-screen";
 import { JsonLd } from "@/components/seo/json-ld";
-import { getMenuItemBySlug, getRelatedItems, menuItems } from "@/data/menu";
+import { getMenuItemBySlug, menuItems } from "@/data/menu";
 import { menuItemJsonLd } from "@/lib/seo/structured-data";
 import { siteUrl } from "@/lib/env/client";
+import { getIncludedLunchSoups } from "@/lib/menu/included-soups";
+import { createServiceSnapshot } from "@/lib/menu/service-period";
 
 interface DishPageProps {
   params: Promise<{ slug: string }>;
 }
 
-/**
- * El menú se conoce en build (manifiesto): los slugs desconocidos deben
- * responder 404 real, sin streaming que comprometa el status code.
- */
-export const dynamicParams = false;
-
-export function generateStaticParams() {
-  return menuItems.map((item) => ({ slug: item.slug }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: DishPageProps): Promise<Metadata> {
   const { slug } = await params;
@@ -47,7 +41,11 @@ export default async function DishPage({ params }: DishPageProps) {
   return (
     <>
       <JsonLd data={menuItemJsonLd(item)} />
-      <ProductDetailScreen item={item} related={getRelatedItems(item)} />
+      <ProductDetailScreen
+        item={item}
+        includedSoups={getIncludedLunchSoups(menuItems)}
+        initialServiceSnapshot={createServiceSnapshot(new Date())}
+      />
     </>
   );
 }

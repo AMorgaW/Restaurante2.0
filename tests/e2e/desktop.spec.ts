@@ -6,13 +6,11 @@ test.describe("Experiencia de escritorio", () => {
     await skipOnboarding(page);
   });
 
-  test("el inicio se centra con navegación superior y sin nav inferior", async ({ page }) => {
+  test("el menú se centra sin navegación persistente", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "¿Qué te gustaría comer hoy?" })).toBeVisible();
-    // Navegación superior de escritorio visible.
-    await expect(page.getByRole("navigation", { name: "Secciones" })).toBeVisible();
-    // La navegación inferior móvil está oculta.
-    await expect(page.getByRole("navigation", { name: "Navegación principal" })).toBeHidden();
+    await expect(page).toHaveURL(/\/menu$/);
+    await expect(page.getByRole("heading", { name: "Menú", exact: true })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Navegación principal" })).toHaveCount(0);
     expect(await expectNoHorizontalScroll(page)).toBe(true);
   });
 

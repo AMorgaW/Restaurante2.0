@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { MODIFIER_DISH_SLUG, SIMPLE_DISH_NAME, skipOnboarding } from "./helpers";
+import { addSimpleDishToCart, MODIFIER_DISH_SLUG, skipOnboarding } from "./helpers";
 
 /**
  * Capturas de revisión visual en los tamaños exigidos, guardadas en
@@ -23,14 +23,33 @@ test.describe("Capturas de revisión visual", () => {
   test.slow();
 
   test("onboarding en tamaños clave", async ({ page }) => {
-    for (const viewport of [VIEWPORTS[0], VIEWPORTS[3], VIEWPORTS[5]]) {
+    for (const viewport of [VIEWPORTS[0], VIEWPORTS[3], VIEWPORTS[5], VIEWPORTS[7]]) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.goto("/");
-      await expect(page.getByRole("dialog", { name: /bienvenida/i })).toBeVisible();
+      await expect(page.getByTestId("landing-page")).toBeVisible();
+      await expect
+        .poll(() =>
+          page
+            .getByRole("img", { name: /pescado frito/i })
+            .evaluate((element) => (element as HTMLImageElement).naturalWidth),
+        )
+        .toBeGreaterThan(0);
       await page.waitForTimeout(1100); // fin de la secuencia de entrada
       await page.screenshot({ path: `${DIR}/onboarding-${viewport.name}.png`, fullPage: false });
       await page.evaluate(() => window.localStorage.clear());
     }
+  });
+
+  test("menú tras completar y visita recurrente", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Comenzar" }).click();
+    await expect(page.getByRole("heading", { name: "Menú", exact: true })).toBeVisible();
+    await page.screenshot({ path: `${DIR}/landing-menu-after-start-390x844.png`, fullPage: true });
+
+    await page.goto("/");
+    await expect(page.getByTestId("landing-page")).toBeVisible();
+    await page.screenshot({ path: `${DIR}/landing-returning-390x844.png`, fullPage: true });
   });
 
   test("pantallas principales en todos los tamaños", async ({ page }) => {
@@ -39,11 +58,9 @@ test.describe("Capturas de revisión visual", () => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
 
       await page.goto("/");
-      await expect(
-        page.getByRole("heading", { name: "¿Qué te gustaría comer hoy?" }),
-      ).toBeVisible();
+      await expect(page.getByTestId("landing-page")).toBeVisible();
       await page.waitForTimeout(500);
-      await page.screenshot({ path: `${DIR}/home-${viewport.name}.png`, fullPage: true });
+      await page.screenshot({ path: `${DIR}/landing-root-${viewport.name}.png`, fullPage: true });
 
       await page.goto("/menu");
       await page.waitForTimeout(400);
@@ -61,10 +78,7 @@ test.describe("Capturas de revisión visual", () => {
       await page.screenshot({ path: `${DIR}/detalle-${viewport.name}.png`, fullPage: true });
 
       // Carrito con producto.
-      await page.goto("/menu");
-      await page
-        .getByRole("button", { name: `Añadir ${SIMPLE_DISH_NAME} al carrito` })
-        .click();
+      await addSimpleDishToCart(page);
       await page.goto("/carrito");
       await page.waitForTimeout(400);
       await page.screenshot({ path: `${DIR}/carrito-${viewport.name}.png`, fullPage: true });

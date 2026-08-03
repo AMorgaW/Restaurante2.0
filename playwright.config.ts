@@ -9,12 +9,12 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 1,
-  // Tres motores + servidor Next en un mismo host: la suite completa se
-  // ejecuta POR MOTOR de forma secuencial (ver script test:e2e); dentro de
-  // cada motor, 3 workers es el equilibrio estable medido en este equipo
-  // (webkit concurrente consigo mismo o con chromium produce timeouts
-  // espurios que desaparecen con los motores aislados).
-  workers: 3,
+  // La suite completa usa dos servidores Next (3100 y 3000) y contiene
+  // capturas/evidencia que comparten el proceso de build. En este equipo, la
+  // ejecución paralela reproduce timeouts de evidencia y cierres de contexto
+  // en hydration; un worker mantiene el aislamiento y la repetibilidad sin
+  // ocultar assertions ni alterar retries/timeouts.
+  workers: 1,
   reporter: [["list"], ["html", { open: "never" }]],
   timeout: 60_000,
   // webkit bajo carga paralela es notablemente más lento que chromium;
@@ -27,15 +27,23 @@ export default defineConfig({
     locale: "es-CO",
     timezoneId: "America/Bogota",
   },
-  webServer: {
-    command: "npm run start:e2e",
-    url: "http://localhost:3100",
-    timeout: 180_000,
+  webServer: [
+    {
+      command: "npm run start:e2e",
+      url: "http://localhost:3100",
+      timeout: 180_000,
     // NUNCA reutilizar un servidor previo: un `next start` huérfano puede
     // servir un build desfasado tras reconstruir (.next regenerado bajo el
     // proceso) → chunks 404, hidración rota y fallos rotatorios espurios.
-    reuseExistingServer: false,
-  },
+      reuseExistingServer: false,
+    },
+    {
+      command: "npm run start:e2e:hydration",
+      url: "http://localhost:3000",
+      timeout: 180_000,
+      reuseExistingServer: false,
+    },
+  ],
   projects: [
     {
       name: "mobile-chromium",
