@@ -38,7 +38,7 @@ export function CategoryChips({
         }
       : animate
       ? {
-          initial: { opacity: 0, x: 24 },
+          initial: { opacity: 1, x: 24 },
           animate: { opacity: 1, x: 0 },
           transition: {
             delay: entranceDelay + 0.1 + index * 0.07,

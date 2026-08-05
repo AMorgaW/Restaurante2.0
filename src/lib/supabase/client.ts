@@ -1,43 +1,47 @@
 import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { getServerEnv } from "@/lib/env/server";
+import { getServerEnv, getSupabasePublishableKey } from "@/lib/env/server";
+import type { Database } from "@/types/database.generated";
 
 /**
- * Clientes de Supabase SOLO para servidor. El cliente anónimo se usa en
- * lecturas públicas (protegidas por RLS); el de service-role únicamente
- * en operaciones administrativas del servidor y JAMÁS llega al bundle
- * del navegador.
+ * Cliente público sin persistencia de sesión. Se usa únicamente para lecturas
+ * de catálogo que no dependen de la identidad de una persona.
  */
+let publicClient: SupabaseClient<Database> | null = null;
 
-let anonClient: SupabaseClient | null = null;
-
-export function getSupabaseAnonClient(): SupabaseClient {
+export function getSupabaseAnonClient(): SupabaseClient<Database> {
   const env = getServerEnv();
-  if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+  const key = getSupabasePublishableKey(env);
+  if (!env.NEXT_PUBLIC_SUPABASE_URL || !key) {
     throw new Error(
-      "Supabase no está configurado: faltan NEXT_PUBLIC_SUPABASE_URL o NEXT_PUBLIC_SUPABASE_ANON_KEY (ver .env.example).",
+      "Supabase no está configurado: faltan NEXT_PUBLIC_SUPABASE_URL o NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.",
     );
   }
-  if (!anonClient) {
-    anonClient = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
-      auth: { persistSession: false },
+
+  if (!publicClient) {
+    publicClient = createClient<Database>(env.NEXT_PUBLIC_SUPABASE_URL, key, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     });
   }
-  return anonClient;
+  return publicClient;
 }
 
-let serviceClient: SupabaseClient | null = null;
+/**
+ * Cliente privilegiado reservado a webhooks firmados y tareas internas.
+ * Nunca se importa desde componentes cliente ni endpoints públicos.
+ */
+let serviceClient: SupabaseClient<Database> | null = null;
 
-export function getSupabaseServiceClient(): SupabaseClient {
+export function getSupabaseServiceClient(): SupabaseClient<Database> {
   const env = getServerEnv();
   if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error(
-      "Supabase service-role no está configurado: faltan NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY.",
+      "Supabase service role no está configurado para una operación interna segura.",
     );
   }
   if (!serviceClient) {
-    serviceClient = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
-      auth: { persistSession: false },
+    serviceClient = createClient<Database>(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     });
   }
   return serviceClient;

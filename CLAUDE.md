@@ -36,8 +36,8 @@ Aplicación web mobile-first para restaurante (Next.js 15 App Router + React 19 
 
 - `src/config/restaurant.ts` — TODO el contenido comercial (marca, moneda, sucursales, horarios, impuestos, cupones). Cambios de negocio empiezan aquí.
 - `src/data/menu.ts` — fusión manifiesto + overrides + demo → `menuItems`.
-- `src/server/repositories/` — contratos + implementaciones `local`/`supabase`; se eligen por `DATA_MODE` en `src/lib/env/server.ts` (degradación controlada a local).
-- `src/stores/` — Zustand persistido (carrito, favoritos, pedidos/reservas demo, onboarding, admin). Estado que varía por navegador se renderiza tras `useMounted()` para no romper la hidratación.
+- `src/server/repositories/` — contratos + implementaciones `local`/`supabase`; se eligen estrictamente por `DATA_MODE` en `src/lib/env/server.ts` y una configuración presente pero inválida falla cerrada.
+- `src/stores/` — Zustand persistido (carrito, favoritos, pedidos demo, onboarding, admin). Estado que varía por navegador se renderiza tras `useMounted()` para no romper la hidratación.
 - `src/app/(shell)/` — páginas con navegación inferior; `src/app/(flow)/` — detalle/checkout/pedido con CTA propio; `src/app/admin/` — panel.
 - Transición tarjeta→detalle: `viewTransitionName: dish-<slug>` en la imagen (única por página) + `next-view-transitions`.
 - `public/sw.js` — service worker manual; NUNCA cachear `/api`, `/checkout`, `/admin`, `/pedido`.

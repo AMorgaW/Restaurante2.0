@@ -27,7 +27,7 @@ test.describe("árbol real de filas editoriales del menú", () => {
       await expect(rows.first()).toBeVisible();
       await expect(panels.first()).toBeVisible();
       await expect(page.getByTestId("bottom-nav-active-pill")).toHaveCount(0);
-      await expect(page.getByTestId("menu-user-entry")).toHaveAttribute("aria-disabled", "true");
+      await expect(page.getByTestId("menu-user-entry")).toHaveAttribute("aria-label", "Acceso de usuario");
       await expect(page.getByRole("navigation", { name: "Navegación principal" })).toHaveCount(0);
 
       const [firstBox, secondBox, panelBox, circleBox] = await Promise.all([

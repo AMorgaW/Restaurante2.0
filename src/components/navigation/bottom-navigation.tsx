@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, Home, Search, ShoppingBag, UtensilsCrossed } from "lucide-react";
+import { Home, Search, ShoppingBag, UtensilsCrossed } from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -13,7 +13,6 @@ const NAV_ITEMS = [
   { href: "/", label: "Inicio", icon: Home, exact: true },
   { href: "/menu", label: "Menú", icon: UtensilsCrossed, exact: false },
   { href: "/buscar", label: "Buscar", icon: Search, exact: false },
-  { href: "/reservar", label: "Reservar", icon: CalendarClock, exact: false },
   { href: "/carrito", label: "Carrito", icon: ShoppingBag, exact: false },
 ] as const;
 
@@ -46,7 +45,7 @@ export function BottomNavigation({
       aria-label={ariaLabel}
       className="fixed inset-x-3 bottom-[calc(0.625rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-lg rounded-full border border-border-soft bg-panel/92 shadow-sheet backdrop-blur-sm md:hidden"
     >
-      <ul className="grid h-16 grid-cols-5">
+      <ul className="grid h-16 grid-cols-4">
         {NAV_ITEMS.map((item) => {
           const active = item.exact
             ? pathname === item.href

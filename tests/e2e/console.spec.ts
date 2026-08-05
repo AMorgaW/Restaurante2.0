@@ -5,7 +5,7 @@ import { SIMPLE_DISH_SLUG, skipOnboarding } from "./helpers";
  * Las páginas principales no deben producir errores de consola ni
  * excepciones sin manejar (hidratación, claves duplicadas, imágenes…).
  */
-const ROUTES = ["/", "/menu", `/plato/${SIMPLE_DISH_SLUG}`, "/carrito", "/reservar", "/admin"];
+const ROUTES = ["/", "/menu", `/plato/${SIMPLE_DISH_SLUG}`, "/carrito", "/admin"];
 
 // Ruido conocido y ajeno a la aplicación (extensiones, favicons de devtools…).
 const IGNORED = [/favicon/i, /third-party cookie/i];

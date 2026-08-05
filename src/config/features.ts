@@ -5,7 +5,6 @@
 export const features = {
   pickup: true,
   delivery: true,
-  reservations: true,
   favorites: true,
   cart: true,
   /** "demo" no realiza cobros reales; "stripe"/"mercadopago" requieren credenciales. */

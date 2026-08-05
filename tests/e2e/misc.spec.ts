@@ -48,7 +48,10 @@ test.describe("Rutas, PWA y estados generales", () => {
 
     const serviceWorker = await request.get("/sw.js");
     expect(serviceWorker.ok()).toBe(true);
-    expect(await serviceWorker.text()).toContain("NEVER_CACHE");
+    const workerText = await serviceWorker.text();
+    expect(workerText).toContain("PRIVATE_PREFIXES");
+    expect(workerText).toContain("isCacheableResponse");
+    expect(workerText).toContain('response.headers.has("set-cookie")');
 
     const health = await request.get("/api/health");
     expect(health.ok()).toBe(true);

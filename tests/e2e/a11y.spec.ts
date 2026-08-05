@@ -39,7 +39,6 @@ test.describe("Accesibilidad (axe)", () => {
     { path: `/plato/${SIMPLE_DISH_SLUG}`, ready: SIMPLE_DISH_NAME },
     // Detalle con modificadores obligatorios (fieldsets radio/checkbox + badges).
     { path: `/plato/${MODIFIER_DISH_SLUG}`, ready: LONG_DISH_NAME },
-    { path: "/reservar", ready: "Reserva tu mesa" },
     { path: "/sucursales", ready: "Sucursales" },
     { path: "/preguntas-frecuentes", ready: "Preguntas frecuentes" },
   ];

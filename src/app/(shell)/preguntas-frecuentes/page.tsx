@@ -5,7 +5,7 @@ import { siteUrl } from "@/lib/env/client";
 
 export const metadata: Metadata = {
   title: "Preguntas frecuentes",
-  description: "Respuestas a las dudas más comunes sobre pedidos, reservas y servicios.",
+  description: "Respuestas a las dudas más comunes sobre pedidos y servicios.",
   alternates: { canonical: `${siteUrl}/preguntas-frecuentes` },
 };
 
@@ -19,16 +19,6 @@ const FAQS = [
     question: "¿Puedo pedir a domicilio?",
     answer:
       "Sí, en las sucursales con servicio de domicilio activo. La tarifa y el pedido mínimo se muestran antes de confirmar.",
-  },
-  {
-    question: "¿Cómo reservo una mesa?",
-    answer:
-      "En la sección Reservar eliges sucursal, fecha, hora y número de personas. Recibirás la confirmación al instante.",
-  },
-  {
-    question: "¿Puedo cancelar mi reserva?",
-    answer:
-      "Sí, desde la misma sección de reservas puedes cancelarla. Te recomendamos hacerlo con al menos una hora de antelación.",
   },
   {
     question: "¿Tienen opciones para alergias o dietas especiales?",

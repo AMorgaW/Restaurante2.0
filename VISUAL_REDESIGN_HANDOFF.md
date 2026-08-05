@@ -216,3 +216,6 @@ por encima de la CTA fija. Se conservan capturas separadas del estado inicial y 
 Evidencia canónica: `artifacts/visual-comparison/work/service-menu-redesign/`. Pruebas y
 comandos completos: última adenda de `TEST_REPORT.md`. Escena completada; detenerse antes de
 iniciar cualquier otra.
+# Nota de vigencia
+
+Este handoff conserva evidencia histórica del rediseño, incluyendo referencias a reservas. Las reservas ya no son una funcionalidad vigente; el estado actual está en `CODEX_HANDOFF.md`.

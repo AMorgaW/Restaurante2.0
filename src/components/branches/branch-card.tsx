@@ -1,6 +1,6 @@
 "use client";
 
-import { Bike, CalendarClock, MapPin, MessageCircle, Navigation, Phone, Store } from "lucide-react";
+import { Bike, MapPin, MessageCircle, Navigation, Phone, Store } from "lucide-react";
 import Link from "next/link";
 import { OpeningStatusChip } from "@/components/branches/opening-status";
 import { Badge } from "@/components/ui/badge";
@@ -101,12 +101,6 @@ export function BranchCard({ branch }: { branch: Branch }) {
           <Badge variant="muted">
             <Bike aria-hidden className="size-3.5" />
             Domicilio
-          </Badge>
-        ) : null}
-        {branch.reservationsEnabled ? (
-          <Badge variant="muted">
-            <CalendarClock aria-hidden className="size-3.5" />
-            Reservas
           </Badge>
         ) : null}
       </div>

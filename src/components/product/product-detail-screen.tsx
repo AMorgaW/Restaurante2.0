@@ -136,7 +136,7 @@ export function ProductDetailScreen({
     reduced
       ? { initial: false as const }
       : {
-          initial: { opacity: 0, y },
+          initial: { opacity: 1, y },
           animate: { opacity: 1, y: 0 },
           transition: { duration: 0.36, delay, ease: [0.22, 1, 0.36, 1] as const },
         };

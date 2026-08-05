@@ -14,6 +14,7 @@ import { minorUnitsToMajor } from "@/lib/format/currency";
 import { cn } from "@/lib/utils";
 import { useMenuItemsWithAdminOverrides } from "@/hooks/use-menu-items";
 import { roleCan, useAdminStore } from "@/stores/admin";
+import { useEffectiveAdminRole } from "@/components/admin/admin-role-context";
 import type { CategoryInfo, MenuItem } from "@/types/menu";
 
 /** Interruptor accesible reutilizado en la tabla de platos. */
@@ -55,7 +56,7 @@ function Toggle({
 /** Editor de un plato: disponibilidad, destacado, precio y descripción. */
 function DishEditor({ item }: { item: MenuItem }) {
   const { toast } = useToast();
-  const role = useAdminStore((state) => state.demoRole);
+  const role = useEffectiveAdminRole(useAdminStore((state) => state.demoRole));
   const overrides = useAdminStore((state) => state.overrides);
   const setOverride = useAdminStore((state) => state.setOverride);
   const clearOverride = useAdminStore((state) => state.clearOverride);

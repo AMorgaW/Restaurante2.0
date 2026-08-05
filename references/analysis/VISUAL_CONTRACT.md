@@ -250,3 +250,6 @@ justificación escrita. Nada de librerías nuevas: Motion (LazyMotion `m.*`)
 `priority` SOLO héroe visible (home héroe, detalle héroe, onboarding).
 Viñetas/halos = CSS estático (sin blur animado grande, sin box-shadow
 animada: usar opacity/transform).
+# Documento histórico
+
+Las referencias a navegación o reservas en este contrato visual pertenecen al checkpoint anterior. La funcionalidad de reservas fue retirada del producto actual.

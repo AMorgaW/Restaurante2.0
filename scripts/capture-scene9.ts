@@ -85,7 +85,7 @@ async function recordTabs(reduced = false): Promise<void> {
   watch(page, label);
   await page.goto("/");
   const nav = page.getByRole("navigation", { name: "Navegación principal" });
-  for (const item of ["Menú", "Buscar", "Reservar", "Carrito", "Inicio"] as const) {
+  for (const item of ["Menú", "Buscar", "Carrito", "Inicio"] as const) {
     await nav.getByRole("link", { name: item, exact: true }).click();
     await page.waitForTimeout(reduced ? 140 : 280);
   }

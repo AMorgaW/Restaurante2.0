@@ -5,6 +5,7 @@ import { vi } from "vitest";
 // jsdom no implementa matchMedia; los hooks de reduced motion lo necesitan.
 // Función PLANA (no vi.fn): `restoreMocks` limpiaría la implementación de un
 // vi.fn tras cada test y dejaría matchMedia devolviendo undefined.
+if (typeof window !== "undefined") {
 Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: (query: string) => ({
@@ -42,6 +43,7 @@ Object.defineProperty(window, "ResizeObserver", {
 window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
 Element.prototype.scrollIntoView = vi.fn();
 Element.prototype.scrollTo = vi.fn() as unknown as typeof Element.prototype.scrollTo;
+}
 
 // ---- Mocks de Next.js para pruebas de componentes -----------------
 

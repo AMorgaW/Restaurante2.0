@@ -4,7 +4,7 @@ import { expectNoHorizontalScroll, SIMPLE_DISH_NAME, skipOnboarding } from "./he
 test.describe("Menú sin navegación principal persistente", () => {
   test.beforeEach(async ({ page }) => skipOnboarding(page));
 
-  test("no monta barra inferior ni reserva espacio vacío", async ({ page }) => {
+  test("no monta barra inferior ni deja espacio vacío", async ({ page }) => {
     await page.goto("/menu");
     await expect(page.getByRole("navigation", { name: "Navegación principal" })).toHaveCount(0);
     await expect(page.getByTestId("bottom-nav-active-pill")).toHaveCount(0);

@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { coupons, promotions } from "@/config/restaurant";
+import { authorizeAdminSection } from "@/lib/admin/server-authorization";
 
 export const metadata = { title: "Promociones" };
 
@@ -7,7 +8,8 @@ export const metadata = { title: "Promociones" };
  * Promociones y cupones configurados centralmente. En producción se
  * administran en las tablas `promotions` y `coupons` de Supabase.
  */
-export default function AdminPromotionsPage() {
+export default async function AdminPromotionsPage() {
+  await authorizeAdminSection("marketing");
   return (
     <div className="flex flex-col gap-6">
       <header>

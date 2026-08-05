@@ -8,7 +8,6 @@ const FOOTER_LINKS: Array<{ title: string; links: Array<{ href: string; label: s
     links: [
       { href: "/menu", label: "Menú" },
       { href: "/promociones", label: "Promociones" },
-      { href: "/reservar", label: "Reservas" },
       { href: "/sucursales", label: "Sucursales" },
     ],
   },

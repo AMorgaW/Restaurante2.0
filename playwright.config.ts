@@ -26,6 +26,10 @@ export default defineConfig({
     trace: "retain-on-failure",
     locale: "es-CO",
     timezoneId: "America/Bogota",
+    // Cada prueba obtiene un contexto nuevo. El worker solo se habilita en las
+    // specs que verifican PWA/hydration para evitar registros y cierres de
+    // contexto ajenos al contrato del resto de la suite.
+    serviceWorkers: "block",
   },
   webServer: [
     {

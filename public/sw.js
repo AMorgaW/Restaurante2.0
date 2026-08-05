@@ -1,20 +1,66 @@
 /**
- * Service worker mínimo y auditable de Casa Brasa.
- *
- * Estrategias:
- * - Navegaciones: network-first con fallback a caché y luego a /offline.
- * - Imágenes generadas del menú e iconos: cache-first (contenido inmutable
- *   por slug; al regenerar cambia la URL solo si cambia el slug).
- * - Estáticos de Next (_next/static): cache-first (hash en la URL).
- * - NUNCA se cachean: /api/, /checkout, /admin, /pedido (datos sensibles
- *   o dinámicos; los precios confirmados no se sirven desde caché).
+ * Service worker auditable: solo conserva navegaciones pÃºblicas en cachÃ©.
  */
-const VERSION = "v2";
+const VERSION = "v4";
 const SHELL_CACHE = `shell-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 const OFFLINE_URL = "/offline";
 
-const NEVER_CACHE = ["/api/", "/checkout", "/admin", "/pedido"];
+const PUBLIC_NAVIGATION_PREFIXES = [
+  "/",
+  "/menu",
+  "/buscar",
+  "/promociones",
+  "/sucursales",
+  "/nosotros",
+  "/contacto",
+  "/preguntas-frecuentes",
+  "/alergenos",
+  "/privacidad",
+  "/terminos",
+  "/cookies",
+  "/offline",
+];
+
+const PRIVATE_PREFIXES = [
+  "/auth",
+  "/cuenta",
+  "/login",
+  "/registro",
+  "/recuperar-contrasena",
+  "/actualizar-contrasena",
+  "/admin",
+  "/empleado",
+  "/pensionado",
+  "/api",
+  "/checkout",
+  "/pedido",
+];
+
+function hasPrefix(pathname, prefix) {
+  return pathname === prefix || pathname.startsWith(`${prefix}/`);
+}
+
+function isPublicNavigation(url) {
+  if (url.origin !== self.location.origin) return false;
+  if (PRIVATE_PREFIXES.some((prefix) => hasPrefix(url.pathname, prefix))) return false;
+  return PUBLIC_NAVIGATION_PREFIXES.some((prefix) => hasPrefix(url.pathname, prefix));
+}
+
+function isCacheableResponse(response) {
+  if (!response || !response.ok || response.type !== "basic") return false;
+  if (response.redirected) {
+    try {
+      if (!isPublicNavigation(new URL(response.url))) return false;
+    } catch {
+      return false;
+    }
+  }
+  const cacheControl = response.headers.get("cache-control") || "";
+  if (response.headers.has("set-cookie")) return false;
+  if (/(^|[,\s])(?:private|no-store)(?:[,\s]|$)/i.test(cacheControl)) return false;
+  return true;
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -27,27 +73,36 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(
-          keys
-            .filter((key) => key !== SHELL_CACHE && key !== RUNTIME_CACHE)
-            .map((key) => caches.delete(key)),
-        ),
-      )
-      .then(() => self.clients.claim()),
+    caches.keys().then(async (names) => {
+      await Promise.all(
+        names
+          .filter((name) => /^(?:shell|runtime)-/.test(name) && ![SHELL_CACHE, RUNTIME_CACHE].includes(name))
+          .map((name) => caches.delete(name)),
+      );
+      for (const name of [SHELL_CACHE, RUNTIME_CACHE]) {
+        const cache = await caches.open(name);
+        const requests = await cache.keys();
+        await Promise.all(
+          requests.map(async (request) => {
+            try {
+              const url = new URL(request.url);
+              const response = await cache.match(request);
+              if (!isPublicNavigation(url) || !isCacheableResponse(response)) await cache.delete(request);
+            } catch {
+              await cache.delete(request);
+            }
+          }),
+        );
+      }
+      await self.clients.claim();
+    }),
   );
 });
 
-function shouldNeverCache(url) {
-  return NEVER_CACHE.some((prefix) => url.pathname.startsWith(prefix));
-}
-
 function isImmutableResponse(response) {
-  if (!response || !response.ok) return false;
+  if (!response || !response.ok || response.type !== "basic") return false;
   const cacheControl = response.headers.get("cache-control") || "";
-  return /(?:^|,|\s)immutable(?:\s|,|$)/i.test(cacheControl) && !/no-store|no-cache/i.test(cacheControl);
+  return /(?:^|,|\s)immutable(?:\s|,|$)/i.test(cacheControl) && !/no-store|no-cache|private/i.test(cacheControl);
 }
 
 self.addEventListener("fetch", (event) => {
@@ -56,15 +111,18 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  if (shouldNeverCache(url)) return;
 
-  // Navegaciones de página: red primero, caché después, /offline al final.
   if (request.mode === "navigate") {
+    if (!isPublicNavigation(url)) return;
     event.respondWith(
       fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
+        .then(async (response) => {
+          const finalUrl = new URL(response.url || request.url);
+          if (isPublicNavigation(finalUrl) && isCacheableResponse(response)) {
+            const copy = response.clone();
+            const cache = await caches.open(RUNTIME_CACHE);
+            await cache.put(request, copy);
+          }
           return response;
         })
         .catch(() =>
@@ -77,7 +135,6 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Recursos inmutables: caché primero.
   const isImmutable =
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.startsWith("/generated/") ||
@@ -89,10 +146,11 @@ self.addEventListener("fetch", (event) => {
       caches.match(request).then(
         (cached) =>
           cached ||
-          fetch(request).then((response) => {
+          fetch(request).then(async (response) => {
             if (isImmutableResponse(response)) {
               const copy = response.clone();
-              caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
+              const cache = await caches.open(RUNTIME_CACHE);
+              await cache.put(request, copy);
             }
             return response;
           }),

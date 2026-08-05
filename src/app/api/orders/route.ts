@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { checkoutInputSchema } from "@/features/checkout/schema";
+import { getDataModeStatus } from "@/lib/env/server";
 import { OrderValidationError, placeOrder } from "@/server/services/orders";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +11,14 @@ export const dynamic = "force-dynamic";
  * devuelve al cliente (que lo persiste); con Supabase se guarda en BD.
  */
 export async function POST(request: NextRequest) {
+  const dataMode = getDataModeStatus();
+  if (dataMode.mode !== "local") {
+    return NextResponse.json(
+      { error: "Los pedidos remotos aún no están habilitados; continúa como invitado en modo local." },
+      { status: 503 },
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();

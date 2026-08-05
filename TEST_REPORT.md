@@ -1,5 +1,10 @@
 # TEST_REPORT — Informe de pruebas (resultados reales)
 
+> **Estado vigente 2026-08-04:** el cierre consolidado al final de este archivo es la referencia
+> actual: PostgreSQL/Supabase local está disponible, `0001`–`0007` pasó dos resets desde cero,
+> pgTAP 51/51, concurrencia 10/10, Vitest 308/308 y typecheck/lint/build correctos. Las cifras y
+> bloqueos anteriores se conservan debajo como historial de las etapas en que fueron observados.
+
 > **Corrección onboarding 2026-07-14:** typecheck, lint, Vitest (14 archivos / 136 pruebas) y
 > build (43 rutas) verdes. Onboarding: 5/5 sin retries en Chromium y WebKit; navegación 2/2,
 > reduced motion 1/1, Axe+consola 16/16. Evidencia inspeccionada: `artifacts/screenshots/
@@ -221,3 +226,68 @@ Una corrida combinada de 36 casos WebKit produjo dos fallos bajo contención (pr
 y store hidratado tarde). Los dos casos exactos pasaron inmediatamente de forma secuencial con
 `--workers=1 --retries=0` (1/1 + 1/1), sin aumentar timeouts. La política final para WebKit sigue
 siendo secuencial por spec en este host.
+# Nota de vigencia
+
+Este informe conserva resultados históricos. Las pruebas y rutas de reservas descritas aquí ya no representan el producto vigente y fueron retiradas en la fase actual.
+
+## Etapa 7 — PostgreSQL/Supabase local real (2026-08-04)
+
+| Verificación | Resultado |
+|---|---|
+| Migraciones `0001→0007` desde cero | ✅ reproducibles; seed desactivado |
+| pgTAP real (`0001_backend_security`) | ✅ 51/51 |
+| Concurrencia real (6 escenarios) | ✅ 10/10 invariantes |
+| `supabase db lint --local --level warning` | ✅ sin hallazgos |
+| Typecheck / ESLint | ✅ |
+| Vitest dirigido | ✅ 47/47 |
+| Vitest global | ✅ 39 archivos / 308 pruebas |
+| Build Next.js 15.5.20 | ✅ 24 páginas estáticas; rutas privadas dinámicas |
+
+Cobertura adversarial: metadata no eleva rol, customer no crea personal ni activa su plan, RLS
+cruzado, matriz de roles técnicos, DML directo bloqueado, auditoría inmutable, receta obligatoria,
+stock insuficiente, entrega/reversión/consumo/activación/webhook idempotentes y carreras reales.
+No hubo conexión remota. Graphify no se consultó como fuente ni se actualizó.
+
+## Cierre consolidado de Etapa 7 (2026-08-04)
+
+### Entorno
+
+- Windows con Docker Desktop sobre WSL 2.
+- Supabase CLI `2.111.0` y PostgreSQL local 17.
+- Activos durante la validación: PostgreSQL, Auth, PostgREST, Realtime, Storage, Kong, Studio y pg-meta.
+- Edge Runtime, Logflare, Vector, Analytics, imgproxy y pooler permanecieron excluidos o detenidos deliberadamente.
+- `[db.seed].enabled = false`; `supabase/seed.sql` no se ejecutó.
+
+### Último ciclo ejecutado
+
+| Comando | Resultado real |
+|---|---|
+| `supabase db reset --local --no-seed` | correcto; migraciones `0001`–`0007` desde cero |
+| `supabase db reset --local --no-seed` (segunda vez consecutiva) | correcto y reproducible |
+| `supabase db lint --local --level warning` | 0 hallazgos |
+| `npm.cmd run test:db` | pgTAP 51/51 |
+| `npm.cmd run test:db:concurrency` | 6 escenarios; 10/10 invariantes |
+| `npm.cmd run typecheck` | correcto |
+| `npm.cmd run lint` | correcto |
+| `npm.cmd run test` | 39 archivos; 308/308 |
+| pruebas Vitest dirigidas de integración | 47/47 |
+| `npm.cmd run build` | correcto con Next.js 15.5.20 |
+| `git diff --check` | correcto |
+
+Los resultados E2E previos respaldados permanecen en las secciones históricas: el checkpoint visual tuvo Chromium 123/123 y WebKit 105 correctas, 3 omitidas justificadas y 0 fallos; las etapas de sesión posteriores usaron suites dirigidas de Auth, administración, empleado y pensionado. No se presenta una cifra global nueva porque no se ejecutó nuevamente toda la matriz E2E en la Etapa 7.
+
+### Cobertura funcional y adversarial
+
+- RLS real con `anon`, clientes distintos, owner/admin y cada rol técnico.
+- Escalamiento por metadata, inserción/actualización directa de roles, lectura cruzada y DML sensible rechazados.
+- Personal por sucursal, membresías y ciclos, menús y consumos comerciales, auditoría inmutable.
+- Receta obligatoria, stock insuficiente, entrega/consumo/reversión exactamente una vez y movimientos trazables.
+- Carreras reales: dos pedidos por stock, doble entrega, doble activación, doble beneficio, doble reversión y reintento de webhook.
+- Persistencia Stripe idempotente y fallo cerrado; no se ejecutaron pagos reales.
+
+### Limitaciones y pruebas futuras
+
+- No hubo pruebas contra el proyecto remoto, usuarios reales, correos reales ni secretos de producción.
+- La integración remota requiere revisión independiente, autorización, configuración externa y un dry-run controlado antes de aplicar migraciones.
+- Deben repetirse las pruebas RLS, Auth SSR, callbacks, redirects y webhooks en un entorno remoto autorizado antes del despliegue.
+- Graphify fue regenerado después de este ciclo; su salida es documentación auxiliar y no sustituye estas pruebas.

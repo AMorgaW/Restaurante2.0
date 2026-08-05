@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { CalendarClock, ShoppingBag } from "lucide-react";
+import { ShoppingBag } from "lucide-react";
 import {
   BranchContactActions,
   BranchHours,
@@ -51,7 +51,6 @@ export default async function BranchPage({ params }: BranchPageProps) {
           <OpeningStatusChip branch={branch} />
           {branch.pickupEnabled ? <Badge variant="muted">Recogida</Badge> : null}
           {branch.deliveryEnabled ? <Badge variant="muted">Domicilio</Badge> : null}
-          {branch.reservationsEnabled ? <Badge variant="muted">Reservas</Badge> : null}
         </div>
 
         <section
@@ -93,15 +92,6 @@ export default async function BranchPage({ params }: BranchPageProps) {
             <ShoppingBag aria-hidden className="size-5" />
             Pedir ahora
           </Link>
-          {branch.reservationsEnabled ? (
-            <Link
-              href="/reservar"
-              className="inline-flex h-14 items-center justify-center gap-2 rounded-button border border-border-soft bg-surface-elevated px-6 text-base font-semibold text-foreground transition-[border-color,transform] hover:border-border-strong active:scale-[0.98] motion-reduce:active:scale-100"
-            >
-              <CalendarClock aria-hidden className="size-5" />
-              Reservar mesa
-            </Link>
-          ) : null}
         </div>
       </div>
     </div>

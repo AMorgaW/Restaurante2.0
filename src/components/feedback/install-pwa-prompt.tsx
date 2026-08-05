@@ -107,10 +107,12 @@ export function InstallPwaPrompt({ previewState, onPreviewStateChange }: Install
 
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
     window.addEventListener("appinstalled", onInstalled);
+    document.documentElement.dataset.pwaInstallListener = "ready";
     return () => {
       window.clearTimeout(timer);
       window.removeEventListener("beforeinstallprompt", onBeforeInstall);
       window.removeEventListener("appinstalled", onInstalled);
+      delete document.documentElement.dataset.pwaInstallListener;
     };
   }, [preview, routeAllowed]);
 

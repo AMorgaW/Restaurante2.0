@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  getAvailableTimeSlots,
   getLocalDateParts,
   getOpeningStatus,
-  isDateWithinBookingWindow,
   minutesToTime,
   timeToMinutes,
 } from "@/lib/menu/opening-hours";
@@ -23,7 +21,6 @@ const baseBranch: Branch = {
   timezone: "America/Bogota",
   pickupEnabled: true,
   deliveryEnabled: true,
-  reservationsEnabled: true,
   deliveryFee: 0,
   deliveryAreaNote: "",
   status: "active",
@@ -93,63 +90,5 @@ describe("getOpeningStatus", () => {
     const status = getOpeningStatus(branch, wednesdayAfternoon);
     expect(status.open).toBe(false);
     if (!status.open) expect(status.reason).toBe("special");
-  });
-});
-
-describe("getAvailableTimeSlots", () => {
-  const options = { intervalMinutes: 30, minLeadMinutes: 60, now: wednesdayEarly };
-
-  it("genera franjas dentro del horario con margen antes del cierre", () => {
-    const slots = getAvailableTimeSlots(baseBranch, "2026-07-10", options); // viernes
-    expect(slots[0]).toBe("11:30");
-    expect(slots[slots.length - 1]).toBe("22:00"); // cierra 23:00, margen 60min
-    expect(slots).toContain("19:00");
-  });
-
-  it("devuelve vacío para días cerrados", () => {
-    expect(getAvailableTimeSlots(baseBranch, "2026-07-11", options)).toEqual([]); // sábado cerrado
-  });
-
-  it("filtra franjas pasadas cuando la fecha es hoy", () => {
-    // Hoy miércoles a las 15:00 → con 60 min de antelación, nada antes de las 16:00.
-    const slots = getAvailableTimeSlots(baseBranch, "2026-07-08", {
-      ...options,
-      now: wednesdayAfternoon,
-    });
-    expect(slots[0]).toBe("16:00");
-    expect(slots).not.toContain("15:30");
-  });
-
-  it("respeta horarios especiales reducidos", () => {
-    const branch: Branch = {
-      ...baseBranch,
-      specialHours: [
-        { date: "2026-07-10", openingTime: "18:00", closingTime: "21:00", isClosed: false, reason: "Evento" },
-      ],
-    };
-    const slots = getAvailableTimeSlots(branch, "2026-07-10", options);
-    expect(slots[0]).toBe("18:00");
-    expect(slots[slots.length - 1]).toBe("20:00");
-  });
-});
-
-describe("isDateWithinBookingWindow", () => {
-  const now = wednesdayAfternoon;
-
-  it("acepta hoy y fechas dentro de la ventana", () => {
-    expect(isDateWithinBookingWindow("2026-07-08", 30, "America/Bogota", now)).toBe(true);
-    expect(isDateWithinBookingWindow("2026-08-01", 30, "America/Bogota", now)).toBe(true);
-  });
-
-  it("rechaza fechas pasadas", () => {
-    expect(isDateWithinBookingWindow("2026-07-07", 30, "America/Bogota", now)).toBe(false);
-  });
-
-  it("rechaza fechas más allá de la ventana", () => {
-    expect(isDateWithinBookingWindow("2026-09-01", 30, "America/Bogota", now)).toBe(false);
-  });
-
-  it("rechaza formatos inválidos", () => {
-    expect(isDateWithinBookingWindow("08/07/2026", 30, "America/Bogota", now)).toBe(false);
   });
 });

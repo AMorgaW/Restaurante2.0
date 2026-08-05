@@ -1,88 +1,100 @@
 import "server-only";
-import { z } from "zod";
+import { isSafeSupabasePublishableKey } from "@/lib/env/publishable-key";
+import {
+  getAuthModeStatusFromEnv,
+  getDataModeStatusFromEnv,
+  type AuthMode,
+  type AuthModeStatus,
+  type DataMode,
+  type DataModeStatus,
+} from "@/lib/env/modes";
 
-/**
- * Validación de variables de entorno del SERVIDOR con degradación
- * controlada: la aplicación nunca se rompe por configuración ausente;
- * cae a modo local con un error claro en la consola del servidor.
- */
+export type ServerEnv = {
+  AUTH_MODE?: string;
+  DATA_MODE?: string;
+  NEXT_PUBLIC_SITE_URL: string;
+  NEXT_PUBLIC_SUPABASE_URL?: string;
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?: string;
+  NEXT_PUBLIC_SUPABASE_ANON_KEY?: string;
+  SUPABASE_SERVICE_ROLE_KEY?: string;
+  PAYMENT_PROVIDER: string;
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
+  MERCADOPAGO_ACCESS_TOKEN?: string;
+  MERCADOPAGO_WEBHOOK_SECRET?: string;
+  EMAIL_PROVIDER: string;
+  RESEND_API_KEY?: string;
+  EMAIL_FROM?: string;
+};
 
-const serverEnvSchema = z.object({
-  DATA_MODE: z.enum(["local", "supabase"]).default("local"),
-  NEXT_PUBLIC_SITE_URL: z.string().url().default("http://localhost:3000"),
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(10).optional(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(10).optional(),
-  PAYMENT_PROVIDER: z.enum(["demo", "stripe", "mercadopago"]).default("demo"),
-  STRIPE_SECRET_KEY: z.string().optional(),
-  STRIPE_WEBHOOK_SECRET: z.string().optional(),
-  MERCADOPAGO_ACCESS_TOKEN: z.string().optional(),
-  MERCADOPAGO_WEBHOOK_SECRET: z.string().optional(),
-  EMAIL_PROVIDER: z.enum(["none", "resend"]).default("none"),
-  RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().optional(),
-});
-
-export type ServerEnv = z.infer<typeof serverEnvSchema>;
+export type { AuthMode, AuthModeStatus, DataMode, DataModeStatus } from "@/lib/env/modes";
 
 let cachedEnv: ServerEnv | null = null;
 
+/** Conserva valores presentes tal como llegaron: un typo nunca se degrada a un default. */
 export function getServerEnv(): ServerEnv {
   if (cachedEnv) return cachedEnv;
-
-  const parsed = serverEnvSchema.safeParse(process.env);
-  if (parsed.success) {
-    cachedEnv = parsed.data;
-    return cachedEnv;
-  }
-
-  console.error(
-    "[env] Variables de entorno inválidas; se usan valores seguros por defecto.",
-    parsed.error.flatten().fieldErrors,
-  );
-  cachedEnv = serverEnvSchema.parse({});
+  cachedEnv = {
+    AUTH_MODE: process.env.AUTH_MODE,
+    DATA_MODE: process.env.DATA_MODE,
+    NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    PAYMENT_PROVIDER: process.env.PAYMENT_PROVIDER ?? "demo",
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+    MERCADOPAGO_ACCESS_TOKEN: process.env.MERCADOPAGO_ACCESS_TOKEN,
+    MERCADOPAGO_WEBHOOK_SECRET: process.env.MERCADOPAGO_WEBHOOK_SECRET,
+    EMAIL_PROVIDER: process.env.EMAIL_PROVIDER ?? "none",
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    EMAIL_FROM: process.env.EMAIL_FROM,
+  };
   return cachedEnv;
 }
 
-export type DataMode = "local" | "supabase";
+/** Preferencia estricta: una clave publishable presente pero invalida no cae a anon. */
+export function getSupabasePublishableKey(env: ServerEnv = getServerEnv()): string | undefined {
+  const candidate = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return isSafeSupabasePublishableKey(candidate) ? candidate : undefined;
+}
 
-/**
- * Modo de datos efectivo. Si se pide `supabase` sin credenciales
- * completas, degrada a `local` explicando exactamente qué falta.
- */
+export function getAuthModeStatus(): AuthModeStatus {
+  return getAuthModeStatusFromEnv(getServerEnv());
+}
+
+export function getDataModeStatus(): DataModeStatus {
+  return getDataModeStatusFromEnv(getServerEnv());
+}
+
+function configurationError(label: "AUTH_MODE" | "DATA_MODE", status: AuthModeStatus | DataModeStatus) {
+  const fields = [...status.missing, ...status.invalid];
+  return new Error(
+    `[env] ${label} no tiene una configuracion valida (${fields.join(", ") || label}).`,
+  );
+}
+
 export function getResolvedDataMode(): DataMode {
-  const env = getServerEnv();
-  if (env.DATA_MODE !== "supabase") return "local";
-
-  const missing: string[] = [];
-  if (!env.NEXT_PUBLIC_SUPABASE_URL) missing.push("NEXT_PUBLIC_SUPABASE_URL");
-  if (!env.NEXT_PUBLIC_SUPABASE_ANON_KEY) missing.push("NEXT_PUBLIC_SUPABASE_ANON_KEY");
-
-  if (missing.length > 0) {
-    console.error(
-      `[env] DATA_MODE=supabase pero faltan variables: ${missing.join(", ")}. ` +
-        "La aplicación continúa en modo local (demo). " +
-        "Configura las variables en .env.local (ver .env.example) para activar Supabase.",
-    );
-    return "local";
-  }
+  const status = getDataModeStatus();
+  if (status.mode === "local") return "local";
+  if (status.mode === "invalid" || !status.configured) throw configurationError("DATA_MODE", status);
   return "supabase";
 }
 
-/** Proveedor de pagos efectivo, degradando a demo si faltan credenciales. */
+export function getResolvedAuthMode(): AuthMode {
+  const status = getAuthModeStatus();
+  if (status.mode === "disabled") return "disabled";
+  if (status.mode === "invalid" || !status.configured) throw configurationError("AUTH_MODE", status);
+  return "supabase";
+}
+
 export function getResolvedPaymentProvider(): "demo" | "stripe" | "mercadopago" {
   const env = getServerEnv();
-  if (env.PAYMENT_PROVIDER === "stripe" && (!env.STRIPE_SECRET_KEY || !env.STRIPE_WEBHOOK_SECRET)) {
-    console.error(
-      "[env] PAYMENT_PROVIDER=stripe pero faltan STRIPE_SECRET_KEY o STRIPE_WEBHOOK_SECRET; se usa el proveedor demo.",
-    );
-    return "demo";
+  if (env.PAYMENT_PROVIDER === "stripe" && env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET) return "stripe";
+  if (env.PAYMENT_PROVIDER === "mercadopago" && env.MERCADOPAGO_ACCESS_TOKEN) return "mercadopago";
+  if (env.PAYMENT_PROVIDER !== "demo") {
+    console.error("[env] El proveedor de pagos solicitado no esta configurado; se mantiene el proveedor demo.");
   }
-  if (env.PAYMENT_PROVIDER === "mercadopago" && !env.MERCADOPAGO_ACCESS_TOKEN) {
-    console.error(
-      "[env] PAYMENT_PROVIDER=mercadopago pero falta MERCADOPAGO_ACCESS_TOKEN; se usa el proveedor demo.",
-    );
-    return "demo";
-  }
-  return env.PAYMENT_PROVIDER;
+  return "demo";
 }

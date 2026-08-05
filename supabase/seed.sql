@@ -20,7 +20,7 @@ on conflict (slug) do nothing;
 
 insert into branches (
   id, restaurant_id, name, slug, address, city, latitude, longitude,
-  phone, whatsapp, email, pickup_enabled, delivery_enabled, reservations_enabled, delivery_fee, delivery_area_note
+  phone, whatsapp, email, pickup_enabled, delivery_enabled, delivery_fee, delivery_area_note
 )
 values
   (
@@ -29,7 +29,7 @@ values
     'Casa Brasa Centro', 'centro',
     'Calle 10 # 5-51 (dirección de demostración)', 'Bogotá', 4.598056, -74.075833,
     '+57 601 000 0001', '+573000000001', 'centro@casabrasa-demo.example',
-    true, true, true, 6000, 'Cobertura de demostración: hasta 5 km a la redonda.'
+    true, true, 6000, 'Cobertura de demostración: hasta 5 km a la redonda.'
   ),
   (
     '00000000-0000-0000-0000-000000000012',
@@ -37,7 +37,7 @@ values
     'Casa Brasa Norte', 'norte',
     'Carrera 15 # 93-30 (dirección de demostración)', 'Bogotá', 4.678056, -74.056389,
     '+57 601 000 0002', '+573000000002', 'norte@casabrasa-demo.example',
-    true, false, true, 0, 'Esta sucursal solo ofrece recogida en tienda.'
+    true, false, 0, 'Esta sucursal solo ofrece recogida en tienda.'
   )
 on conflict (restaurant_id, slug) do nothing;
 

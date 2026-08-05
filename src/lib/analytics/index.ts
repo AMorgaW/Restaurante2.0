@@ -20,8 +20,6 @@ export type AnalyticsEventName =
   | "begin_checkout"
   | "add_payment_info"
   | "purchase"
-  | "reservation_start"
-  | "reservation_complete"
   | "click_phone"
   | "click_whatsapp"
   | "click_directions"

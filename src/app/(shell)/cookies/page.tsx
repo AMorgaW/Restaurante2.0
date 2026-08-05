@@ -25,7 +25,7 @@ export default function CookiesPage() {
           <li>Carrito de compras y preferencias de pedido.</li>
           <li>Platos favoritos.</li>
           <li>Recordar que ya viste la pantalla de bienvenida.</li>
-          <li>Pedidos y reservas de demostración realizados en este navegador.</li>
+          <li>Pedidos de demostración realizados en este navegador.</li>
         </ul>
         <p>Esta información no sale de tu dispositivo en el modo de demostración.</p>
       </section>

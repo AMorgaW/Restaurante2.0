@@ -15,27 +15,36 @@ function auditRuntime(page: import("@playwright/test").Page) {
   const errors: string[] = [];
   const warnings: string[] = [];
   const pageErrors: string[] = [];
-  const requestFailures: string[] = [];
+  const requestFailures: Array<{ method: string; url: string; type: string; error: string }> = [];
   page.on("console", (message) => {
     if (message.type() === "error") errors.push(message.text());
     if (message.type() === "warning") warnings.push(message.text());
   });
   page.on("pageerror", (error) => pageErrors.push(error.message));
   page.on("requestfailed", (request) => {
-    requestFailures.push(`${request.method()} ${request.url()} ${request.failure()?.errorText ?? "failed"}`);
+    requestFailures.push({
+      method: request.method(),
+      url: request.url(),
+      type: request.resourceType(),
+      error: request.failure()?.errorText ?? "failed",
+    });
   });
   return () => {
     expect(errors, errors.join("\n")).toEqual([]);
     expect(warnings.filter((warning) => /hydration|mismatch|typeerror|view transition/i.test(warning))).toEqual([]);
     expect(pageErrors, pageErrors.join("\n")).toEqual([]);
-    const unexpectedRequestFailures = requestFailures.filter(
-      (failure) =>
-        !(
-          failure.includes("net::ERR_ABORTED") &&
-          (failure.includes("?_rsc=") || failure.includes("/_next/image"))
-        ),
-    );
-    expect(unexpectedRequestFailures, unexpectedRequestFailures.join("\n")).toEqual([]);
+    const unexpectedRequestFailures = requestFailures.filter((failure) => {
+      const url = new URL(failure.url);
+      const expectedNavigationCancellation = failure.method === "GET" &&
+        failure.error.includes("net::ERR_ABORTED") &&
+        (url.searchParams.has("_rsc") || url.pathname.startsWith("/_next/image"));
+      const expectedPromotionsPrefetchCancellation = failure.method === "GET" &&
+        failure.type === "script" &&
+        failure.error.includes("net::ERR_ABORTED") &&
+        /^\/_next\/static\/chunks\/app\/\(shell\)\/promociones\/page-[^/]+\.js$/.test(url.pathname);
+      return !expectedNavigationCancellation && !expectedPromotionsPrefetchCancellation;
+    });
+    expect(unexpectedRequestFailures, JSON.stringify(unexpectedRequestFailures, null, 2)).toEqual([]);
   };
 }
 
@@ -47,6 +56,7 @@ async function settleMenu(page: import("@playwright/test").Page) {
 
 test("evidencia visual de portada, menú y tarjetas", async ({ page }) => {
   const expectCleanRuntime = auditRuntime(page);
+  await page.clock.setFixedTime(new Date("2026-07-21T12:00:00-05:00"));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await expect(page.getByTestId("landing-page")).toBeVisible();
@@ -84,6 +94,7 @@ test("evidencia visual de portada, menú y tarjetas", async ({ page }) => {
 
 test("evidencia visual de detalle y reduced motion", async ({ page }) => {
   const expectCleanRuntime = auditRuntime(page);
+  await page.clock.setFixedTime(new Date("2026-07-21T12:00:00-05:00"));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/plato/${SIMPLE_DISH_SLUG}`);
   await expect(page.getByRole("heading", { level: 1, name: SIMPLE_DISH_NAME })).toBeVisible();
@@ -92,6 +103,7 @@ test("evidencia visual de detalle y reduced motion", async ({ page }) => {
 
   await page.goto(`/plato/${MODIFIER_DISH_SLUG}`);
   await expect(page.getByTestId("included-soup-selector")).toBeVisible();
+  await page.getByRole("radio", { name: /Sopa de/ }).first().click();
   await expect(page.getByRole("button", { name: "Añadir al carrito" })).toBeEnabled();
   await expect(page.getByTestId("detail-image-container").locator("..")).toHaveCSS("opacity", "1");
   await page.screenshot({ path: `${evidenceDir}/${phase}-detail-validation-390x844.png`, fullPage: false });

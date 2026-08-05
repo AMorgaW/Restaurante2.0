@@ -9,7 +9,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${siteUrl}/menu`, changeFrequency: "weekly", priority: 0.9 },
     { url: `${siteUrl}/buscar`, changeFrequency: "monthly", priority: 0.4 },
     { url: `${siteUrl}/promociones`, changeFrequency: "weekly", priority: 0.7 },
-    { url: `${siteUrl}/reservar`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${siteUrl}/sucursales`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${siteUrl}/nosotros`, changeFrequency: "yearly", priority: 0.4 },
     { url: `${siteUrl}/contacto`, changeFrequency: "yearly", priority: 0.5 },

@@ -32,7 +32,7 @@ export function Dialog({
           {...(description ? {} : { "aria-describedby": undefined })}
           className={cn(
             "fixed left-1/2 top-1/2 z-[61] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2",
-            "rounded-card border border-border-soft bg-surface p-5 shadow-sheet",
+            "max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-card border border-border-soft bg-surface p-5 shadow-sheet",
             "data-[state=open]:animate-dialog-in focus:outline-none",
           )}
         >

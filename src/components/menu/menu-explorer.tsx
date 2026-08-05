@@ -128,15 +128,15 @@ export function MenuExplorer({
   const hasActiveFilters = deferredQuery.trim().length > 0 || (categorySlug && !lockedCategory);
 
   const reveal = (delay: number) =>
-    menuEntrance && !reduced
+    reduced
+      ? { initial: false as const }
+      : menuEntrance
       ? {
-          initial: { opacity: 0, y: 12 },
+          initial: { opacity: 1, y: 12 },
           animate: { opacity: 1, y: 0 },
           transition: { duration: 0.32, delay, ease: EASE_OUT },
         }
-      : menuEntrance
-        ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.12 } }
-        : { initial: false as const };
+      : { initial: false as const };
 
   return (
     <div className="menu-explorer flex flex-col gap-4">

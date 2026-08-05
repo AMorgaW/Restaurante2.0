@@ -2,16 +2,14 @@ import { getResolvedDataMode } from "@/lib/env/server";
 import {
   LocalMenuRepository,
   LocalOrderRepository,
-  LocalReservationRepository,
 } from "./local";
 import {
   SupabaseMenuRepository,
   SupabaseOrderRepository,
-  SupabaseReservationRepository,
 } from "./supabase";
-import type { MenuRepository, OrderRepository, ReservationRepository } from "./types";
+import type { MenuRepository, OrderRepository } from "./types";
 
-/** Selección de proveedor de datos según DATA_MODE (con degradación a local). */
+/** Selección estricta por DATA_MODE; una configuración inválida falla antes de elegir repositorio. */
 
 export function getMenuRepository(): MenuRepository {
   return getResolvedDataMode() === "supabase"
@@ -23,10 +21,4 @@ export function getOrderRepository(): OrderRepository {
   return getResolvedDataMode() === "supabase"
     ? new SupabaseOrderRepository()
     : new LocalOrderRepository();
-}
-
-export function getReservationRepository(): ReservationRepository {
-  return getResolvedDataMode() === "supabase"
-    ? new SupabaseReservationRepository()
-    : new LocalReservationRepository();
 }

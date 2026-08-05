@@ -87,22 +87,3 @@ export interface Order {
   notes: string;
   createdAt: string;
 }
-
-export type ReservationStatus = "pending" | "confirmed" | "cancelled";
-
-export interface Reservation {
-  id: string;
-  branchId: string;
-  customerName: string;
-  phone: string;
-  email: string;
-  /** yyyy-mm-dd */
-  date: string;
-  /** HH:mm */
-  time: string;
-  partySize: number;
-  occasion?: string;
-  notes?: string;
-  status: ReservationStatus;
-  createdAt: string;
-}

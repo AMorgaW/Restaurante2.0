@@ -2,21 +2,54 @@
 
 import { UserRound } from "lucide-react";
 import type { ButtonHTMLAttributes } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { PENSION_DEMO_MEMBERSHIPS, PENSION_DEMO_PROFILES } from "@/lib/pension/fixtures";
+import { resolveDemoSession } from "@/lib/session/demo-resolver";
+import { useAdminStore } from "@/stores/admin";
+import { usePensionStore } from "@/stores/pension";
+import { useStaffStore } from "@/stores/staff";
 
-/** Entrada visual futura: no navega, no abre sesión y comunica su estado. */
+/** Entrada de cuenta: las cuentas son opcionales y el acceso siempre es una ruta interna. */
 export function UserEntryButton({
   className,
   ...props
 }: { className?: string } & ButtonHTMLAttributes<HTMLButtonElement>) {
+  const router = useRouter();
+  const admin = useAdminStore();
+  const pension = usePensionStore();
+  const staff = useStaffStore();
+  const session = resolveDemoSession({
+    demoSessionActive: admin.demoSessionActive || pension.demoSessionActive,
+    demoRole: admin.demoRole,
+    selectedEmployeeId: staff.selectedEmployeeId,
+    staffMembers: staff.members,
+    selectedProfileId: pension.selectedProfileId,
+    pensionProfiles: PENSION_DEMO_PROFILES,
+    memberships: PENSION_DEMO_MEMBERSHIPS,
+  });
   return (
     <button
       type="button"
       {...props}
-      aria-label="Acceso de usuario, próximamente"
-      aria-disabled="true"
-      title="Acceso de usuario disponible próximamente"
-      onClick={(event) => event.preventDefault()}
+      aria-label={session.kind === "anonymous" ? "Iniciar sesión" : "Ver mi cuenta"}
+      title={session.kind === "anonymous" ? "Iniciar sesión" : "Ver mi cuenta"}
+      onClick={async (event) => {
+        props.onClick?.(event);
+        if (!event.defaultPrevented && !props.disabled) {
+          if (session.kind !== "anonymous") {
+            router.push("/cuenta");
+            return;
+          }
+          try {
+            const response = await fetch("/auth/state", { cache: "no-store" });
+            const state = await response.json() as { authenticated?: boolean };
+            router.push(state.authenticated ? "/cuenta" : "/login");
+          } catch {
+            router.push("/login");
+          }
+        }
+      }}
       className={cn(
         "group/user relative inline-flex size-11 shrink-0 items-center justify-center rounded-full",
         "border border-white/14 bg-white/[0.07] text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
@@ -26,10 +59,7 @@ export function UserEntryButton({
         className,
       )}
     >
-      <UserRound
-        aria-hidden
-        className="size-5 transition-transform duration-200 group-hover/user:scale-105 motion-reduce:transition-none"
-      />
+      <UserRound aria-hidden className="size-5 transition-transform duration-200 group-hover/user:scale-105 motion-reduce:transition-none" />
     </button>
   );
 }

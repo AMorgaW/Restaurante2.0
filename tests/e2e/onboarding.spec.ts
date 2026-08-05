@@ -139,7 +139,7 @@ async function expectLandingVisible(page: Page) {
   await expect.poll(() => view.image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   await expect(view.image).toHaveCSS("transform", "none");
   await expect(view.cta).toBeEnabled();
-  await expect(view.userEntry).toHaveAttribute("aria-disabled", "true");
+  await expect(view.userEntry).toHaveAttribute("aria-label", "Acceso de usuario");
   await expect(view.userEntry).toHaveAccessibleName(/acceso de usuario/i);
 }
 

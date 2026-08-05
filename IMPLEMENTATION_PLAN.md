@@ -65,7 +65,7 @@ Implicaciones:
   - Emite manifiesto **tipado** `src/data/generated/menu-manifest.ts`, ordenado establemente (regeneración sin diffs espurios).
 - `src/data/menu-overrides.ts`: correcciones manuales (nombre, categoría, precio, descripción, tags, orden, disponibilidad, destacado, ingredientes, alérgenos, modificadores demo).
 - Precios demo: deterministas por hash del slug dentro de rangos por categoría, en **COP** (config central `src/config/restaurant.ts`), formateados con `Intl.NumberFormat`. Documentados como contenido a validar.
-- Capa de repositorios: `MenuRepository`, `OrderRepository`, `ReservationRepository` con implementaciones `Local*` (manifiesto + validación en API routes + persistencia demo en cliente) y `Supabase*` (consultas tipadas). Selección por `DATA_MODE` validado con Zod; si `supabase` está configurado a medias → error claro en servidor y **degradación controlada a `local`**.
+- Capa de repositorios: `MenuRepository` y `OrderRepository` con implementaciones `Local*` (manifiesto + validación en API routes + persistencia demo en cliente) y `Supabase*` (consultas tipadas). Selección estricta por `DATA_MODE`; si `supabase` está configurado a medias o el valor es inválido, la operación falla cerrada sin degradar silenciosamente a `local`. Reservas fueron retiradas del producto.
 - Modelo completo (Restaurant, Branch, OpeningHour, SpecialHour, Category, MenuItem, BranchMenuItem, ModifierGroup/Option, Order(+Items), Reservation, Profile, Favorite, Cart…, promociones/cupones/zonas/mesas/roles/auditoría) en `src/types/` + `supabase/migrations/0001_initial.sql` con RLS + `seed.sql`.
 
 ## 4. Experiencia y UI
@@ -120,3 +120,6 @@ Implicaciones:
 ## 8. Comandos previstos
 
 `npm run dev` · `build` · `start` · `lint` · `typecheck` · `test` · `test:watch` · `test:e2e` · `test:e2e:ui` · `generate:menu` · `validate:images` · `format` · `check` (generate→lint→typecheck→test→build).
+# Documento histórico
+
+Este plan describe una etapa anterior en la que existían reservas. La decisión actual retira esa funcionalidad; consúltese `CODEX_HANDOFF.md` y `DECISIONS.md` para el estado vigente.

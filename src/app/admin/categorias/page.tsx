@@ -1,4 +1,5 @@
 import { getCategoriesInUse, getItemsByCategory } from "@/data/menu";
+import { authorizeAdminSection } from "@/lib/admin/server-authorization";
 
 export const metadata = { title: "Categorías" };
 
@@ -7,7 +8,8 @@ export const metadata = { title: "Categorías" };
  * La reasignación se hace en src/data/menu-overrides.ts (documentado) o
  * en la tabla `categories` de Supabase en producción.
  */
-export default function AdminCategoriesPage() {
+export default async function AdminCategoriesPage() {
+  await authorizeAdminSection("catalog");
   const categories = getCategoriesInUse();
 
   return (

@@ -8,6 +8,7 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 test("reduced motion: flujo completo sin contenido invisible", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
+  await page.clock.setFixedTime(new Date("2026-07-21T18:00:00-05:00"));
   await page.goto("/");
   const onboarding = page.getByTestId("landing-page");
   await expect(onboarding).toBeVisible();

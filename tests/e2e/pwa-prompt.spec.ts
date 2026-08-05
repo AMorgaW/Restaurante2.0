@@ -5,6 +5,7 @@ import { expectNoHorizontalScroll, skipOnboarding } from "./helpers";
 // The install event and client hydration share the browser lifecycle. Keep the
 // prompt scenarios serial so their timing remains representative in WebKit too.
 test.describe.configure({ mode: "serial" });
+test.use({ serviceWorkers: "allow" });
 
 const PROMPT_TITLE = "Pide más rápido desde tu inicio";
 
@@ -39,19 +40,11 @@ async function showPrompt(
 ) {
   const prompt = promptRegion(page);
 
-  // La navegación ya terminó cuando page.goto/page.reload resuelve. Esperar
-  // sólo DOMContentLoaded evita que una petición persistente de WebKit deje
-  // bloqueado networkidle; el toPass siguiente comprueba de forma observable
-  // que el listener de hidratación ya está listo.
   await page.waitForLoadState("domcontentloaded");
-
-  // The application listener is registered after hydration. Retry only the
-  // synthetic browser event until that listener is ready.
-  await expect(async () => {
-    await dispatchInstallEvent(page, outcome);
-    await expect(prompt).toBeVisible({ timeout: 1_000 });
-    await expect(page.locator("#pwa-prompt-title")).toHaveText(PROMPT_TITLE);
-  }).toPass({ timeout: 15_000 });
+  await expect(page.locator("html")).toHaveAttribute("data-pwa-install-listener", "ready");
+  await dispatchInstallEvent(page, outcome);
+  await expect(prompt).toBeVisible();
+  await expect(page.locator("#pwa-prompt-title")).toHaveText(PROMPT_TITLE);
 
   return prompt;
 }
@@ -59,9 +52,6 @@ async function showPrompt(
 test.describe("Prompt PWA editorial", () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
-      const nativeSetTimeout = window.setTimeout.bind(window);
-      window.setTimeout = ((callback: TimerHandler, timeout?: number, ...args: unknown[]) =>
-        nativeSetTimeout(callback, Math.min(Number(timeout) || 0, 10), ...args)) as typeof window.setTimeout;
       window.localStorage.setItem("rb-cookie-consent", "accepted");
     });
     await skipOnboarding(page);
@@ -110,7 +100,14 @@ test.describe("Prompt PWA editorial", () => {
 
   test("se oculta en standalone", async ({ page }) => {
     await page.addInitScript(() => {
-      window.matchMedia = ((query: string) => ({ matches: query.includes("standalone") })) as typeof window.matchMedia;
+      const nativeMatchMedia = window.matchMedia.bind(window);
+      window.matchMedia = ((query: string) => {
+        const result = nativeMatchMedia(query);
+        if (query.includes("standalone")) {
+          Object.defineProperty(result, "matches", { configurable: true, value: true });
+        }
+        return result;
+      }) as typeof window.matchMedia;
     });
     await page.goto("/");
     await dispatchInstallEvent(page);
@@ -127,7 +124,7 @@ test.describe("Prompt PWA editorial", () => {
   });
 
   test("el prompt visible no introduce violaciones axe críticas o serias", async ({ page }) => {
-    await page.goto("/reservar");
+    await page.goto("/menu");
     await showPrompt(page);
 
     const results = await new AxeBuilder({ page }).analyze();
@@ -142,11 +139,6 @@ test.describe("Prompt PWA con reduced motion", () => {
   test.use({ contextOptions: { reducedMotion: "reduce" } });
 
   test("se muestra y cierra sin dejar contenido invisible", async ({ page }) => {
-    await page.addInitScript(() => {
-      const nativeSetTimeout = window.setTimeout.bind(window);
-      window.setTimeout = ((callback: TimerHandler, timeout?: number, ...args: unknown[]) =>
-        nativeSetTimeout(callback, Math.min(Number(timeout) || 0, 10), ...args)) as typeof window.setTimeout;
-    });
     await skipOnboarding(page);
     await page.goto("/");
     const prompt = await showPrompt(page);

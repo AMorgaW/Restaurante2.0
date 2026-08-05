@@ -1,4 +1,61 @@
-# HANDOFF — Estado final del proyecto
+# HANDOFF — Estado vigente del proyecto
+
+> **Documento histórico.** El traspaso técnico vigente posterior a la Etapa 7 está en
+> `CODEX_HANDOFF.md`; léalo después de `AGENTS.md`. Las cifras o afirmaciones antiguas de este
+> archivo (incluidas reservas y ausencia de PostgreSQL local) se conservan solo como historial y
+> no describen el checkpoint actual.
+
+## Etapa 6 — login único y resolución de sesión (2026-08-04)
+
+Se centralizó la resolución de sesión en `src/lib/session/`: estados discriminados para Auth/demo, perfiles, cargos, membresía y destinos canónicos. `/login` conserva un único formulario; tras Auth real el servidor calcula el destino mediante `getUser()` y filtra `next`. El modo local ofrece accesos demo explícitos sin simular Auth. `/admin`, `/empleado`, `/pensionado` y `/cuenta` mantienen guards de servidor cuando `AUTH_MODE=supabase`; middleware y PWA aíslan las nuevas rutas privadas. No hubo conexión remota, migraciones, staging, commit ni actualización de Graphify.
+
+## Etapa 5 — sesión administrativa local (2026-08-04)
+
+Se añadieron `/admin/empleados` y `/admin/pensionados` con consulta y mutaciones demo locales. Los empleados comparten la matriz central y el origen `rb-staff`, por lo que cargo, sucursales y estado se reflejan en `/empleado`. Las membresías comparten `rb-pension-admin` con `/pensionado`: owner registra pago presencial, precio negociado, modalidad, activación, renovación, suspensión, reactivación y finalización; cada operación genera auditoría append-only local. No se crean usuarios Auth, migraciones ni cambios remotos.
+
+## Etapa 4 — experiencia local de pensionado (2026-08-04)
+
+Se implementó `/pensionado` como experiencia local/demo para clientes con y sin membresía comercial. Incluye estados pending, active, suspended, expired y cancelled, plan híbrido explícitamente demostrativo, pago y activación presenciales, menú determinista por fecha/periodo, selección incluida, cálculo de excedentes, consumos idempotentes locales, historial, calendario y renovación informativa. Pensionado continúa siendo `customer`; no hay autoactivación, pagos en línea, Auth real, Supabase, migraciones nuevas ni actualización de Graphify. Validación dirigida: typecheck, lint, Vitest de dominio/componentes y E2E Chromium/WebKit del workspace verdes.
+
+## Etapa 3 — experiencia local de empleados (2026-08-04)
+
+Se añadió `/empleado` como workspace demo local para `manager`, `kitchen`, `cashier`, `editor` y `support`, reutilizando la matriz de capacidades y la máquina de estados de pedidos. Incluye cola operativa, menú del día, inventario rápido de solo lectura, turno, historial e incidencias locales; customer, roles desconocidos y owner/admin quedan fuera. Kitchen y cashier ejecutan únicamente sus transiciones válidas, y la entrega conserva el consumo idempotente del dominio de inventario. Validación dirigida: typecheck, lint, build, Vitest afectado y E2E Chromium/WebKit del workspace verdes. No se conectó Supabase ni se actualizó Graphify.
+
+## Auth y seguridad local (2026-08-04)
+
+## Etapa 2 — dominio de inventario (2026-08-04)
+
+Se separó el dominio local de inventario en unidades fijas, insumos, recetas,
+movimientos append-only, consumo al entregar y reversión auditada. La migración
+pendiente `supabase/migrations/0004_inventory_foundation.sql` modela estas reglas,
+RLS por sucursal y funciones privadas; no se ejecutó contra PostgreSQL remoto.
+El adaptador local y Zustand conservan el mismo contrato, con idempotencia y
+rechazo de stock negativo o recetas pendientes. Validación final: typecheck,
+lint, build, Vitest 267/267, Chromium dirigido 7/7 y WebKit dirigido 7/7.
+
+## Etapa 1 — administrador e inventario local (2026-08-04)
+
+- Dashboard local actualizado con estado operativo, métricas centrales e inventario como prioridad.
+- `/admin/inventario` y sus operaciones demo consumen el origen tipado de `src/lib/inventory/`.
+- La autorización de inventario queda limitada a `owner` y `admin`; no hay persistencia remota ni cambios en Graphify.
+
+## Etapa 2 — dominio de inventario (2026-08-04)
+
+- Se añadieron unidades canónicas, recetas ficticias, movimientos append-only, consumo idempotente en `ready → delivered` y reversión local auditada.
+- `supabase/migrations/0004_inventory_foundation.sql` prepara tablas, RLS y funciones transaccionales; no se ha ejecutado contra PostgreSQL.
+
+- **No existen reservas en el producto actual.** La ruta pública, API, stores, panel y componentes fueron retirados; `0003_remove_reservations.sql` elimina sus objetos de base de datos.
+- Continúan la venta para consumo en local y los domicilios mediante los flujos invitados/locales existentes.
+- **Auth y datos son ejes independientes:** `AUTH_MODE=supabase` puede coexistir con `DATA_MODE=local`; un typo presente en cualquiera de los modos falla cerrado.
+- Supabase remoto **no está conectado**. No se ejecutó `supabase link`, `db push`, SQL remoto ni seed.
+- Las migraciones `0001 -> 0002 -> 0003` aún **no han sido aplicadas ni verificadas en PostgreSQL real** porque este equipo no dispone de Supabase CLI, Docker, `psql` ni servidor PostgreSQL.
+- Pagos reales siguen deshabilitados. El webhook Stripe valida firma y resultado de una fila, pero la idempotencia persistente por `event.id` sigue pendiente antes de aceptar pagos reales.
+- Graphify está deliberadamente desactualizado por restricción de esta fase; el código y el diff actual son la fuente primaria.
+- Pensionados sigue sin implementarse. Un pensionado será `customer`, no un rol Auth; permanece abierta la decisión de 30 días calendario frente a 30 comidas.
+- Recovery usa `token_hash` de un solo uso consumido por Supabase `verifyOtp({ type: "recovery" })`; al conectar el proyecto se debe configurar la plantilla de correo indicada en `.env.example`.
+- El panel aplica una matriz deny-by-default por sección y una máquina de estados de pedidos alineada entre UI y PostgreSQL. Con Auth Supabase + datos locales muestra expresamente que los datos operativos siguen siendo demo.
+
+> Las secciones fechadas en 2026-07-11/13 que aparecen debajo son memoria histórica. Sus referencias a `/reservar`, `/api/reservations`, reservas activas o pagos listos no describen el estado vigente.
 
 > **Actualización de producto 2026-07-14:** después del onboarding de primera visita la única sección principal es `/menu`. Las demás rutas comerciales permanecen, pero no hay navegación inferior persistente. El onboarding usa `images/inicio.png` sin animarla; las tarjetas del menú usan azul cobalto semántico y reduced motion muestra el contenido inmediatamente.
 
@@ -137,3 +194,42 @@ npm run dev
 # o re-verificación completa:
 npm run check && npm run test:e2e
 ```
+
+## Fase local Auth / SSR — checkpoint pendiente de revisión
+
+La fase local añadió la base SSR de Auth con `@supabase/ssr`, cookies renovables en
+`middleware.ts`, rutas `/login`, `/registro`, `/recuperar-contrasena`,
+`/actualizar-contrasena`, `/cuenta` y `/auth/callback`, además de protección de `/admin`
+por `auth.getUser()` + `profiles.role` cuando `AUTH_MODE=supabase`. En `AUTH_MODE=disabled`
+no se simula sesión y se conservan los flujos invitados y el selector admin demo.
+
+La migración nueva es `supabase/migrations/0002_auth_security_foundation.sql`; no se editó
+`0001_initial.sql`, no se aplicó seed y no se conectó ningún proyecto remoto. Pedidos y
+los pedidos remotos fallan explícitamente cuando `DATA_MODE=supabase` hasta contar con un contrato seguro;
+el service role queda limitado al webhook firmado. `@supabase/ssr` permanece en 0.6.1; su
+actualización debe hacerse como tarea controlada con pruebas de compatibilidad de cookies.
+
+Vitest quedó en 162/162, typecheck/lint/build verdes y los flujos Auth dirigidos pasaron en
+Chromium y WebKit. La suite Chromium global tuvo 124/126: los dos fallos son evidencias
+históricas de `interface-abc-evidence.spec.ts`, no regresiones de Auth. No hay staging ni
+commit; la siguiente revisión debe auditar SQL en PostgreSQL local o Supabase CLI antes de
+`supabase link`.
+
+## Estado actual posterior a la auditoría de seguridad
+
+La siguiente fase retira reservas: no existen rutas, navegación, API, store ni panel activo de
+reservas. `0001_initial.sql` permanece histórico; `0002_auth_security_foundation.sql` ya no
+depende de reservas y `0003_remove_reservations.sql` elimina la tabla, `tables_capacity` y la
+columna histórica de sucursal. No se aplicaron migraciones.
+
+Auth y datos se separan mediante `AUTH_MODE` y `DATA_MODE`; la combinación prevista es
+`AUTH_MODE=supabase` + `DATA_MODE=local`. El contrato de pensionados está documentado en
+`references/analysis/PENSIONADOS_BUSINESS_RULES.md`; pensionado sigue siendo `customer` y queda
+abierta la definición de 30 días calendario frente a 30 comidas.
+
+Validación local más reciente: typecheck, lint y build verdes; Vitest **21 archivos / 163
+pruebas**; Auth y retirada de reservas dirigidas pasaron en Chromium y WebKit. Las pruebas
+unitarias nuevas cubren modos, claves, política de caché del service worker y migraciones.
+La prueba editorial PWA existente conserva una flakiness de arranque: Chromium pasa en retry
+y WebKit también pasa al reintentar el caso aislado; no se cambiaron retries, timeouts ni se
+introdujeron sleeps. No hay validación PostgreSQL local porque CLI/Docker/psql no están instalados.

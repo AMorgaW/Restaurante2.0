@@ -68,7 +68,7 @@ test.describe("Capturas de revisión visual", () => {
     }
   });
 
-  test("detalle con nombre largo, carrito, checkout y reserva", async ({ page }) => {
+  test("detalle con nombre largo, carrito y checkout", async ({ page }) => {
     await skipOnboarding(page);
     for (const viewport of [VIEWPORTS[0], VIEWPORTS[3], VIEWPORTS[5], VIEWPORTS[7]]) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
@@ -87,9 +87,6 @@ test.describe("Capturas de revisión visual", () => {
       await page.waitForTimeout(400);
       await page.screenshot({ path: `${DIR}/checkout-${viewport.name}.png`, fullPage: true });
 
-      await page.goto("/reservar");
-      await page.waitForTimeout(400);
-      await page.screenshot({ path: `${DIR}/reservar-${viewport.name}.png`, fullPage: true });
     }
   });
 

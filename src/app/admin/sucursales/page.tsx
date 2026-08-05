@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { BranchHours } from "@/components/branches/branch-card";
 import { branches } from "@/config/restaurant";
+import { authorizeAdminSection } from "@/lib/admin/server-authorization";
 
 export const metadata = { title: "Sucursales" };
 
@@ -8,7 +9,8 @@ export const metadata = { title: "Sucursales" };
  * Sucursales configuradas en src/config/restaurant.ts. En producción se
  * administran en las tablas `branches`/`opening_hours` de Supabase.
  */
-export default function AdminBranchesPage() {
+export default async function AdminBranchesPage() {
+  await authorizeAdminSection("branches");
   return (
     <div className="flex flex-col gap-5">
       <header>
@@ -36,7 +38,6 @@ export default function AdminBranchesPage() {
             <div className="mt-2 flex flex-wrap gap-1.5">
               {branch.pickupEnabled ? <Badge variant="muted">Recogida</Badge> : null}
               {branch.deliveryEnabled ? <Badge variant="muted">Domicilio</Badge> : null}
-              {branch.reservationsEnabled ? <Badge variant="muted">Reservas</Badge> : null}
             </div>
             <div className="mt-3 border-t border-border-soft pt-3">
               <BranchHours branch={branch} />

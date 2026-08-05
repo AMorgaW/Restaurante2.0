@@ -43,7 +43,6 @@ export const branches: Branch[] = [
     timezone: "America/Bogota",
     pickupEnabled: true,
     deliveryEnabled: true,
-    reservationsEnabled: true,
     deliveryFee: 6000,
     deliveryAreaNote: "Cobertura de demostración: hasta 5 km a la redonda.",
     status: "active",
@@ -64,7 +63,6 @@ export const branches: Branch[] = [
     timezone: "America/Bogota",
     pickupEnabled: true,
     deliveryEnabled: false,
-    reservationsEnabled: true,
     deliveryFee: 0,
     deliveryAreaNote: "Esta sucursal solo ofrece recogida en tienda.",
     status: "active",
@@ -103,16 +101,6 @@ export const restaurantConfig = {
     deliveryMinimum: 25000,
     /** Máximo de unidades por línea para prevenir cantidades absurdas. */
     maxQuantityPerLine: 20,
-  },
-  reservations: {
-    minPartySize: 1,
-    maxPartySize: 12,
-    /** Minutos entre franjas de reserva. */
-    slotIntervalMinutes: 30,
-    /** Antelación mínima en minutos para reservar. */
-    minLeadMinutes: 60,
-    /** Días hacia adelante que se pueden reservar. */
-    maxAdvanceDays: 30,
   },
   demo: {
     orderPrefix: "CB",

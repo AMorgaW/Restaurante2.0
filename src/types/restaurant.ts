@@ -30,7 +30,6 @@ export interface Branch {
   timezone: string;
   pickupEnabled: boolean;
   deliveryEnabled: boolean;
-  reservationsEnabled: boolean;
   deliveryFee: number;
   deliveryAreaNote: string;
   status: "active" | "inactive";

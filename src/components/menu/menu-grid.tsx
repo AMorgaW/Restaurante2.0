@@ -114,18 +114,19 @@ export function MenuGrid({
   }
 
   const itemMotion = (index: number) => {
+    if (reduced) return { initial: false as const };
     if (mode === "in-view") {
       return {
-        initial: reduced ? { opacity: 0 } : { opacity: 0, y: 16 },
+        initial: { opacity: 1, y: 16 },
         whileInView: { opacity: 1, y: 0 },
         // El margen superior enorme cuenta como "en viewport" todo lo que
         // ya quedó ARRIBA: un scroll rápido que salta tarjetas no puede
         // dejarlas invisibles (once + IO solo dispara al intersectar).
         viewport: { once: true, margin: "4000px 0px -8% 0px" },
         transition: {
-          duration: reduced ? 0.15 : 0.3,
+          duration: 0.3,
           ease: EASE_OUT,
-          delay: entranceDelay + (reduced ? 0 : Math.min(index * 0.065, 0.34)),
+          delay: entranceDelay + Math.min(index * 0.065, 0.34),
         },
       };
     }

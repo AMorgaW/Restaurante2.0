@@ -145,3 +145,105 @@ notas y dejó de derivar/renderizar relacionados. Se conserva compatibilidad de 
 53. **Reflejo visual efímero sin estado global** — el vidrio es un panel cobalto translúcido con
 borde, brillo interior y sombra. Un pseudo-elemento recorre el panel 760 ms una sola vez, guardado
 por tarjeta en memoria de sesión; el regreso no lo repite. Reduced motion lo deja estático.
+
+54. **Producto actual sin reservas y pensionados fuera de Auth** — Brisas del Sinú vende para
+consumo en local y domicilios; la funcionalidad pública y administrativa de reservas se retira
+mediante `0003_remove_reservations.sql`. Un pensionado conserva `role = customer`; su condición
+comercial futura será un plan o contrato, no un rol. Las reglas están en
+`references/analysis/PENSIONADOS_BUSINESS_RULES.md`; queda abierta la decisión de 30 días
+calendario con almuerzo/cena frente a 30 comidas totales.
+
+55. **Auth y datos son ejes independientes** — `AUTH_MODE` controla únicamente sesión/Auth y
+`DATA_MODE` controla repositorios comerciales. La combinación prevista es `supabase` + `local`
+para permitir Auth real con carrito, pedidos y domicilios locales.
+
+## 2026-08-04 (endurecimiento local de Auth y seguridad)
+
+56. **Capacidades administrativas separadas y deny-by-default** — catálogo, configuración,
+operación por sucursal, marketing, auditoría y pedidos usan helpers/policies distintos. `editor`
+solo inserta/actualiza catálogo y disponibilidad/precio de sucursales asignadas; no elimina ni
+accede a sucursales, restaurantes, domicilios, marketing, pedidos, perfiles o permisos.
+
+57. **Estados de pedido validados en PostgreSQL** — el trigger privado `BEFORE UPDATE OF status`
+comprueba identidad, rol, sucursal, `OLD.status` y `NEW.status`. Cocina solo prepara; caja confirma
+y entrega; support/editor no mutan; owner/admin/manager siguen el grafo y no reabren terminales.
+
+58. **Recovery directo con TokenHash** — se elimina la cookie HMAC reutilizable. El GET solo
+presenta el formulario y limpia la URL tras hidratar; el POST fija `type = recovery`, consume el
+OTP con `verifyOtp`, valida `getUser`, actualiza y cierra la sesión temporal. La unicidad/expiración
+la garantiza Supabase Auth; debe validarse contra un entorno local/real antes de conectar.
+
+59. **Cache SSR/PWA dependiente de identidad** — middleware solo aplica `private, no-store` cuando
+la ruta o respuesta depende de Auth, hay cookie/sesión o se escribieron cookies. El service worker
+espera cada `cache.put` dentro de `respondWith` y nunca intercepta Auth, cuenta, admin, API,
+checkout o pedido.
+
+60. **Stripe todavía no está listo para pagos reales** — varias firmas `v1` se conservan, los
+eventos relevantes requieren UUID de pedido y la escritura debe devolver exactamente una fila.
+La idempotencia persistente por `event.id` es requisito pendiente de despliegue.
+
+## 2026-08-04 (Etapa 7 — PostgreSQL local real)
+
+61. **Operaciones sensibles como RPC transaccional, no DML cliente** — personal, membresías,
+consumos, movimientos y reversiones derivan el actor de `auth.uid()`. Los wrappers públicos son
+`SECURITY INVOKER`; los helpers privilegiados permanecen en `private` con `search_path = ''`.
+
+62. **Pensionado conserva identidad customer y ciclos históricos** — modalidad `meal_count`,
+`calendar_period` o `hybrid` se registra por ciclo. Precio público, acordado, actor, transición y
+consumo quedan inmutables/auditados. Se mantiene la regla aprobada más estricta: solo `owner`
+muta membresías; `admin` consulta.
+
+63. **Consumo físico trazable e idempotencia en PostgreSQL** — una entrega bloquea pedido e
+insumos, exige receta completa y crea una fuente por `order_item`/receta. Reversión y webhooks
+reservan claves únicas dentro de la transacción; el retry devuelve el resultado existente.
+
+64. **Graphify excluido de esta etapa** — estaba desactualizado respecto de las Etapas 1–6; las
+decisiones se validaron contra código, migraciones, tests y PostgreSQL local. No se consultó como
+fuente de verdad ni se actualizó.
+
+## 2026-08-04 — consolidación posterior a Etapa 7
+
+### Decisiones cerradas
+
+65. **Producto sin reservaciones** — Brisas del Sinú atiende consumo local y domicilios. No existen rutas, navegación, API, store, panel ni tabla final de reservas; `0003` elimina el modelo histórico de `0001`.
+
+66. **Identidad y roles** — el registro público crea únicamente `customer`. Los roles técnicos válidos son `owner`, `admin`, `manager`, `kitchen`, `cashier`, `editor`, `support` y `customer`; no existe `employee`. Ningún formulario, metadata o store cliente puede asignar privilegios.
+
+67. **Pensionado es contrato comercial** — un pensionado conserva `profiles.role = customer` y obtiene su experiencia por una membresía. Activación, renovación, precio negociado, descuento, suspensión, cancelación y finalización son operaciones administrativas auditadas; el cliente no modifica esos campos.
+
+68. **Precio histórico y auditoría** — cada ciclo conserva precio público, precio acordado, descuento, modalidad, actor y fecha. Transiciones, consumos, movimientos y auditoría son append-only; las entidades con historia usan desactivación lógica.
+
+69. **Sesión discriminada y modos independientes** — existe un único login y un resolvedor servidor central. `AUTH_MODE` controla identidad y `DATA_MODE` repositorios comerciales. Owner/admin van a `/admin`; personal activo a `/empleado`; customer con membresía a `/pensionado`; customer sin membresía a `/cuenta`.
+
+70. **PostgreSQL es la autoridad** — RLS, grants mínimos, constraints, locks y funciones transaccionales garantizan autorización e invariantes. Los componentes y stores solo representan la experiencia; no son una frontera de seguridad.
+
+71. **Funciones privilegiadas** — helpers internos viven en `private`, usan nombres cualificados y `search_path = ''`; se revoca ejecución de `PUBLIC`. Los wrappers públicos tienen ACL explícita y validan `auth.uid()`. `public.rls_auto_enable()` conserva el trigger automático sin ejecución cliente.
+
+72. **Inventario y entrega** — cantidades canónicas: gramos, mililitros y unidades, almacenadas como `numeric`. Un producto consumible requiere receta activa y completa. El descuento sucede exclusivamente en la transición válida a `delivered`, dentro de la misma transacción, sin stock negativo y exactamente una vez.
+
+73. **Idempotencia y concurrencia** — entrega, consumo de beneficio, activación, renovación, reversión y webhook reservan una clave o relación única en PostgreSQL y bloquean filas en orden estable. Una reversión restaura inventario una vez, registra actor/motivo y nunca elimina el movimiento original.
+
+74. **Stripe endurecido en `0007`** — la decisión 60 queda superada: ahora existe persistencia idempotente por evento, digest y resultado. La firma se valida en el servidor sobre el cuerpo original y solo `service_role` ejecuta la función de persistencia. Esto no habilita pagos reales ni autoriza despliegue.
+
+75. **Supabase local como laboratorio** — Docker/Supabase local y resets sin seed son la validación autorizada. La producción no se conecta ni modifica sin una fase posterior explícita; MCP remoto tampoco sustituye las pruebas locales.
+
+76. **Graphify vuelve a ser mapa auxiliar** — tras consolidar la Etapa 7 se regeneró con `graphify update .`. La salida permanece ignorada; código, migraciones y pruebas conservan prioridad cuando exista discrepancia.
+
+### Decisiones temporales
+
+- Las interfaces y repositorios locales/demo continúan disponibles mientras se conectan gradualmente los adaptadores Supabase.
+- El contrato comercial soporta `meal_count`, `calendar_period` e `hybrid`; los fixtures eligen ejemplos solo para pruebas.
+- Recetas, precios, imágenes y perfiles demo no son datos oficiales del restaurante.
+
+### Asuntos comerciales abiertos
+
+- Definir si el plan pensionado definitivo se vende por comidas, por días calendario o de forma híbrida.
+- Resolver la discrepancia entre sopa de cerdo y sopa de pollo antes de publicar menús definitivos.
+- Validar precios, horarios, contenido legal, datos de sucursales y recetas reales.
+
+### Trabajo técnico diferido
+
+- Revisión independiente del checkpoint y posterior integración autorizada con el proyecto Supabase correcto.
+- Configuración real de Auth, correos, redirect URLs y secretos fuera de Git.
+- Habilitación y conciliación de pagos reales, observabilidad y despliegue.
+- Migración gradual de repositorios locales; no habilitar escrituras remotas sin contrato transaccional y RLS probados.

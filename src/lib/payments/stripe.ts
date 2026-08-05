@@ -1,5 +1,5 @@
 import "server-only";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { getServerEnv } from "@/lib/env/server";
 import type { Order } from "@/types/order";
 import { PaymentConfigurationError, type PaymentIntentResult, type PaymentProvider } from "./types";
@@ -65,22 +65,32 @@ export function verifyStripeWebhookSignature(
   now: number = Math.floor(Date.now() / 1000),
 ): boolean {
   if (!signatureHeader) return false;
-  const parts = new Map(
-    signatureHeader.split(",").map((part) => {
-      const [key, ...rest] = part.split("=");
-      return [key?.trim() ?? "", rest.join("=")] as const;
-    }),
-  );
-  const timestamp = Number.parseInt(parts.get("t") ?? "", 10);
-  const signature = parts.get("v1");
-  if (!Number.isFinite(timestamp) || !signature) return false;
+  const values = signatureHeader.split(",").reduce<Record<string, string[]>>((result, part) => {
+    const [key, ...rest] = part.split("=");
+    const normalizedKey = key?.trim() ?? "";
+    if (!normalizedKey) return result;
+    (result[normalizedKey] ??= []).push(rest.join("="));
+    return result;
+  }, {});
+  const timestamps = values.t ?? [];
+  const signatures = values.v1 ?? [];
+  if (timestamps.length !== 1 || signatures.length === 0 || !/^\d+$/.test(timestamps[0] ?? "")) return false;
+  const timestamp = Number.parseInt(timestamps[0]!, 10);
+  if (!Number.isFinite(timestamp)) return false;
   if (Math.abs(now - timestamp) > toleranceSeconds) return false;
 
   const expected = createHmac("sha256", webhookSecret)
     .update(`${timestamp}.${payload}`)
     .digest("hex");
   const expectedBuffer = Buffer.from(expected, "hex");
-  const receivedBuffer = Buffer.from(signature, "hex");
-  if (expectedBuffer.length !== receivedBuffer.length || receivedBuffer.length === 0) return false;
-  return timingSafeEqual(expectedBuffer, receivedBuffer);
+  return signatures.some((signature) => {
+    if (!/^[0-9a-f]{64}$/i.test(signature)) return false;
+    const receivedBuffer = Buffer.from(signature, "hex");
+    return expectedBuffer.length === receivedBuffer.length && timingSafeEqual(expectedBuffer, receivedBuffer);
+  });
+}
+
+/** Huella no reversible para detectar la reutilizacion de un event.id con otro cuerpo. */
+export function digestStripeWebhookPayload(payload: string): string {
+  return createHash("sha256").update(payload).digest("hex");
 }

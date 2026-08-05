@@ -41,21 +41,14 @@ export default function TermsPage() {
         </p>
       </section>
       <section className="flex flex-col gap-3">
-        <h2>4. Reservas</h2>
-        <p>
-          La mesa se mantiene disponible durante 15 minutos después de la hora reservada. Puedes
-          cancelar tu reserva desde la sección de reservas o contactando a la sucursal.
-        </p>
-      </section>
-      <section className="flex flex-col gap-3">
-        <h2>5. Uso aceptable</h2>
+        <h2>4. Uso aceptable</h2>
         <p>
           Te comprometes a proporcionar información veraz y a no usar el sitio para fines
           fraudulentos o que afecten su funcionamiento.
         </p>
       </section>
       <section className="flex flex-col gap-3">
-        <h2>6. Modificaciones</h2>
+        <h2>5. Modificaciones</h2>
         <p>
           Podemos actualizar estos términos; la versión vigente estará siempre publicada en esta
           página.

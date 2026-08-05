@@ -31,9 +31,6 @@ export default function PrivacyPage() {
             entrega. Se usan exclusivamente para preparar y entregar tu pedido.
           </li>
           <li>
-            <strong>Reservas:</strong> nombre, teléfono, correo, fecha, hora y tamaño del grupo.
-          </li>
-          <li>
             <strong>Preferencias locales:</strong> favoritos, carrito y ajustes se guardan en tu
             propio navegador (almacenamiento local) y no se envían a servidores de terceros en el
             modo de demostración.
@@ -60,7 +57,7 @@ export default function PrivacyPage() {
       <section className="flex flex-col gap-3">
         <h2>Conservación</h2>
         <p>
-          Los datos de pedidos y reservas se conservan el tiempo necesario para la operación y las
+          Los datos de pedidos se conservan el tiempo necesario para la operación y las
           obligaciones fiscales del restaurante.
         </p>
       </section>

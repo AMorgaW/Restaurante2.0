@@ -7,11 +7,14 @@ import { useToast } from "@/components/ui/toast";
 import { branches } from "@/config/restaurant";
 import { formatCurrency } from "@/lib/format/currency";
 import { useMounted } from "@/hooks/use-mounted";
-import { roleCan, useAdminStore } from "@/stores/admin";
+import { useAdminStore } from "@/stores/admin";
+import { useEffectiveAdminRole } from "@/components/admin/admin-role-context";
+import { allowedOrderStatusTransitions } from "@/lib/admin/authorization";
 import { useOrdersStore } from "@/stores/orders";
 import type { OrderStatus } from "@/types/order";
 
 const STATUS_FLOW: Array<{ value: OrderStatus; label: string }> = [
+  { value: "pending", label: "Pendiente" },
   { value: "confirmed", label: "Confirmado" },
   { value: "preparing", label: "En preparación" },
   { value: "ready", label: "Listo" },
@@ -34,8 +37,7 @@ export function OrdersAdminScreen() {
   const mounted = useMounted();
   const orders = useOrdersStore((state) => state.orders);
   const updateStatus = useOrdersStore((state) => state.updateStatus);
-  const role = useAdminStore((state) => state.demoRole);
-  const canEditOrders = roleCan(role, "edit-orders");
+  const role = useEffectiveAdminRole(useAdminStore((state) => state.demoRole));
 
   return (
     <div className="flex flex-col gap-5">
@@ -43,7 +45,8 @@ export function OrdersAdminScreen() {
         <h1 className="text-2xl font-extrabold tracking-tight">Pedidos</h1>
         <p className="mt-1 text-sm text-muted">
           Pedidos de demostración realizados desde este navegador. Con Supabase, aquí se listan los
-          pedidos reales de todas las sucursales (con Realtime opcional).
+          pedidos locales de este navegador. Aunque Auth use Supabase, estos datos siguen siendo demo
+          y no se sincronizan con la base remota en esta fase.
         </p>
       </header>
 
@@ -58,6 +61,7 @@ export function OrdersAdminScreen() {
         <ul className="flex flex-col gap-4">
           {orders.map((order) => {
             const branch = branches.find((candidate) => candidate.id === order.branchId);
+            const allowedStatuses = allowedOrderStatusTransitions(role, order.status);
             return (
               <li key={order.id} className="rounded-card border border-border-soft bg-surface p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -84,21 +88,30 @@ export function OrdersAdminScreen() {
                     </li>
                   ))}
                 </ul>
-                {canEditOrders ? (
+                {allowedStatuses.length > 0 ? (
                   <div className="mt-3 flex items-center gap-2">
                     <label htmlFor={`estado-${order.id}`} className="text-[13px] font-semibold">
                       Estado:
                     </label>
                     <select
                       id={`estado-${order.id}`}
-                      value={order.status}
+                      value=""
                       onChange={(event) => {
-                        updateStatus(order.id, event.target.value as OrderStatus);
-                        toast({ title: "Estado actualizado", description: order.orderNumber });
+                        const next = event.target.value as OrderStatus;
+                        if (!allowedStatuses.includes(next)) return;
+                        try {
+                          updateStatus(order.id, next, role);
+                          toast({ title: "Estado actualizado", description: order.orderNumber });
+                        } catch (error) {
+                          toast({ title: "No se pudo actualizar", description: error instanceof Error ? error.message : "La operación fue rechazada.", variant: "error" });
+                        }
                       }}
                       className="h-10 rounded-xl border border-border-soft bg-white/6 px-3 text-[13px] font-semibold text-foreground outline-none focus:border-lime/60"
                     >
-                      {STATUS_FLOW.map((status) => (
+                      <option value="" disabled className="bg-background-secondary">
+                        Elegir transicion
+                      </option>
+                      {STATUS_FLOW.filter((status) => allowedStatuses.includes(status.value)).map((status) => (
                         <option
                           key={status.value}
                           value={status.value}
@@ -111,7 +124,7 @@ export function OrdersAdminScreen() {
                   </div>
                 ) : (
                   <p className="mt-3 text-[12px] text-faint">
-                    Tu rol no permite cambiar estados de pedido.
+                    No hay transiciones permitidas para tu rol y el estado actual.
                   </p>
                 )}
               </li>

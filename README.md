@@ -1,6 +1,6 @@
 # Casa Brasa — Restaurante 2.0
 
-Aplicación web **mobile-first** para restaurante: menú generado automáticamente desde fotografías locales, carrito, checkout de demostración, reservas, panel de administración, PWA y SEO técnico. Construida con Next.js 15 (App Router), React 19, TypeScript estricto, Tailwind CSS v4 y Motion.
+Aplicación web **mobile-first** para restaurante: menú generado automáticamente desde fotografías locales, carrito, checkout de demostración, pedidos para consumo local y domicilios, panel de administración, PWA y SEO técnico. Construida con Next.js 15 (App Router), React 19, TypeScript estricto, Tailwind CSS v4 y Motion.
 
 > **Modo demo sin credenciales**: la aplicación funciona completa sin Supabase, pagos ni correo. Todo el contenido comercial (nombre, precios, direcciones, horarios) es de demostración y debe validarse antes de producción — ver [Contenido que necesita validación](#contenido-que-necesita-validación).
 
@@ -17,7 +17,7 @@ Las capturas de revisión visual (320→1440 px) se generan en `artifacts/screen
 | Estilos | Tailwind CSS v4 (tokens en `src/styles/globals.css`) |
 | Animación | Motion 12 (`LazyMotion`) + View Transitions (`next-view-transitions`) |
 | Formularios | React Hook Form + Zod (esquemas compartidos cliente/servidor) |
-| Estado | Zustand 5 con persistencia (carrito, favoritos, pedidos/reservas demo) |
+| Estado | Zustand 5 con persistencia (carrito, favoritos y pedidos demo) |
 | Datos producción | Supabase (PostgreSQL + Auth + RLS), migraciones en `supabase/` |
 | Imágenes | sharp (manifiesto, blur placeholders, iconos PWA) + `next/image` |
 | Pruebas | Vitest + Testing Library · Playwright + axe-core |
@@ -96,35 +96,42 @@ Edita `src/data/menu-overrides.ts` usando el `slug` del plato (visible en `artif
 | Marca, contacto, sucursales, horarios, impuestos, propinas, cupones | `src/config/restaurant.ts` |
 | Moneda (código/locale/decimales) | `currencyConfig` en `src/config/restaurant.ts` |
 | Colores y radios (paleta navy/cobalto/amarillo) | `@theme` en `src/styles/globals.css` |
-| Características on/off (delivery, reservas, analítica, PWA) | `src/config/features.ts` |
+| Características on/off (delivery, analítica, PWA) | `src/config/features.ts` |
 | Categorías y reglas de inferencia | `src/lib/menu/categories.ts` |
 | Precios/descripciones demo | `src/lib/demo/pricing.ts` |
 
-## Modos de datos
+## Modos independientes
 
 ### Modo local (por defecto)
 
-Sin variables de entorno. El menú sale del manifiesto; pedidos y reservas se **validan y calculan en el servidor** (`/api/orders`, `/api/reservations`) y se persisten en el navegador (localStorage). El panel `/admin` usa un acceso demo por roles claramente etiquetado.
+Sin variables de entorno (`AUTH_MODE=disabled` y `DATA_MODE=local`). El menú sale del manifiesto; los pedidos se **validan y calculan en el servidor** (`/api/orders`) y se persisten en el navegador (localStorage). El panel `/admin` usa un acceso demo por roles claramente etiquetado.
 
-### Conectar Supabase (producción)
+`AUTH_MODE=supabase` habilita solo Auth, cookies SSR, cuenta y protección real de `/admin`. Puede combinarse con `DATA_MODE=local` para conservar carrito, checkout, domicilios y pedidos locales como invitado.
 
-1. Crea un proyecto en [supabase.com](https://supabase.com) y aplica la migración:
-   ```bash
-   npx supabase link --project-ref TU_REF
-   npx supabase db push          # aplica supabase/migrations/0001_initial.sql
-   # y ejecuta supabase/seed.sql desde el SQL editor si quieres datos base
+### Supabase local e integración posterior
+
+El backend `0001`–`0007` se valida primero en Docker/Supabase local:
+
+```powershell
+supabase start -x edge-runtime,logflare,vector
+supabase db reset --local --no-seed
+npm.cmd run test:db
+npm.cmd run test:db:concurrency
+```
+
+`[db.seed].enabled` debe permanecer en `false`; `supabase/seed.sql` es exclusivamente demo y nunca debe aplicarse ni publicarse como datos de producción. `supabase link`, `db push` y cualquier operación `--linked` requieren revisión y autorización explícita para el proyecto correcto.
+
+Para preparar un entorno autorizado, copia `.env.example` a `.env.local` sin versionarlo y completa:
    ```
-2. Copia `.env.example` a `.env.local` y completa:
-   ```
-   DATA_MODE=supabase
+   AUTH_MODE=supabase       # opcional: Auth real y sesiones SSR
+   DATA_MODE=local          # conserva operaciones comerciales locales
    NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
    SUPABASE_SERVICE_ROLE_KEY=...   # solo servidor
    ```
-3. Carga los platos: inserta en `menu_items` los datos del manifiesto (los campos coinciden: slug, name, base_price, image_path, image_blur_data_url…).
-4. **Auth**: activa Email (magic link o contraseña) en Supabase Auth. Los roles de personal se asignan en `profiles.role`; las políticas RLS ya restringen lecturas/escrituras (p. ej. cocina no edita precios).
+En una fase posterior autorizada se cargarán datos reales y se revisará Auth. El registro siempre crea `customer`; los roles de personal se asignan mediante una operación administrativa confiable. En la plantilla **Recovery**, usa `{{ .RedirectTo }}?token_hash={{ .TokenHash }}`; el servidor consume el token una vez y elimina la sesión temporal.
 
-Si `DATA_MODE=supabase` pero faltan claves, la app **no se rompe**: registra el error en el servidor y continúa en modo local.
+Si se solicita `AUTH_MODE=supabase` o `DATA_MODE=supabase` y faltan variables, el estado se marca como no configurado y la operación se cierra de forma explícita; no se habilitan escrituras remotas inseguras.
 
 ### Pagos (Stripe / Mercado Pago)
 
@@ -142,14 +149,14 @@ MERCADOPAGO_ACCESS_TOKEN=APP_USR-...
 MERCADOPAGO_WEBHOOK_SECRET=...       # endpoint: /api/webhooks/mercadopago
 ```
 
-Los adaptadores (`src/lib/payments/`) usan la API HTTP oficial con claves de idempotencia y **verificación de firma en los webhooks**; la confirmación del pago nunca depende del retorno del navegador. Sin credenciales completas se degrada a demo con un error claro en el servidor.
+Los adaptadores (`src/lib/payments/`) verifican la firma del webhook sobre el cuerpo original. PostgreSQL persiste los eventos Stripe de forma idempotente por identificador y digest, y exige actualizar coherentemente el pedido. **Pagos reales no están habilitados:** todavía requieren secretos externos, conciliación operativa, revisión y despliegue autorizados. Sin credenciales completas se mantiene el proveedor demo.
 
 ### Correo transaccional
 
 ```
 EMAIL_PROVIDER=resend
 RESEND_API_KEY=re_...
-EMAIL_FROM="Casa Brasa <reservas@tudominio.com>"
+EMAIL_FROM="Casa Brasa <noreply@tudominio.com>"
 ```
 
 Sin configurar, el adaptador nulo no envía nada y la app funciona igual.
@@ -172,8 +179,8 @@ src/
   app/(shell)/           ← páginas con navegación inferior (inicio, menú, carrito…)
   app/(flow)/            ← detalle de plato, checkout, confirmación (CTA propio)
   app/admin/             ← panel de administración
-  app/api/               ← health, orders, reservations, webhooks
-  components/            ← ui, layout, menu, cart, checkout, reservations, admin…
+  app/api/               ← health, orders, webhooks
+  components/            ← ui, layout, menu, cart, checkout, admin…
   config/                ← restaurant.ts (contenido comercial) · features.ts
   data/                  ← menu.ts (fusión) · menu-overrides.ts · generated/
   features/              ← cálculos de carrito, filtrado, esquemas Zod
@@ -191,7 +198,7 @@ tests/                   ← unit · components · e2e (Playwright + axe + captu
 
 ## Limitaciones conocidas
 
-- **Persistencia demo por navegador**: pedidos, reservas, favoritos y ajustes del panel viven en localStorage del dispositivo; no se comparten entre navegadores (por diseño en modo local).
+- **Persistencia demo por navegador**: pedidos, favoritos y ajustes del panel viven en localStorage del dispositivo; no se comparten entre navegadores (por diseño en modo local).
 - La transición compartida tarjeta→detalle usa View Transitions (Chromium/Safari); Firefox navega sin morph (fallback estable).
 - El webhook de Mercado Pago verifica la firma y responde, pero la conciliación fina de estados de pago requiere completar la consulta a su API con credenciales reales.
 - `next/font` descarga Manrope en build (necesita red la primera vez, igual que `npm install`).
