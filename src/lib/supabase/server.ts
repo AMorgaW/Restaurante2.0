@@ -4,6 +4,7 @@ import { createServerClient, type SetAllCookies } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getServerEnv, getSupabasePublishableKey } from "@/lib/env/server";
 import type { Database } from "@/types/database.generated";
+import type { PensionMembershipStatus } from "@/lib/pension/types";
 
 type ServerSupabaseClient = ReturnType<typeof createServerClient<Database>>;
 
@@ -106,4 +107,106 @@ export async function getAuthenticatedProfile(): Promise<{
 export function isStaffRole(role: ProfileRole | null | undefined): boolean {
   return role === "owner" || role === "admin" || role === "manager" || role === "kitchen" ||
     role === "cashier" || role === "editor" || role === "support";
+}
+
+export type StaffStatus = "invited" | "active" | "suspended" | "inactive";
+
+const STAFF_STATUSES = new Set<StaffStatus>(["invited", "active", "suspended", "inactive"]);
+const MEMBERSHIP_STATUSES = new Set<PensionMembershipStatus>([
+  "pending",
+  "active",
+  "suspended",
+  "expired",
+  "cancelled",
+]);
+// Estados que representan una membresía todavía abierta; el índice parcial
+// `pension_memberships_one_open_idx` garantiza a lo sumo una en este conjunto.
+const OPEN_MEMBERSHIP_STATUSES = new Set<PensionMembershipStatus>(["pending", "active", "suspended"]);
+
+function isStaffStatus(value: unknown): value is StaffStatus {
+  return typeof value === "string" && STAFF_STATUSES.has(value as StaffStatus);
+}
+
+function isMembershipStatus(value: unknown): value is PensionMembershipStatus {
+  return typeof value === "string" && MEMBERSHIP_STATUSES.has(value as PensionMembershipStatus);
+}
+
+/**
+ * Elige la membresía más relevante para decidir el destino de sesión: primero
+ * una membresía abierta (a lo sumo una por el índice parcial) y, si solo hay
+ * historial, la más reciente. Devuelve `null` si no hay ninguna reconocida.
+ */
+function pickRelevantMembershipStatus(
+  rows: ReadonlyArray<{ status: string; created_at: string }>,
+): PensionMembershipStatus | null {
+  const valid = rows.filter(
+    (row): row is { status: PensionMembershipStatus; created_at: string } => isMembershipStatus(row.status),
+  );
+  if (valid.length === 0) return null;
+  const sorted = [...valid].sort((a, b) => {
+    const priorityA = OPEN_MEMBERSHIP_STATUSES.has(a.status) ? 0 : 1;
+    const priorityB = OPEN_MEMBERSHIP_STATUSES.has(b.status) ? 0 : 1;
+    if (priorityA !== priorityB) return priorityA - priorityB;
+    return b.created_at.localeCompare(a.created_at);
+  });
+  return sorted[0]!.status;
+}
+
+export type ServerSessionContext = {
+  user: NonNullable<Awaited<ReturnType<typeof getAuthenticatedUser>>>;
+  profile: (UserProfile & { staffStatus: StaffStatus | null }) | null;
+  branchIds: string[];
+  membershipStatus: PensionMembershipStatus | null;
+};
+
+/**
+ * Resuelve el contexto de sesión desde PostgreSQL con datos confiables:
+ * identidad de `getUser()`, rol y estado de personal del perfil, sucursales
+ * autorizadas y estado de membresía comercial. Nunca confía en parámetros de
+ * cliente, cookies editables ni `user_metadata` para decidir el rol. Ante datos
+ * ausentes o consultas fallidas, falla cerrado (perfil nulo o sin membresía).
+ */
+export async function getServerSessionContext(): Promise<ServerSessionContext | null> {
+  const supabase = await createServerSupabaseClient();
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) return null;
+  const user = userData.user;
+
+  const { data: profileRow, error: profileError } = await supabase
+    .from("profiles")
+    .select(
+      "id, name, email, phone, avatar_url, preferred_branch_id, language, marketing_consent, role, staff_status, created_at",
+    )
+    .eq("id", user.id)
+    .maybeSingle();
+  if (profileError || !profileRow || !isProfileRole((profileRow as { role?: unknown }).role)) {
+    return { user, profile: null, branchIds: [], membershipStatus: null };
+  }
+
+  const typedRow = profileRow as UserProfile & { staff_status: string | null };
+  const profile = { ...typedRow, staffStatus: isStaffStatus(typedRow.staff_status) ? typedRow.staff_status : null };
+
+  let branchIds: string[] = [];
+  let membershipStatus: PensionMembershipStatus | null = null;
+
+  if (isStaffRole(profile.role)) {
+    const { data: permissions } = await supabase
+      .from("staff_branch_permissions")
+      .select("branch_id")
+      .eq("profile_id", user.id);
+    const permissionRows = (permissions ?? []) as ReadonlyArray<{ branch_id: string | null }>;
+    branchIds = permissionRows
+      .map((row) => row.branch_id)
+      .filter((value): value is string => typeof value === "string");
+  } else if (profile.role === "customer") {
+    const { data: memberships, error: membershipError } = await supabase
+      .from("pension_memberships")
+      .select("status, created_at")
+      .eq("profile_id", user.id);
+    // Si la consulta de membresía falla, se trata como sin membresía (destino
+    // seguro /cuenta); jamás se abre acceso por defecto ante un error.
+    membershipStatus = membershipError ? null : pickRelevantMembershipStatus(memberships ?? []);
+  }
+
+  return { user, profile, branchIds, membershipStatus };
 }

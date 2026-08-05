@@ -32,7 +32,7 @@ export function resolveSession(input: SessionInput): ResolvedSession {
   if (!isAdminRole(role)) {
     return { kind: "unknown_role", source: input.source, destination: "/cuenta", userId: input.user.id, email: profile.email, profile, reason: "unknown_role" };
   }
-  if (STAFF_KINDS.has(role) && (input.profile.status === "suspended" || input.profile.status === "inactive")) {
+  if (STAFF_KINDS.has(role) && input.profile.status !== undefined && input.profile.status !== "active") {
     return { kind: "suspended_staff", source: input.source, destination: "/cuenta", userId: input.user.id, email: profile.email, profile, reason: "staff_suspended" };
   }
   return { kind: role, source: input.source, destination: role === "owner" || role === "admin" ? "/admin" : "/empleado", userId: input.user.id, email: profile.email, profile } as ResolvedSession;

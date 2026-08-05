@@ -247,3 +247,38 @@ fuente de verdad ni se actualizó.
 - Configuración real de Auth, correos, redirect URLs y secretos fuera de Git.
 - Habilitación y conciliación de pagos reales, observabilidad y despliegue.
 - Migración gradual de repositorios locales; no habilitar escrituras remotas sin contrato transaccional y RLS probados.
+
+## 2026-08-04 (correcciones post-auditoría — sesiones, pagos y documentación)
+
+77. **Resolvedor de sesión servidor con datos confiables de PostgreSQL (M1)** — la
+auditoría demostró que `resolveServerSession` solo pasaba rol, sin `staff_status` ni membresía,
+de modo que en `AUTH_MODE=supabase` nunca se producían `customer_with_membership` ni
+`suspended_staff`: los pensionados quedaban fuera de `/pensionado` y el personal no activo llegaba
+al shell (con datos negados por RLS). Se añadió `getServerSessionContext()` en
+`src/lib/supabase/server.ts`, que obtiene desde el esquema real el perfil (rol y `staff_status`),
+las sucursales autorizadas (`staff_branch_permissions`) y el estado de membresía comercial
+(`pension_memberships`). `resolveServerSession` propaga `status`, `branchIds` y `membershipStatus`.
+El resolvedor central trata a todo personal con estado presente distinto de `active`
+(`invited|suspended|inactive`) como `suspended_staff` → `/cuenta`; cualquier membresía reconocida
+(`pending|active|suspended|expired|cancelled`) → `/pensionado`; sin membresía o consulta fallida →
+`/cuenta` (falla cerrado). Se prioriza la membresía abierta sobre el historial. El rol nunca se
+deriva de `user_metadata`, cookies ni parámetros del cliente.
+
+78. **Monotonía de `payment_status` frente a webhooks Stripe fuera de orden (B1)** — `0008`
+reemplaza `public.process_stripe_payment_event` (append-only; `0007` no se edita). Un evento
+posterior o fuera de orden no degrada un pago asentado: si el pedido está en `paid`, `refunded` o
+`cancelled` y el evento pretende otro estado, el evento se registra e idempotenta, se audita como
+`payment_event_ignored_stale` y no se altera el pedido. Se conservan firma sobre cuerpo crudo,
+idempotencia por `(provider, event.id)`, detección de reuso de `event.id` con digest distinto,
+transacción, auditoría y respuesta HTTP idempotente. La protección vive en PostgreSQL, no solo en
+TypeScript. Reembolsos/disputas no están modelados como eventos entrantes: se documenta el límite.
+
+79. **`public.rls_auto_enable()` documentado, no creado (B2)** — las migraciones no crean la
+función; una base limpia puede no contenerla y su ausencia no es un error ni forma parte del
+contrato funcional. `0005` conserva el revoke condicional cuando existe como objeto heredado.
+Una aserción pgTAP acepta ambos estados seguros: ausente, o presente pero no ejecutable por
+`PUBLIC`, `anon` ni `authenticated`. No se introdujo una función privilegiada para "cuadrar" la
+documentación.
+
+80. **Branding obsoleto** — `.env.example` usaba "Casa Brasa" en `EMAIL_FROM`; se sustituyó por
+"Brisas del Sinú". No se realizó un reemplazo global sin revisar contexto.

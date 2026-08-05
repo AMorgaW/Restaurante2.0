@@ -88,6 +88,16 @@ describe("webhook Stripe", () => {
     expect((await POST(signedRequest(event()))).status).toBe(500);
   });
 
+  it("procesa un evento fallido legitimo y responde 200", async () => {
+    database.rpc.mockResolvedValueOnce({ data: "failed", error: null });
+    const response = await POST(signedRequest(event("payment_intent.payment_failed")));
+    expect(response.status).toBe(200);
+    expect(database.rpc).toHaveBeenCalledWith(
+      "process_stripe_payment_event",
+      expect.objectContaining({ target_event_type: "payment_intent.payment_failed" }),
+    );
+  });
+
   it("responde 500 ante error SQL y 503 si los datos remotos estan deshabilitados", async () => {
     database.rpc.mockResolvedValueOnce({ data: null, error: new Error("db") });
     expect((await POST(signedRequest(event()))).status).toBe(500);

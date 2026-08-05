@@ -291,3 +291,36 @@ Los resultados E2E previos respaldados permanecen en las secciones históricas: 
 - La integración remota requiere revisión independiente, autorización, configuración externa y un dry-run controlado antes de aplicar migraciones.
 - Deben repetirse las pruebas RLS, Auth SSR, callbacks, redirects y webhooks en un entorno remoto autorizado antes del despliegue.
 - Graphify fue regenerado después de este ciclo; su salida es documentación auxiliar y no sustituye estas pruebas.
+
+## Fase de correcciones post-auditoría (2026-08-04) — sesiones, pagos y documentación
+
+Correcciones aplicadas: **M1** (resolvedor de sesión servidor con `staff_status`, sucursales y
+membresía reales), **B1** (monotonía de `payment_status` vía `0008`) y **B2** (documentación y
+prueba de `rls_auto_enable`). Migraciones canónicas ahora `0001`–`0008`.
+
+| Verificación | Resultado real |
+|---|---|
+| `supabase db reset --local --no-seed` ×2 consecutivos | correcto; `0001`–`0008` desde cero |
+| `supabase db lint --local --level warning` | 0 hallazgos |
+| `npm run test:db` (pgTAP) | **57/57** (incluye 5 de monotonía Stripe y 1 de `rls_auto_enable`) |
+| `npm run test:db:concurrency` | 6 escenarios; **10/10** invariantes |
+| `npm run test` (Vitest) | **40 archivos / 330 pruebas** (nuevo `server-session.test.ts` 21; `stripe-webhook` 11) |
+| `npm run typecheck` / `npm run lint` | correctos |
+| `npm run build` | correcto; 24 páginas; shared 102 kB |
+| `git diff --check` | correcto |
+| E2E `session-routing`+`auth` (mobile-chromium / mobile-webkit) | **10/10** y **10/10** |
+| E2E `pension`+`employee`+`admin-management` (chromium / webkit) | **18/18** y **18/18** |
+
+Cobertura de M1: `server-session.test.ts` ejercita la integración real
+`getServerSessionContext`→`resolveServerSession`: customer sin membresía → `/cuenta`; membresía en
+`pending|active|suspended|expired|cancelled` → `/pensionado`; prioridad de membresía abierta;
+owner/admin → `/admin`; personal técnico activo → `/empleado`; personal `suspended|inactive|invited`
+→ `/cuenta`; perfil ausente → destino seguro; `user_metadata` no eleva rol; consulta de membresía
+fallida falla cerrado. Las E2E validan en modo demo el enrutamiento, login y logout sin regresión;
+la variante `AUTH_MODE=supabase` con personal no activo se cubre por Vitest, ya que no se crean
+usuarios reales ni se toca el proyecto remoto. Cobertura de B1: pgTAP añade la invariante de
+monotonía (un pago `paid` no se degrada por un evento `failed` posterior con otro `event.id`).
+
+Limitación operativa: los binarios de navegador Playwright se resolvieron apuntando
+`PLAYWRIGHT_BROWSERS_PATH` al caché estándar `ms-playwright` ya instalado; no se descargaron ni
+instalaron dependencias.

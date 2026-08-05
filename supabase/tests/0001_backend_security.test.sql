@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(51);
+select plan(57);
 
 select has_table('public', 'pension_memberships', 'memberships table exists');
 select has_table('public', 'inventory_consumption_sources', 'inventory trace table exists');
@@ -265,6 +265,37 @@ set local role authenticated;
 select throws_ok(
   $$select public.apply_inventory_movement('50000000-0000-0000-0000-000000000001','purchase',10,'attack','editor-attack')$$,
   '42501', null, 'editor cannot mutate inventory'
+);
+
+-- Orden de pagos Stripe (0008): un pago asentado no se degrada por un evento tardio.
+reset role;
+set local role service_role;
+select is(
+  public.process_stripe_payment_event('evt_pay_ok', 'payment_intent.succeeded', 'a0000000-0000-0000-0000-000000000001', pg_catalog.repeat('a', 64)),
+  'paid', 'succeeded event marks order paid'
+);
+reset role;
+select is((select payment_status from public.orders where id='a0000000-0000-0000-0000-000000000001'), 'paid', 'order payment_status is paid');
+set local role service_role;
+select is(
+  public.process_stripe_payment_event('evt_pay_stale_fail', 'payment_intent.payment_failed', 'a0000000-0000-0000-0000-000000000001', pg_catalog.repeat('b', 64)),
+  'failed', 'stale failed event returns its nominal status'
+);
+reset role;
+select is((select payment_status from public.orders where id='a0000000-0000-0000-0000-000000000001'), 'paid', 'paid is not downgraded by a later failed event');
+select is((select pg_catalog.count(*) from public.payment_webhook_events where order_id='a0000000-0000-0000-0000-000000000001'), 2::bigint, 'both webhook events are recorded');
+
+-- rls_auto_enable (B2): ausente en base limpia, o presente pero no ejecutable por clientes.
+select ok(
+  case
+    when pg_catalog.to_regprocedure('public.rls_auto_enable()') is null then true
+    else not (
+      has_function_privilege('public', 'public.rls_auto_enable()', 'EXECUTE')
+      or has_function_privilege('anon', 'public.rls_auto_enable()', 'EXECUTE')
+      or has_function_privilege('authenticated', 'public.rls_auto_enable()', 'EXECUTE')
+    )
+  end,
+  'rls_auto_enable ausente o no ejecutable por PUBLIC/anon/authenticated'
 );
 
 reset role;

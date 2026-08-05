@@ -11,6 +11,7 @@ Este documento describe el estado resultante de aplicar, en orden, las migracion
 5. `0005_staff_audit_foundation.sql`: añade estado laboral a perfiles, amplía la auditoría, crea turnos e incidencias y RPC de personal/auditoría.
 6. `0006_pension_foundation.sql`: crea planes, membresías, ciclos, transiciones, menús, categorías/opciones, consumos y selecciones de pensionado.
 7. `0007_inventory_payment_hardening.sql`: añade trazabilidad exacta receta→order item→movimiento, inmutabilidad, entrega/reversión endurecida y eventos Stripe idempotentes.
+8. `0008_stripe_payment_state_ordering.sql`: reemplaza `public.process_stripe_payment_event` (append-only) para imponer monotonía de `payment_status`; conserva firma, idempotencia, transacción, auditoría y ACL a `service_role`.
 
 No existen migraciones timestamp paralelas. `[db.seed].enabled = false`; el seed demo no participa en resets ni en el contrato de producción.
 
@@ -69,6 +70,8 @@ Los constraints sobre idempotency key y fuentes evitan doble descuento. Dos pedi
 
 `public.process_stripe_payment_event` es `SECURITY DEFINER`, tiene `search_path = ''`, usa nombres cualificados y solo concede `EXECUTE` a `service_role`. Reintentos con el mismo evento/digest devuelven el resultado persistido; un evento conflictivo falla. Una escritura fallida responde con error y no se reconoce como procesada. Esta persistencia no habilita pagos reales por sí sola.
 
+Desde `0008` la función impone **monotonía**: un pedido en `paid`, `refunded` o `cancelled` no se degrada por un evento posterior o fuera de orden que pretenda otro estado; el evento igual se registra (idempotencia por `event.id`), se audita como `payment_event_ignored_stale` y se devuelve su estado nominal para que el route handler sea idempotente. Se permite el ascenso legítimo `failed`→`paid`. Reembolsos, disputas y contracargos no están modelados como eventos entrantes: es un límite documentado, no una infraestructura implementada.
+
 ## RLS y grants
 
 Todas las tablas finales de `public` tienen RLS. La autorización requiere simultáneamente privilegio SQL y política:
@@ -85,7 +88,7 @@ Las políticas heredadas de `0001` se eliminan en `0002`; `public.is_staff()` y 
 
 Las funciones privadas usan esquemas/nombres cualificados y `search_path = ''`. Se revoca ejecución de `PUBLIC`, `anon`, `authenticated` y `service_role`, reabriendo solo los helpers que una política o wrapper necesita para `authenticated`. Los wrappers públicos de personal, pensionados e inventario son `SECURITY INVOKER`; la autorización permanece dentro de la operación privada.
 
-`public.rls_auto_enable()` y el event trigger `ensure_rls` se conservan cuando existen en el destino. Sus ACL quedan revocadas para `PUBLIC`, `anon`, `authenticated` y `service_role`; el owner `postgres` conserva su operación DDL interna.
+`public.rls_auto_enable()` y el event trigger `ensure_rls` **no son creados por estas migraciones** y no forman parte del contrato funcional de la aplicación. Una base reconstruida desde `0001`–`0008` puede no contenerlos, y su ausencia no es un error (verificado: `to_regprocedure('public.rls_auto_enable()')` devuelve nulo tras un reset limpio). Si existen como objeto heredado en otro entorno, `0005` conserva un revoke condicional que retira sus ACL para `PUBLIC`, `anon`, `authenticated` y `service_role`; el owner `postgres` conserva su operación DDL interna. Una aserción pgTAP acepta ambos estados seguros: la función ausente, o presente pero no ejecutable por `PUBLIC`/`anon`/`authenticated`.
 
 ## Índices, triggers e invariantes de concurrencia
 
@@ -95,9 +98,9 @@ La corrección no depende de un `SELECT` previo en TypeScript: locks de fila, co
 
 ## Validación real local
 
-- Dos `supabase db reset --local --no-seed` consecutivos aplicaron `0001`–`0007` desde cero.
+- Dos `supabase db reset --local --no-seed` consecutivos aplicaron `0001`–`0008` desde cero.
 - `supabase db lint --local --level warning`: 0 hallazgos.
-- `supabase/tests/0001_backend_security.test.sql`: pgTAP 51/51 sobre PostgreSQL real.
+- `supabase/tests/0001_backend_security.test.sql`: pgTAP 57/57 sobre PostgreSQL real (incluye monotonía de pagos y `rls_auto_enable`).
 - `scripts/test-supabase-concurrency.ps1`: 6 carreras y 10/10 invariantes.
 - Se probaron RLS cruzada, escalamiento, DML protegido, matriz técnica, estados de membresía, receta/stock, entrega, consumo, reversión, auditoría y webhook.
 

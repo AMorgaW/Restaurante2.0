@@ -73,7 +73,7 @@ Mantener `[db.seed].enabled = false`. `supabase/seed.sql` contiene datos demo y 
 
 ## Migraciones
 
-La secuencia canónica es `0001`–`0007`; añadir nuevas migraciones numeradas y append-only, sin editar silenciosamente las ya validadas. Ejecutar desde cero y probar antes de cualquier integración. No crear secuencias timestamp paralelas ni una tabla pública `sessions`.
+La secuencia canónica es `0001`–`0008`; añadir nuevas migraciones numeradas y append-only, sin editar silenciosamente las ya validadas. `0008_stripe_payment_state_ordering.sql` reemplaza (append-only) `public.process_stripe_payment_event` para imponer la monotonía de `payment_status`. Ejecutar desde cero y probar antes de cualquier integración. No crear secuencias timestamp paralelas ni una tabla pública `sessions`.
 
 ## Operación segura
 

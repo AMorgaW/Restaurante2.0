@@ -20,7 +20,7 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
 - Checkpoint de cierre: este archivo forma parte del commit local `chore: consolida etapas 1-7 y actualiza handoff técnico`; obtenga su hash con `git log -1 --oneline`.
 - Etapas 1–7 completadas y validadas localmente. No hubo `supabase link`, `db push`, push Git ni cambios remotos.
 - La secuencia SQL canónica es `0001`–`0007`; no existen migraciones timestamp paralelas.
-- `graphify-out/` fue regenerado el 2026-08-04 con `graphify update .` y una segunda pasada `graphify update . --force` para confirmar la purga de fuentes eliminadas. Resultado: 1.761 nodos, 4.545 aristas y 137 comunidades; los archivos principales de sesión, personal, pensionados, inventario, migraciones y pruebas SQL están presentes y no quedan rutas fuente de reservas eliminadas. La salida queda ignorada por Git y sirve como mapa auxiliar, no como autoridad.
+- `graphify-out/` fue regenerado el 2026-08-04 con `graphify update .`; tras la fase de correcciones (sesiones, pagos, `0008`) se reejecutó `graphify update .` con resultado 1.780 nodos, 4.577 aristas y 141 comunidades; incluye `getServerSessionContext`, `server-session.test.ts`, la migración `0008` y las pruebas de pago. La salida queda ignorada por Git y sirve como mapa auxiliar, no como autoridad.
 
 ## Resultado funcional por etapa
 
@@ -38,7 +38,7 @@ Reservaciones fueron retiradas del producto, incluyendo rutas, navegación, serv
 
 - `src/lib/session/`: resolvedor discriminado, destinos, guards y adaptadores demo/servidor.
 - `middleware.ts`: renovación SSR por solicitud, cookies request/response, `private, no-store` y `Vary: Cookie` solo donde corresponde.
-- `src/lib/supabase/browser.ts` y `server.ts`: clientes separados; el servidor crea cliente por request y autoriza con `getUser()`, no con `getSession()`.
+- `src/lib/supabase/browser.ts` y `server.ts`: clientes separados; el servidor crea cliente por request y autoriza con `getUser()`, no con `getSession()`. `getServerSessionContext()` resuelve rol, `staff_status`, sucursales (`staff_branch_permissions`) y estado de membresía (`pension_memberships`) desde PostgreSQL; `resolveServerSession` los propaga para producir correctamente owner/admin, personal técnico, `suspended_staff` (no activo → `/cuenta`) y `customer_with_membership`/`_without_membership`. El rol nunca proviene de `user_metadata` ni del cliente.
 - `src/app/auth/*`, `/login`, `/registro`, `/recuperar-contrasena`, `/actualizar-contrasena`, `/cuenta`: flujos Auth únicos, redirecciones internas seguras y recuperación por token OTP.
 - Destinos: owner/admin → `/admin`; personal técnico activo → `/empleado`; customer con cualquier estado de membresía → `/pensionado`; customer sin membresía → `/cuenta`.
 - En `AUTH_MODE=disabled` se usa identidad demo determinista. En `AUTH_MODE=supabase` no se aceptan `rb-admin`, Zustand, localStorage ni metadata como autoridad.
@@ -68,6 +68,7 @@ Reservaciones fueron retiradas del producto, incluyendo rutas, navegación, serv
 - `0005_staff_audit_foundation.sql`: estado laboral, turnos, incidencias, gestión de personal y auditoría inmutable.
 - `0006_pension_foundation.sql`: planes, membresías/ciclos/transiciones, menús, selecciones y consumos comerciales.
 - `0007_inventory_payment_hardening.sql`: trazabilidad pedido→receta→movimiento, inmutabilidad, entrega/reversión endurecida e idempotencia Stripe.
+- `0008_stripe_payment_state_ordering.sql`: reemplaza (append-only) `public.process_stripe_payment_event` para imponer monotonía de `payment_status` (un pago asentado no se degrada por un evento tardío/fuera de orden); conserva firma, idempotencia, auditoría y ACL a `service_role`.
 
 El detalle de tablas, relaciones, funciones, RLS y ACL está en `references/analysis/POSTGRESQL_SECURITY_MODEL.md`.
 
@@ -98,7 +99,7 @@ npm.cmd run test
 npm.cmd run build
 ```
 
-Último ciclo local: dos resets consecutivos correctos; lint DB 0 hallazgos; pgTAP 51/51; concurrencia 6 escenarios y 10/10 invariantes; Vitest 39 archivos y 308/308; typecheck, ESLint, build y `git diff --check` correctos. Consulte `TEST_REPORT.md` para el entorno, cobertura y resultados E2E históricos respaldados.
+Último ciclo local (fase de correcciones, migraciones `0001`–`0008`): dos resets consecutivos correctos; lint DB 0 hallazgos; pgTAP 57/57 (incluye monotonía de pagos y `rls_auto_enable`); concurrencia 6 escenarios y 10/10 invariantes; Vitest 40 archivos y 330/330 (incluye `server-session.test.ts`); typecheck, ESLint, build (24 páginas) y `git diff --check` correctos; E2E dirigidas de sesión/auth y espacios 10/10 y 18/18 por motor en Chromium y WebKit (modo demo). Consulte `TEST_REPORT.md` para el entorno, cobertura y resultados E2E históricos respaldados.
 
 ## Archivos principales por área
 
