@@ -12,9 +12,9 @@ Este documento describe el estado resultante de aplicar, en orden, las migracion
 6. `0006_pension_foundation.sql`: crea planes, membresías, ciclos, transiciones, menús, categorías/opciones, consumos y selecciones de pensionado.
 7. `0007_inventory_payment_hardening.sql`: añade trazabilidad exacta receta→order item→movimiento, inmutabilidad, entrega/reversión endurecida y eventos Stripe idempotentes.
 8. `0008_stripe_payment_state_ordering.sql`: reemplaza `public.process_stripe_payment_event` (append-only) para imponer monotonía de `payment_status`; conserva firma, idempotencia, transacción, auditoría y ACL a `service_role`.
-9. `0009_remote_advisor_hardening.sql` (**solo local hasta autorización**): índices de cobertura `orders(user_id)`, `modifier_groups(menu_item_id)`, `modifier_options(modifier_group_id)`, `branch_menu_items(menu_item_id)`; `GRANT EXECUTE` de `private.current_role()` a `authenticated`; consolidación de policies SELECT permisivas duplicadas (banners, promotions, pension_*, profiles) en `anon` (solo público) + una policy `authenticated` (`público OR personal`) lógicamente equivalente a la unión previa. No añade policies a `payment_webhook_events`. No elimina índices reportados como unused.
+9. `0009_remote_advisor_hardening.sql` (local y remoto de producción): índices de cobertura `orders(user_id)`, `modifier_groups(menu_item_id)`, `modifier_options(modifier_group_id)`, `branch_menu_items(menu_item_id)`; `GRANT EXECUTE` de `private.current_role()` a `authenticated`; consolidación de policies SELECT permisivas duplicadas (banners, promotions, pension_*, profiles) en `anon` (solo público) + una policy `authenticated` (`público OR personal`) lógicamente equivalente a la unión previa. No añade policies a `payment_webhook_events`. No elimina índices reportados como unused.
 
-No existen migraciones timestamp paralelas. `[db.seed].enabled = false`; el seed demo no participa en resets ni en el contrato de producción. El proyecto remoto autorizado permanece en `0001`–`0008` mientras `0009` no se autorice a desplegar.
+No existen migraciones timestamp paralelas. `[db.seed].enabled = false`; el seed demo no participa en resets ni en el contrato de producción. Local y remoto autorizado (`nasenphzywwufntvrzpc`) están alineados en `0001`–`0009` tras dry-run, despliegue y verificación de solo lectura.
 
 ## Identidad, roles y personal
 
@@ -109,4 +109,10 @@ La corrección no depende de un `SELECT` previo en TypeScript: locks de fila, co
 
 ## Estrategia futura de integración remota
 
-El proyecto remoto no fue modificado por la Etapa 9C. No se ejecutó `supabase db push` de `0009` ni operaciones `--linked` de escritura. Antes de integrar `0009`: revisión independiente, confirmación del proyecto autorizado, dry-run permitido y nueva ejecución de RLS en entorno autorizado. Ninguna operación remota debe inferirse de esta validación local.
+`0009` ya está desplegada y verificada en el remoto de producción. Local y remoto comparten
+`0001`–`0009`. Post-despliegue (solo lectura): índices de cobertura presentes; unindexed FK
+24→20; `multiple_permissive_policies` eliminados (7→0); `unused_index` diferidos por falta de
+tráfico; `payment_webhook_events` con RLS y cero policies (deny-by-default aceptado); grants de
+`current_role` / `process_stripe_payment_event` conforme al contrato. Cualquier migración
+posterior, `db push` o escritura remota requiere nueva autorización expresa. No se afirma que
+todos los advisors queden en cero.

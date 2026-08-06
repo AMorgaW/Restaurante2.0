@@ -285,9 +285,10 @@ documentación.
 
 ## 2026-08-06 (Etapa 9C — endurecimiento local post-advisors remotos)
 
-81. **`0009_remote_advisor_hardening.sql` solo local** — respuesta controlada a Performance/Security
-Advisors del remoto tras `0001`–`0008`. No se ejecutó `db push`, `--linked` ni escritura remota;
-el remoto permanece en `0001`–`0008`.
+81. **`0009_remote_advisor_hardening.sql` (local primero)** — respuesta controlada a
+Performance/Security Advisors del remoto tras `0001`–`0008`. Se validó solo en local (commit
+`5cfc9bd`) antes de cualquier despliegue: índices selectivos, consolidación SELECT equivalente,
+grant de `private.current_role()` a `authenticated`, sin policies en `payment_webhook_events`.
 
 82. **Índices selectivos, no mecánicos** — se añadieron solo cuatro índices con ruta de lectura
 real: `orders(user_id)` (RLS “mis pedidos”), `modifier_groups(menu_item_id)`,
@@ -310,3 +311,17 @@ devuelve el rol del llamante; no amplía filas.
 Ejecutarlas en paralelo contaminó aserciones globales (p. ej. conteos de `pension_plans`). Las
 pruebas de 0009 usan fixtures con IDs propios y no dependen de conteos globales de filas.
 `test:db` y `test:db:concurrency` deben correrse estrictamente en serie tras resets limpios.
+
+## 2026-08-06 (cierre — despliegue remoto de 0009)
+
+86. **`0009` en producción** — tras auditoría independiente, dry-run correcto y despliegue
+autorizado al proyecto `nasenphzywwufntvrzpc` (Brisas del sinu, PRODUCTION), local y remoto
+quedan alineados en `0001`–`0009`. Verificación de solo lectura: los cuatro índices presentes;
+FKs sin índice 24→20; 7 avisos `multiple_permissive_policies` eliminados; `unused_index`
+permanecen por falta de tráfico (aceptados temporalmente); Security Advisor solo conserva
+`payment_webhook_events` con RLS y cero policies (deny-by-default deliberado). Grants remotos:
+`private.current_role()` EXECUTE solo a `authenticated` (no PUBLIC/anon/service_role),
+SECURITY DEFINER, `search_path` vacío; `process_stripe_payment_event` EXECUTE solo a
+`service_role`. Sin errores bloqueantes en registros. Working tree limpio en el commit de
+código `5cfc9bd` antes de este cierre documental. No se afirma que todos los advisors queden
+en cero.

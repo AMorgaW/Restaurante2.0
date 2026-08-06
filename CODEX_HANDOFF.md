@@ -19,7 +19,8 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
 - Commit base anterior: `ba23b5e` (`Actualiza documentación del rediseño visual`).
 - Checkpoint de cierre: este archivo forma parte del commit local `chore: consolida etapas 1-7 y actualiza handoff técnico`; obtenga su hash con `git log -1 --oneline`.
 - Etapas 1–7 completadas y validadas localmente. No hubo `supabase link`, `db push`, push Git ni cambios remotos.
-- La secuencia SQL canónica local es `0001`–`0009`; no existen migraciones timestamp paralelas. El remoto autorizado permanece en `0001`–`0008` (sin `db push` de `0009`).
+- La secuencia SQL canónica es `0001`–`0009` en local y en el remoto de producción (`nasenphzywwufntvrzpc`, Brisas del sinu). No existen migraciones timestamp paralelas.
+- `0009` fue auditada de forma independiente, dry-run correcta, desplegada y verificada en producción (índices, grants y advisors post-despliegue). No hubo `git push` de este cierre documental.
 - `graphify-out/` se regeneró tras Etapa 9C con `graphify update .`: **1.781 nodos, 4.577 aristas, 142 comunidades** (incluye `0009` y pruebas pgTAP ampliadas). La salida queda ignorada por Git y sirve como mapa auxiliar, no como autoridad.
 
 ## Resultado funcional por etapa
@@ -69,7 +70,7 @@ Reservaciones fueron retiradas del producto, incluyendo rutas, navegación, serv
 - `0006_pension_foundation.sql`: planes, membresías/ciclos/transiciones, menús, selecciones y consumos comerciales.
 - `0007_inventory_payment_hardening.sql`: trazabilidad pedido→receta→movimiento, inmutabilidad, entrega/reversión endurecida e idempotencia Stripe.
 - `0008_stripe_payment_state_ordering.sql`: reemplaza (append-only) `public.process_stripe_payment_event` para imponer monotonía de `payment_status` (un pago asentado no se degrada por un evento tardío/fuera de orden); conserva firma, idempotencia, auditoría y ACL a `service_role`.
-- `0009_remote_advisor_hardening.sql` (solo local): índices `orders_user_id_idx`, `modifier_groups_menu_item_idx`, `modifier_options_group_idx`, `branch_menu_items_menu_item_idx`; `GRANT EXECUTE` de `private.current_role()` a `authenticated` (defecto latente: policies lo invocaban sin grant); consolidación de policies SELECT permisivas duplicadas en banners, promotions, pension_plans/menus/categories/items y profiles (unión lógica idéntica; anon solo público; authenticated = público OR personal). No toca `payment_webhook_events` (deny-by-default intencional). No elimina índices `unused_*` (sin tráfico). No se aplicó al remoto.
+- `0009_remote_advisor_hardening.sql` (local y remoto): índices `orders_user_id_idx`, `modifier_groups_menu_item_idx`, `modifier_options_group_idx`, `branch_menu_items_menu_item_idx`; `GRANT EXECUTE` de `private.current_role()` a `authenticated` (defecto latente: policies lo invocaban sin grant); consolidación de policies SELECT permisivas duplicadas en banners, promotions, pension_plans/menus/categories/items y profiles (unión lógica idéntica; anon solo público; authenticated = público OR personal). No toca `payment_webhook_events` (deny-by-default intencional). No elimina índices `unused_*` (sin tráfico). Desplegada y verificada en producción tras auditoría y dry-run.
 
 El detalle de tablas, relaciones, funciones, RLS y ACL está en `references/analysis/POSTGRESQL_SECURITY_MODEL.md`.
 
@@ -100,7 +101,7 @@ npm.cmd run test
 npm.cmd run build
 ```
 
-Último ciclo local (Etapa 9C, migraciones `0001`–`0009` locales): secuencia serial reset → lint DB 0 → pgTAP **90/90** → reset → concurrencia 6 escenarios **10/10** → reset → pgTAP **90/90**; Vitest 40/330; typecheck, ESLint, build y `git diff --check` correctos; E2E dirigidas (session/auth/pension/employee/admin-management) **28/28** Chromium y **28/28** WebKit. pgTAP y concurrencia nunca en paralelo (misma base). `0009` no se desplegó. Consulte `TEST_REPORT.md`.
+Último ciclo local (Etapa 9C): secuencia serial reset → lint DB 0 → pgTAP **90/90** → reset → concurrencia 6 escenarios **10/10** → reset → pgTAP **90/90**; Vitest 40/330; typecheck, ESLint, build y `git diff --check` correctos; E2E dirigidas (session/auth/pension/employee/admin-management) **28/28** Chromium y **28/28** WebKit. pgTAP y concurrencia nunca en paralelo (misma base). Posterior: auditoría independiente, dry-run y despliegue remoto de `0009` en producción; verificación post-despliegue (índices, grants, advisors). Consulte `TEST_REPORT.md`.
 
 ## Archivos principales por área
 
@@ -114,9 +115,9 @@ npm.cmd run build
 
 ## Pendientes y riesgos conocidos
 
-- Autorizar y aplicar `0009` al remoto solo tras revisión y dry-run; entretanto el remoto permanece en `0001`–`0008`.
-- Advisors `unused_index` diferidos hasta tráfico real; FKs de auditoría/ON DELETE lógico no indexadas a propósito.
-- La conexión al único proyecto autorizado, variables reales, Auth real y despliegue requieren una fase separada y aprobación expresa.
+- Local y remoto alineados en `0001`–`0009`. Advisors post-despliegue: FKs sin índice 24→20; 7 avisos `multiple_permissive_policies` eliminados; `unused_index` diferidos hasta tráfico real; `payment_webhook_events` sin policies (deny-by-default aceptado). No se afirma advisors en cero.
+- FKs de auditoría/ON DELETE lógico no indexadas a propósito.
+- Auth real, secretos fuera de Git, conciliación de pagos y despliegue de aplicación siguen requiriendo aprobación expresa.
 - La definición comercial final de pensionados sigue abierta: cantidad de comidas, días calendario o modalidad híbrida.
 - Resolver comercialmente la discrepancia de sopas (cerdo/pollo) antes de publicar un menú pensionado definitivo.
 - Los fixtures, precios, recetas e imágenes de inventario son demo; deben validarse con el restaurante.
@@ -125,4 +126,4 @@ npm.cmd run build
 
 ## Siguiente etapa recomendada
 
-Cursor debe comenzar con una revisión independiente del commit y una tarea dirigida. Para integración remota: verificar proyecto/ref autorizado, revisar dry-run e historial, configurar secretos fuera de Git y solicitar aprobación antes de `supabase link` o cualquier `db push`. No usar Graphify como sustituto de leer el código exacto que vaya a cambiar.
+`0009` ya está en producción. El siguiente trabajo debe partir del esquema `0001`–`0009` alineado, configurar secretos fuera de Git solo con autorización expresa y solicitar aprobación antes de cualquier `db push` o escritura remota adicional. No usar Graphify como sustituto de leer el código exacto que vaya a cambiar.

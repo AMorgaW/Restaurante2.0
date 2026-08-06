@@ -325,13 +325,14 @@ Limitación operativa: los binarios de navegador Playwright se resolvieron apunt
 `PLAYWRIGHT_BROWSERS_PATH` al caché estándar `ms-playwright` ya instalado; no se descargaron ni
 instalaron dependencias.
 
-## Etapa 9C (2026-08-06) — endurecimiento local `0009` post-advisors
+## Etapa 9C (2026-08-06) — endurecimiento `0009` y despliegue remoto
 
-Migración local `0009_remote_advisor_hardening.sql` (índices justificados + consolidación SELECT
-equivalente + grant `private.current_role`). **No aplicada al remoto** (sigue en `0001`–`0008`).
-Sin `db push`, sin `--linked`, sin `git push`.
+Migración `0009_remote_advisor_hardening.sql` (índices justificados + consolidación SELECT
+equivalente + grant `private.current_role`). Validación local completa; después auditoría
+independiente, dry-run correcto y despliegue al remoto de producción
+(`nasenphzywwufntvrzpc`). Local y remoto alineados en `0001`–`0009`.
 
-| Verificación (serial) | Resultado real |
+| Verificación local (serial) | Resultado real |
 |---|---|
 | `supabase db reset --local --no-seed` (antes de lint/pgTAP) | correcto; `0001`–`0009` |
 | `supabase db lint --local --level warning` | 0 hallazgos |
@@ -354,8 +355,18 @@ RLS, 0 policies, sin SELECT para anon/authenticated; `process_stripe_payment_eve
 de fixture propio; anon solo el plan activo de la prueba. No se usan conteos globales de filas
 que otras suites puedan alterar.
 
-Advisors: unindexed FK / multiple permissive policies corregidos solo donde hubo justificación;
-`payment_webhook_events` RLS sin policies **aceptado** (deny-by-default); `unused_index`
-**diferido** hasta tráfico real; resto de FKs de auditoría **no aplicables** / excluidas a
-propósito. No se afirma que el Performance Advisor remoto quedó limpio: `0009` aún no está en
-remoto.
+### Verificación remota post-despliegue (solo lectura)
+
+| Comprobación | Resultado |
+|---|---|
+| Índices `orders_user_id_idx`, `modifier_groups_menu_item_idx`, `modifier_options_group_idx`, `branch_menu_items_menu_item_idx` | presentes con columnas esperadas |
+| Unindexed FK advisor | 24 → **20** |
+| `multiple_permissive_policies` | **0** (antes 7) |
+| `unused_index` | permanecen (sin tráfico real; diferidos) |
+| Security: `payment_webhook_events` RLS + 0 policies | aceptado deny-by-default |
+| `private.current_role()` | EXECUTE solo `authenticated`; SECURITY DEFINER; `search_path` vacío |
+| `process_stripe_payment_event` | EXECUTE solo `service_role`; SECURITY DEFINER; `search_path` vacío |
+| Registros / errores bloqueantes | ninguno reportado |
+| Working tree en cierre de código (`5cfc9bd`) | limpio |
+
+No se afirma que todos los advisors queden en cero.

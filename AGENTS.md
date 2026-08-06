@@ -73,7 +73,7 @@ Mantener `[db.seed].enabled = false`. `supabase/seed.sql` contiene datos demo y 
 
 ## Migraciones
 
-La secuencia canónica local es `0001`–`0009`; añadir nuevas migraciones numeradas y append-only, sin editar silenciosamente las ya validadas. `0008_stripe_payment_state_ordering.sql` reemplaza (append-only) `public.process_stripe_payment_event` para imponer la monotonía de `payment_status`. `0009_remote_advisor_hardening.sql` añade índices de cobertura justificados y consolida políticas SELECT permisivas duplicadas sin ampliar RLS; permanece solo local hasta autorización expresa de despliegue (el remoto autorizado quedó en `0001`–`0008`). Ejecutar desde cero y probar antes de cualquier integración. `npm run test:db` y `npm run test:db:concurrency` deben correrse en serie sobre la misma base, nunca en paralelo. No crear secuencias timestamp paralelas ni una tabla pública `sessions`.
+La secuencia canónica es `0001`–`0009` (local y remoto de producción alineados). Añadir nuevas migraciones numeradas y append-only, sin editar silenciosamente las ya validadas. `0008_stripe_payment_state_ordering.sql` reemplaza (append-only) `public.process_stripe_payment_event` para imponer la monotonía de `payment_status`. `0009_remote_advisor_hardening.sql` añade índices de cobertura justificados y consolida políticas SELECT permisivas duplicadas sin ampliar RLS; ya fue auditada, dry-run aprobada y desplegada en el proyecto remoto autorizado. Ejecutar desde cero y probar antes de cualquier integración nueva. `npm run test:db` y `npm run test:db:concurrency` deben correrse en serie sobre la misma base, nunca en paralelo. No crear secuencias timestamp paralelas ni una tabla pública `sessions`.
 
 ## Operación segura
 
