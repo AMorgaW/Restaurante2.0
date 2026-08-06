@@ -12,8 +12,9 @@ Este documento describe el estado resultante de aplicar, en orden, las migracion
 6. `0006_pension_foundation.sql`: crea planes, membresías, ciclos, transiciones, menús, categorías/opciones, consumos y selecciones de pensionado.
 7. `0007_inventory_payment_hardening.sql`: añade trazabilidad exacta receta→order item→movimiento, inmutabilidad, entrega/reversión endurecida y eventos Stripe idempotentes.
 8. `0008_stripe_payment_state_ordering.sql`: reemplaza `public.process_stripe_payment_event` (append-only) para imponer monotonía de `payment_status`; conserva firma, idempotencia, transacción, auditoría y ACL a `service_role`.
+9. `0009_remote_advisor_hardening.sql` (**solo local hasta autorización**): índices de cobertura `orders(user_id)`, `modifier_groups(menu_item_id)`, `modifier_options(modifier_group_id)`, `branch_menu_items(menu_item_id)`; `GRANT EXECUTE` de `private.current_role()` a `authenticated`; consolidación de policies SELECT permisivas duplicadas (banners, promotions, pension_*, profiles) en `anon` (solo público) + una policy `authenticated` (`público OR personal`) lógicamente equivalente a la unión previa. No añade policies a `payment_webhook_events`. No elimina índices reportados como unused.
 
-No existen migraciones timestamp paralelas. `[db.seed].enabled = false`; el seed demo no participa en resets ni en el contrato de producción.
+No existen migraciones timestamp paralelas. `[db.seed].enabled = false`; el seed demo no participa en resets ni en el contrato de producción. El proyecto remoto autorizado permanece en `0001`–`0008` mientras `0009` no se autorice a desplegar.
 
 ## Identidad, roles y personal
 
@@ -66,7 +67,7 @@ Los constraints sobre idempotency key y fuentes evitan doble descuento. Dos pedi
 
 ## Stripe
 
-`payment_webhook_events` guarda proveedor, `provider_event_id` único, tipo permitido, pedido, SHA-256 del payload y estado de pago resultante. El route handler verifica timestamp y cualquiera de las firmas `v1` sobre el cuerpo original antes de usar un cliente privilegiado.
+`payment_webhook_events` guarda proveedor, `provider_event_id` único, tipo permitido, pedido, SHA-256 del payload y estado de pago resultante. El route handler verifica timestamp y cualquiera de las firmas `v1` sobre el cuerpo original antes de usar un cliente privilegiado. La tabla tiene RLS habilitado y **cero policies** para `anon`/`authenticated`: deny-by-default intencional; solo la RPC `process_stripe_payment_event` (ACL `service_role`) escribe/lee vía privilegio de definición. El Security Advisor que marca “RLS enabled, no policy” se acepta deliberadamente; no se añaden policies cliente.
 
 `public.process_stripe_payment_event` es `SECURITY DEFINER`, tiene `search_path = ''`, usa nombres cualificados y solo concede `EXECUTE` a `service_role`. Reintentos con el mismo evento/digest devuelven el resultado persistido; un evento conflictivo falla. Una escritura fallida responde con error y no se reconoce como procesada. Esta persistencia no habilita pagos reales por sí sola.
 
@@ -88,22 +89,24 @@ Las políticas heredadas de `0001` se eliminan en `0002`; `public.is_staff()` y 
 
 Las funciones privadas usan esquemas/nombres cualificados y `search_path = ''`. Se revoca ejecución de `PUBLIC`, `anon`, `authenticated` y `service_role`, reabriendo solo los helpers que una política o wrapper necesita para `authenticated`. Los wrappers públicos de personal, pensionados e inventario son `SECURITY INVOKER`; la autorización permanece dentro de la operación privada.
 
-`public.rls_auto_enable()` y el event trigger `ensure_rls` **no son creados por estas migraciones** y no forman parte del contrato funcional de la aplicación. Una base reconstruida desde `0001`–`0008` puede no contenerlos, y su ausencia no es un error (verificado: `to_regprocedure('public.rls_auto_enable()')` devuelve nulo tras un reset limpio). Si existen como objeto heredado en otro entorno, `0005` conserva un revoke condicional que retira sus ACL para `PUBLIC`, `anon`, `authenticated` y `service_role`; el owner `postgres` conserva su operación DDL interna. Una aserción pgTAP acepta ambos estados seguros: la función ausente, o presente pero no ejecutable por `PUBLIC`/`anon`/`authenticated`.
+`public.rls_auto_enable()` y el event trigger `ensure_rls` **no son creados por estas migraciones** y no forman parte del contrato funcional de la aplicación. Una base reconstruida desde `0001`–`0009` puede no contenerlos, y su ausencia no es un error (verificado: `to_regprocedure('public.rls_auto_enable()')` devuelve nulo tras un reset limpio). Si existen como objeto heredado en otro entorno, `0005` conserva un revoke condicional que retira sus ACL para `PUBLIC`, `anon`, `authenticated` y `service_role`; el owner `postgres` conserva su operación DDL interna. Una aserción pgTAP acepta ambos estados seguros: la función ausente, o presente pero no ejecutable por `PUBLIC`/`anon`/`authenticated`.
+
+Desde `0009`, las policies SELECT duplicadas (público + personal) de marketing/pensión/perfiles se consolidaron sin ampliar el conjunto de filas visibles: `anon` conserva solo la condición pública; `authenticated` ve la unión pública ∪ personal en una sola policy permisiva. `private.current_role()` recibe `EXECUTE` para `authenticated` porque esas policies lo invocan; el helper solo lee el rol del propio llamante.
 
 ## Índices, triggers e invariantes de concurrencia
 
-Los índices cubren claves RLS (`profile_id`, `branch_id`, `user_id`), colas/estados, fechas, relaciones de recetas, movimientos, auditoría y vencimientos. Índices únicos/parciales garantizan receta activa única, membresía abierta única, turno activo único, consumo por menú, reversión única y eventos externos únicos.
+Los índices cubren claves RLS (`profile_id`, `branch_id`, `user_id`), colas/estados, fechas, relaciones de recetas, movimientos, auditoría y vencimientos. Índices únicos/parciales garantizan receta activa única, membresía abierta única, turno activo único, consumo por menú, reversión única y eventos externos únicos. `0009` añade cobertura explícita para FKs con lectura Data API / RLS frecuente (`orders.user_id`, modificadores, `branch_menu_items.menu_item_id`); no indexa FKs de auditoría ni padres solo desactivados lógicamente.
 
 La corrección no depende de un `SELECT` previo en TypeScript: locks de fila, constraints y transacciones resuelven doble entrega, doble activación/renovación, doble beneficio, doble reversión, stock competido, retry externo y transiciones fuera de orden.
 
 ## Validación real local
 
-- Dos `supabase db reset --local --no-seed` consecutivos aplicaron `0001`–`0008` desde cero.
+- Resets limpios `supabase db reset --local --no-seed` aplican `0001`–`0009` desde cero (local).
 - `supabase db lint --local --level warning`: 0 hallazgos.
-- `supabase/tests/0001_backend_security.test.sql`: pgTAP 57/57 sobre PostgreSQL real (incluye monotonía de pagos y `rls_auto_enable`).
-- `scripts/test-supabase-concurrency.ps1`: 6 carreras y 10/10 invariantes.
+- `supabase/tests/0001_backend_security.test.sql`: pgTAP **90/90** (incluye 0009: índices, policies, deny-by-default webhook, acceso consolidado).
+- `scripts/test-supabase-concurrency.ps1`: 6 carreras y 10/10 invariantes; **debe ejecutarse en serie** respecto a pgTAP (misma base).
 - Se probaron RLS cruzada, escalamiento, DML protegido, matriz técnica, estados de membresía, receta/stock, entrega, consumo, reversión, auditoría y webhook.
 
 ## Estrategia futura de integración remota
 
-El proyecto remoto no fue modificado. No se ejecutó `supabase link` ni `supabase db push`. Antes de integrar: revisión independiente del commit, confirmación del proyecto autorizado, respaldo/inspección del historial remoto, dry-run permitido, configuración de secretos fuera de Git, revisión de Auth/redirects y nueva ejecución de RLS/adversarial en un entorno autorizado. Ninguna operación remota debe inferirse de esta validación local.
+El proyecto remoto no fue modificado por la Etapa 9C. No se ejecutó `supabase db push` de `0009` ni operaciones `--linked` de escritura. Antes de integrar `0009`: revisión independiente, confirmación del proyecto autorizado, dry-run permitido y nueva ejecución de RLS en entorno autorizado. Ninguna operación remota debe inferirse de esta validación local.

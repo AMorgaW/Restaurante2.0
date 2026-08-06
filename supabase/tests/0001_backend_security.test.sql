@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(57);
+select plan(90);
 
 select has_table('public', 'pension_memberships', 'memberships table exists');
 select has_table('public', 'inventory_consumption_sources', 'inventory trace table exists');
@@ -297,6 +297,127 @@ select ok(
   end,
   'rls_auto_enable ausente o no ejecutable por PUBLIC/anon/authenticated'
 );
+
+-- 0009: índices de cobertura justificados existen con la columna esperada.
+reset role;
+select ok((select pg_catalog.count(*) from pg_catalog.pg_indexes where schemaname='public' and indexname='orders_user_id_idx')=1, 'orders_user_id_idx existe');
+select ok((select pg_catalog.count(*) from pg_catalog.pg_indexes where schemaname='public' and indexname='modifier_groups_menu_item_idx')=1, 'modifier_groups_menu_item_idx existe');
+select ok((select pg_catalog.count(*) from pg_catalog.pg_indexes where schemaname='public' and indexname='modifier_options_group_idx')=1, 'modifier_options_group_idx existe');
+select ok((select pg_catalog.count(*) from pg_catalog.pg_indexes where schemaname='public' and indexname='branch_menu_items_menu_item_idx')=1, 'branch_menu_items_menu_item_idx existe');
+select is((
+  select pg_catalog.array_agg(a.attname::text order by x.ordinality)
+  from pg_catalog.pg_index i
+  join pg_catalog.pg_class c on c.oid = i.indexrelid
+  join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+  join lateral pg_catalog.unnest(i.indkey) with ordinality as x(attnum, ordinality) on true
+  join pg_catalog.pg_attribute a on a.attrelid = i.indrelid and a.attnum = x.attnum
+  where n.nspname = 'public' and c.relname = 'orders_user_id_idx'
+), array['user_id']::text[], 'orders_user_id_idx cubre user_id');
+select is((
+  select pg_catalog.array_agg(a.attname::text order by x.ordinality)
+  from pg_catalog.pg_index i
+  join pg_catalog.pg_class c on c.oid = i.indexrelid
+  join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+  join lateral pg_catalog.unnest(i.indkey) with ordinality as x(attnum, ordinality) on true
+  join pg_catalog.pg_attribute a on a.attrelid = i.indrelid and a.attnum = x.attnum
+  where n.nspname = 'public' and c.relname = 'modifier_groups_menu_item_idx'
+), array['menu_item_id']::text[], 'modifier_groups_menu_item_idx cubre menu_item_id');
+select is((
+  select pg_catalog.array_agg(a.attname::text order by x.ordinality)
+  from pg_catalog.pg_index i
+  join pg_catalog.pg_class c on c.oid = i.indexrelid
+  join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+  join lateral pg_catalog.unnest(i.indkey) with ordinality as x(attnum, ordinality) on true
+  join pg_catalog.pg_attribute a on a.attrelid = i.indrelid and a.attnum = x.attnum
+  where n.nspname = 'public' and c.relname = 'modifier_options_group_idx'
+), array['modifier_group_id']::text[], 'modifier_options_group_idx cubre modifier_group_id');
+select is((
+  select pg_catalog.array_agg(a.attname::text order by x.ordinality)
+  from pg_catalog.pg_index i
+  join pg_catalog.pg_class c on c.oid = i.indexrelid
+  join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+  join lateral pg_catalog.unnest(i.indkey) with ordinality as x(attnum, ordinality) on true
+  join pg_catalog.pg_attribute a on a.attrelid = i.indrelid and a.attnum = x.attnum
+  where n.nspname = 'public' and c.relname = 'branch_menu_items_menu_item_idx'
+), array['menu_item_id']::text[], 'branch_menu_items_menu_item_idx cubre menu_item_id');
+select is((
+  select pg_catalog.count(*)::bigint
+  from pg_catalog.pg_index i
+  join pg_catalog.pg_class t on t.oid = i.indrelid
+  join pg_catalog.pg_namespace n on n.oid = t.relnamespace
+  join pg_catalog.pg_attribute a on a.attrelid = t.oid and a.attnum = i.indkey[0]
+  where n.nspname = 'public' and t.relname = 'orders' and a.attname = 'user_id' and i.indisvalid
+), 1::bigint, 'orders: un solo índice que lidere con user_id');
+select is((
+  select pg_catalog.count(*)::bigint
+  from pg_catalog.pg_index i
+  join pg_catalog.pg_class t on t.oid = i.indrelid
+  join pg_catalog.pg_namespace n on n.oid = t.relnamespace
+  join pg_catalog.pg_attribute a on a.attrelid = t.oid and a.attnum = i.indkey[0]
+  where n.nspname = 'public' and t.relname = 'modifier_groups' and a.attname = 'menu_item_id' and i.indisvalid
+), 1::bigint, 'modifier_groups: un solo índice que lidere con menu_item_id');
+select is((
+  select pg_catalog.count(*)::bigint
+  from pg_catalog.pg_index i
+  join pg_catalog.pg_class t on t.oid = i.indrelid
+  join pg_catalog.pg_namespace n on n.oid = t.relnamespace
+  join pg_catalog.pg_attribute a on a.attrelid = t.oid and a.attnum = i.indkey[0]
+  where n.nspname = 'public' and t.relname = 'modifier_options' and a.attname = 'modifier_group_id' and i.indisvalid
+), 1::bigint, 'modifier_options: un solo índice que lidere con modifier_group_id');
+select is((
+  select pg_catalog.count(*)::bigint
+  from pg_catalog.pg_index i
+  join pg_catalog.pg_class t on t.oid = i.indrelid
+  join pg_catalog.pg_namespace n on n.oid = t.relnamespace
+  join pg_catalog.pg_attribute a on a.attrelid = t.oid and a.attnum = i.indkey[0]
+  where n.nspname = 'public' and t.relname = 'branch_menu_items' and a.attname = 'menu_item_id' and i.indisvalid
+), 1::bigint, 'branch_menu_items: un solo índice que lidere con menu_item_id');
+
+-- 0009: authenticated puede ejecutar private.current_role (requerido por policies).
+select ok(has_function_privilege('authenticated', 'private.current_role()', 'EXECUTE'), 'authenticated ejecuta private.current_role tras el grant de 0009');
+select ok(not has_function_privilege('public', 'private.current_role()', 'EXECUTE'), 'PUBLIC no ejecuta private.current_role');
+
+-- 0009: una sola policy SELECT para authenticated; las duplicadas previas desaparecieron.
+select is((select pg_catalog.count(*) from pg_catalog.pg_policies where schemaname='public' and tablename='banners' and cmd='SELECT' and 'authenticated' = any(roles)), 1::bigint, 'banners: una policy SELECT para authenticated');
+select is((select pg_catalog.count(*) from pg_catalog.pg_policies where schemaname='public' and tablename='promotions' and cmd='SELECT' and 'authenticated' = any(roles)), 1::bigint, 'promotions: una policy SELECT para authenticated');
+select is((select pg_catalog.count(*) from pg_catalog.pg_policies where schemaname='public' and tablename='pension_plans' and cmd='SELECT' and 'authenticated' = any(roles)), 1::bigint, 'pension_plans: una policy SELECT para authenticated');
+select is((select pg_catalog.count(*) from pg_catalog.pg_policies where schemaname='public' and tablename='pension_menus' and cmd='SELECT' and 'authenticated' = any(roles)), 1::bigint, 'pension_menus: una policy SELECT para authenticated');
+select is((select pg_catalog.count(*) from pg_catalog.pg_policies where schemaname='public' and tablename='pension_menu_categories' and cmd='SELECT' and 'authenticated' = any(roles)), 1::bigint, 'pension_menu_categories: una policy SELECT para authenticated');
+select is((select pg_catalog.count(*) from pg_catalog.pg_policies where schemaname='public' and tablename='pension_menu_items' and cmd='SELECT' and 'authenticated' = any(roles)), 1::bigint, 'pension_menu_items: una policy SELECT para authenticated');
+select is((select pg_catalog.count(*) from pg_catalog.pg_policies where schemaname='public' and tablename='profiles' and cmd='SELECT' and 'authenticated' = any(roles)), 1::bigint, 'profiles: una policy SELECT para authenticated');
+select ok(not exists (
+  select 1 from pg_catalog.pg_policies
+  where schemaname='public' and policyname in (
+    'banners_staff_read', 'promotions_staff_read', 'pension_plans_staff_read',
+    'pension_menus_staff_read', 'pension_menu_categories_staff_read',
+    'pension_menu_items_staff_read', 'profiles_own_read', 'profiles_staff_admin_read'
+  )
+), 'policies SELECT duplicadas previas ya no existen');
+
+-- 0009: payment_webhook_events permanece deny-by-default para clientes.
+select ok((select relrowsecurity from pg_class where oid = 'public.payment_webhook_events'::regclass), 'payment_webhook_events tiene RLS');
+select is((select pg_catalog.count(*) from pg_catalog.pg_policies where schemaname='public' and tablename='payment_webhook_events'), 0::bigint, 'payment_webhook_events no tiene policies');
+select ok(not has_table_privilege('anon', 'public.payment_webhook_events', 'SELECT'), 'anon no puede SELECT payment_webhook_events');
+select ok(not has_table_privilege('authenticated', 'public.payment_webhook_events', 'SELECT'), 'authenticated no puede SELECT payment_webhook_events');
+select ok(has_function_privilege('service_role', 'public.process_stripe_payment_event(text,text,uuid,text)', 'EXECUTE'), 'service_role conserva process_stripe_payment_event');
+select ok(not has_function_privilege('authenticated', 'public.process_stripe_payment_event(text,text,uuid,text)', 'EXECUTE'), 'authenticated no ejecuta process_stripe_payment_event');
+
+-- 0009: consolidación conserva acceso positivo y negativo (fixtures propios).
+insert into public.pension_plans (id, name, public_price, modality, default_meal_limit, included_periods, is_active)
+values ('70000000-0000-0000-0000-000000000099', 'Inactive plan', 100000, 'meal_count', 10, array['lunch'], false);
+reset role;
+select set_config('request.jwt.claim.sub', '40000000-0000-0000-0000-000000000005', true);
+set local role authenticated;
+select is((select pg_catalog.count(*) from public.profiles where id <> '40000000-0000-0000-0000-000000000005'), 0::bigint, 'customer no lee perfiles ajenos tras consolidar');
+select is((select pg_catalog.count(*) from public.pension_plans where id='70000000-0000-0000-0000-000000000099'), 0::bigint, 'customer no lee planes inactivos');
+reset role;
+select set_config('request.jwt.claim.sub', '40000000-0000-0000-0000-000000000001', true);
+set local role authenticated;
+select is((select pg_catalog.count(*) from public.pension_plans where id='70000000-0000-0000-0000-000000000099'), 1::bigint, 'owner sigue leyendo planes inactivos tras consolidar');
+reset role;
+set local role anon;
+select is((select pg_catalog.count(*) from public.pension_plans where id='70000000-0000-0000-0000-000000000099'), 0::bigint, 'anon no ve el plan inactivo controlado');
+select ok((select pg_catalog.count(*) from public.pension_plans where is_active and id='70000000-0000-0000-0000-000000000001') = 1, 'anon ve el plan activo de la propia prueba');
 
 reset role;
 select * from finish();

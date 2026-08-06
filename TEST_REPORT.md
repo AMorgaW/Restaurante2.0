@@ -324,3 +324,38 @@ monotonía (un pago `paid` no se degrada por un evento `failed` posterior con ot
 Limitación operativa: los binarios de navegador Playwright se resolvieron apuntando
 `PLAYWRIGHT_BROWSERS_PATH` al caché estándar `ms-playwright` ya instalado; no se descargaron ni
 instalaron dependencias.
+
+## Etapa 9C (2026-08-06) — endurecimiento local `0009` post-advisors
+
+Migración local `0009_remote_advisor_hardening.sql` (índices justificados + consolidación SELECT
+equivalente + grant `private.current_role`). **No aplicada al remoto** (sigue en `0001`–`0008`).
+Sin `db push`, sin `--linked`, sin `git push`.
+
+| Verificación (serial) | Resultado real |
+|---|---|
+| `supabase db reset --local --no-seed` (antes de lint/pgTAP) | correcto; `0001`–`0009` |
+| `supabase db lint --local --level warning` | 0 hallazgos |
+| `npm run test:db` (pgTAP, solo) | **90/90** |
+| `supabase db reset --local --no-seed` | correcto |
+| `npm run test:db:concurrency` (solo) | 6 escenarios; **10/10** |
+| `supabase db reset --local --no-seed` | correcto |
+| `npm run test:db` (pgTAP de nuevo, solo) | **90/90** |
+| `npm run test` (Vitest) | **40 archivos / 330 pruebas** |
+| `npm run typecheck` / `npm run lint` / `npm run build` | correctos |
+| `git diff --check` | correcto |
+| E2E session+auth+pension+employee+admin-management Chromium | **28/28** |
+| E2E mismas specs WebKit | **28/28** |
+
+Cobertura pgTAP de 0009: existencia y orden de columnas de los 4 índices; unicidad de índice
+líder por columna; grant `current_role` a authenticated y no a PUBLIC; una sola policy SELECT
+authenticated por tabla consolidada; policies retiradas ausentes; `payment_webhook_events` con
+RLS, 0 policies, sin SELECT para anon/authenticated; `process_stripe_payment_event` solo
+`service_role`; customer no lee perfiles ajenos ni planes inactivos; owner sí lee plan inactivo
+de fixture propio; anon solo el plan activo de la prueba. No se usan conteos globales de filas
+que otras suites puedan alterar.
+
+Advisors: unindexed FK / multiple permissive policies corregidos solo donde hubo justificación;
+`payment_webhook_events` RLS sin policies **aceptado** (deny-by-default); `unused_index`
+**diferido** hasta tráfico real; resto de FKs de auditoría **no aplicables** / excluidas a
+propósito. No se afirma que el Performance Advisor remoto quedó limpio: `0009` aún no está en
+remoto.

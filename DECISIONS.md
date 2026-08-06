@@ -282,3 +282,31 @@ documentación.
 
 80. **Branding obsoleto** — `.env.example` usaba "Casa Brasa" en `EMAIL_FROM`; se sustituyó por
 "Brisas del Sinú". No se realizó un reemplazo global sin revisar contexto.
+
+## 2026-08-06 (Etapa 9C — endurecimiento local post-advisors remotos)
+
+81. **`0009_remote_advisor_hardening.sql` solo local** — respuesta controlada a Performance/Security
+Advisors del remoto tras `0001`–`0008`. No se ejecutó `db push`, `--linked` ni escritura remota;
+el remoto permanece en `0001`–`0008`.
+
+82. **Índices selectivos, no mecánicos** — se añadieron solo cuatro índices con ruta de lectura
+real: `orders(user_id)` (RLS “mis pedidos”), `modifier_groups(menu_item_id)`,
+`modifier_options(modifier_group_id)`, `branch_menu_items(menu_item_id)` (catálogo Data API;
+la PK de branch_menu_items lidera con `branch_id`). Se excluyeron FKs de actores de auditoría y
+padres solo desactivados lógicamente: costo de escritura permanente sin beneficio sin tráfico.
+No se eliminaron índices marcados `unused` (base reciente sin tráfico representativo).
+
+83. **Consolidación de policies SELECT permisivas sin ampliar acceso** — para banners,
+promotions, pension_plans/menus/categories/items y profiles: la policy pública queda en `anon`
+(solo condición pública) y una sola policy `authenticated` expresa `público OR personal`
+(equivalente a la unión OR de las dos policies permisivas previas). No se añadieron policies a
+`payment_webhook_events` (deny-by-default intencional; operada solo vía RPC `service_role`).
+
+84. **Grant latente de `private.current_role()`** — las policies de profiles/pension_plans
+invocaban la función sin `EXECUTE` para `authenticated`; 0009 concede el grant. La función solo
+devuelve el rol del llamante; no amplía filas.
+
+85. **Aislamiento serial pgTAP ↔ concurrencia** — ambas suites comparten la misma base local.
+Ejecutarlas en paralelo contaminó aserciones globales (p. ej. conteos de `pension_plans`). Las
+pruebas de 0009 usan fixtures con IDs propios y no dependen de conteos globales de filas.
+`test:db` y `test:db:concurrency` deben correrse estrictamente en serie tras resets limpios.
