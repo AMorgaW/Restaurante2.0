@@ -530,6 +530,26 @@ Checkpoint base: `1dd2132`. Sin cambios SQL/migraciones. App cablea pedidos supa
 | Compuerta B | **no iniciada** |
 | Graphify | **1.952 nodos, 5.127 aristas, 141 comunidades** |
 
+## Etapa 11B-3 — operaciones staff + grant staff_status (2026-08-07)
+
+Commits: `79ae495` (0011 grant) + feat operaciones. Bloqueo: SELECT `staff_status` faltaba → 42501 en resolver.
+
+| Verificación | Resultado real |
+|---|---|
+| Migración 0011 | `GRANT SELECT (staff_status)` only; RLS intacta |
+| pgTAP 0011 profiles | **16/16** |
+| pgTAP 0001 + 0010 | **90 + 76** |
+| Vitest | **55 archivos / 456 pruebas / 0 failed** |
+| Integración staff orders | **8/8** |
+| typecheck / lint / build | correctos |
+| E2E staff Chromium | **6/6** |
+| E2E staff WebKit | **6/6** |
+| Migraciones | local **0001–0011**; remoto **0001–0009** |
+| `delivered` app | **bloqueado** (sin consumo inventario) |
+| `payment_status` | **read-only** |
+| db push / git push / Compuerta B | **no** |
+| Graphify | **2.018 nodos, 5.305 aristas, 147 comunidades** |
+
 ## Verificación 11B-1B — rutas staff + disponibilidad (2026-08-07)
 
 Corrección post-11B-1B: shell `/admin` exclusivo owner/admin; catálogo manager/editor en

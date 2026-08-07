@@ -13,14 +13,16 @@ Este documento describe el estado resultante de aplicar, en orden, las migracion
 7. `0007_inventory_payment_hardening.sql`: añade trazabilidad exacta receta→order item→movimiento, inmutabilidad, entrega/reversión endurecida y eventos Stripe idempotentes.
 8. `0008_stripe_payment_state_ordering.sql`: reemplaza `public.process_stripe_payment_event` (append-only) para imponer monotonía de `payment_status`; conserva firma, idempotencia, transacción, auditoría y ACL a `service_role`.
 9. `0009_remote_advisor_hardening.sql` (local y remoto de producción): índices de cobertura `orders(user_id)`, `modifier_groups(menu_item_id)`, `modifier_options(modifier_group_id)`, `branch_menu_items(menu_item_id)`; `GRANT EXECUTE` de `private.current_role()` a `authenticated`; consolidación de policies SELECT permisivas duplicadas (banners, promotions, pension_*, profiles) en `anon` (solo público) + una policy `authenticated` (`público OR personal`) lógicamente equivalente a la unión previa. No añade policies a `payment_webhook_events`. No elimina índices reportados como unused.
+10. `0010_create_customer_order.sql` (**solo local**; no desplegada): RPC `create_customer_order` transaccional/idempotente. Conectada a la app en 11B-2B.
+11. `0011_profiles_staff_status_select_grant.sql` (**solo local**; no desplegada): `GRANT SELECT (staff_status) ON public.profiles TO authenticated`. No SELECT de tabla, no policy nueva, no SECURITY DEFINER. Necesario para que el resolvedor SSR lea `staff_status` (active → `/empleado|/admin`; suspended/inactive → `/cuenta`) sin 42501. RLS `profiles_read` intacta.
 
-No existen migraciones timestamp paralelas. `[db.seed].enabled = false`; el seed demo no participa en resets ni en el contrato de producción. Local y remoto autorizado (`nasenphzywwufntvrzpc`) están alineados en `0001`–`0009` tras dry-run, despliegue y verificación de solo lectura.
+No existen migraciones timestamp paralelas. `[db.seed].enabled = false`; el seed demo no participa en resets ni en el contrato de producción. Remoto autorizado permanece en `0001`–`0009` (sin db push de 0010/0011).
 
 ## Identidad, roles y personal
 
 `profiles.id` referencia `auth.users.id`. El trigger `on_auth_user_created` ejecuta `private.handle_new_user()` tras el alta Auth y crea un perfil `customer` de forma incondicional; no usa metadata para el rol y falla atómicamente ante una colisión incoherente.
 
-Roles permitidos: `owner`, `admin`, `manager`, `kitchen`, `cashier`, `editor`, `support`, `customer`. No existe `employee`. `profiles.staff_status` distingue `invited`, `active`, `suspended` e `inactive`; las capacidades técnicas requieren estado activo. `staff_branch_permissions(profile_id, branch_id)` limita operación por sucursal.
+Roles permitidos: `owner`, `admin`, `manager`, `kitchen`, `cashier`, `editor`, `support`, `customer`. No existe `employee`. `profiles.staff_status` distingue `invited`, `active`, `suspended` e `inactive`; las capacidades técnicas requieren estado activo. `authenticated` puede SELECT columnas de perfil propias (incl. `staff_status` tras 0011) solo en filas permitidas por `profiles_read` (`id = auth.uid()` u owner/admin activo). Sin grant de tabla completa. `staff_branch_permissions(profile_id, branch_id)` limita operación por sucursal.
 
 `public.staff_shifts` conserva turnos y permite un único turno activo por perfil mediante índice parcial. `public.staff_incidents` registra categoría, prioridad, estado, pedido opcional, reportero y resolución. La gestión usa `public.manage_staff_profile` y `public.report_staff_incident`, wrappers `SECURITY INVOKER` que delegan en helpers privados autorizados. Actor y rol se obtienen con `auth.uid()` y el perfil confiable, nunca desde un parámetro cliente.
 

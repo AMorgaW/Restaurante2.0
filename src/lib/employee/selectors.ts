@@ -18,14 +18,19 @@ export function getEmployeeMetrics(orders: Order[]): EmployeeMetrics {
   };
 }
 
-export function getEmployeeOrderViews(orders: Order[], role: AdminRole | null | undefined, observedAt: string): EmployeeOrderView[] {
+export function getEmployeeOrderViews(
+  orders: Order[],
+  role: AdminRole | null | undefined,
+  observedAt: string,
+  options?: { blockDelivered?: boolean },
+): EmployeeOrderView[] {
   const now = new Date(observedAt).getTime();
   return orders
     .map((order) => ({
       order,
       elapsedMinutes: Math.max(0, Math.floor((now - new Date(order.createdAt).getTime()) / 60_000)),
       channelLabel: order.fulfillmentType === "delivery" ? "Domicilio" as const : "Mostrador" as const,
-      nextStatus: allowedOrderStatusTransitions(role, order.status)[0],
+      nextStatus: allowedOrderStatusTransitions(role, order.status, options)[0],
     }))
     .sort((left, right) => {
       const leftRank = left.order.status === "ready" ? 0 : left.order.status === "preparing" ? 1 : left.order.status === "pending" ? 2 : 3;

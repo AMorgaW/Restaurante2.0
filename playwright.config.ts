@@ -60,7 +60,7 @@ export default defineConfig({
     {
       name: "mobile-chromium",
       use: { ...devices["Pixel 7"] },
-      testIgnore: ["**/desktop.spec.ts", "**/catalog-supabase.spec.ts"],
+      testIgnore: ["**/desktop.spec.ts", "**/catalog-supabase.spec.ts", "**/staff-orders-supabase.spec.ts"],
     },
     {
       name: "mobile-webkit",
@@ -70,6 +70,7 @@ export default defineConfig({
         "**/a11y.spec.ts",
         "**/desktop.spec.ts",
         "**/catalog-supabase.spec.ts",
+        "**/staff-orders-supabase.spec.ts",
       ],
     },
     {

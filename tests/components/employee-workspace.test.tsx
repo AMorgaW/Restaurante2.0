@@ -1,5 +1,10 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
+
+vi.mock("@/app/admin/order-actions", () => ({
+  transitionOrderStatusAction: vi.fn(async () => ({ ok: true })),
+}));
+
 import { EmployeeWorkspace } from "@/components/employee/employee-workspace";
 import { ToastProvider } from "@/components/ui/toast";
 import { DEFAULT_SERVICE_SNAPSHOT } from "@/lib/menu/service-period";

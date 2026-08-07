@@ -69,4 +69,12 @@ describe("maquina de estados de pedidos", () => {
     expect(allowedOrderStatusTransitions("editor", "pending")).toEqual([]);
     expect(allowedOrderStatusTransitions("unknown" as never, "pending")).toEqual([]);
   });
+
+  it("bloquea delivered en modo operativo supabase (11B-3)", () => {
+    expect(allowedOrderStatusTransitions("cashier", "ready", { blockDelivered: true })).toEqual([]);
+    expect(allowedOrderStatusTransitions("manager", "ready", { blockDelivered: true })).toEqual([]);
+    expect(allowedOrderStatusTransitions("owner", "ready", { blockDelivered: true })).toEqual([]);
+    expect(canTransitionOrderStatus("cashier", "ready", "delivered", { blockDelivered: true })).toBe(false);
+    expect(allowedOrderStatusTransitions("cashier", "ready")).toEqual(["delivered"]);
+  });
 });

@@ -86,31 +86,44 @@ export function canAccessAdminPath(role: AdminRole | null | undefined, pathname:
   return section !== null && canAccessAdminSection(role, section);
 }
 
-export function allowedOrderStatusTransitions(role: AdminRole | null | undefined, current: OrderStatus): OrderStatus[] {
+export type OrderTransitionOptions = {
+  /**
+   * En DATA_MODE=supabase, `delivered` dispara consume_order_inventory en DB.
+   * 11B-3 retiene esa transición hasta 11B-4; local demo puede seguir permitiendo.
+   */
+  blockDelivered?: boolean;
+};
+
+export function allowedOrderStatusTransitions(
+  role: AdminRole | null | undefined,
+  current: OrderStatus,
+  options?: OrderTransitionOptions,
+): OrderStatus[] {
   if (!role || current === "delivered" || current === "cancelled") return [];
+  let next: OrderStatus[] = [];
   if (role === "kitchen") {
-    if (current === "confirmed") return ["preparing"];
-    if (current === "preparing") return ["ready"];
-    return [];
+    if (current === "confirmed") next = ["preparing"];
+    else if (current === "preparing") next = ["ready"];
+  } else if (role === "cashier") {
+    if (current === "pending") next = ["confirmed"];
+    else if (current === "ready") next = ["delivered"];
+  } else if (role === "owner" || role === "admin" || role === "manager") {
+    if (current === "pending") next = ["confirmed", "cancelled"];
+    else if (current === "confirmed") next = ["preparing", "cancelled"];
+    else if (current === "preparing") next = ["ready", "cancelled"];
+    else if (current === "ready") next = ["delivered"];
   }
-  if (role === "cashier") {
-    if (current === "pending") return ["confirmed"];
-    if (current === "ready") return ["delivered"];
-    return [];
+  if (options?.blockDelivered) {
+    return next.filter((status) => status !== "delivered");
   }
-  if (role === "owner" || role === "admin" || role === "manager") {
-    if (current === "pending") return ["confirmed", "cancelled"];
-    if (current === "confirmed") return ["preparing", "cancelled"];
-    if (current === "preparing") return ["ready", "cancelled"];
-    if (current === "ready") return ["delivered"];
-  }
-  return [];
+  return next;
 }
 
 export function canTransitionOrderStatus(
   role: AdminRole | null | undefined,
   current: OrderStatus,
   next: OrderStatus,
+  options?: OrderTransitionOptions,
 ): boolean {
-  return allowedOrderStatusTransitions(role, current).includes(next);
+  return allowedOrderStatusTransitions(role, current, options).includes(next);
 }

@@ -57,7 +57,7 @@ Mantener `[db.seed].enabled = false`. `supabase/seed.sql` contiene datos demo y 
 - Pensionado no es rol JWT: siempre es `customer` con membresía comercial.
 - Registro público siempre crea `customer`; nunca añadir selector público de rol, cargo, sucursal, membresía o permisos.
 - `AUTH_MODE` y `DATA_MODE` son independientes. Los stores demo nunca conceden identidad en modo Supabase.
-- Con `DATA_MODE=supabase` el catálogo público y la validación de checkout leen PostgreSQL (anon + RLS); no hay fallback a `src/data/menu`. La persistencia remota de pedidos usa `public.create_customer_order` (migración local `0010`) vía `SupabaseOrderRepository`; local sigue demo. Operaciones staff de pedidos (11B-3), inventario al entregar y pagos reales siguen pendientes.
+- Con `DATA_MODE=supabase` el catálogo público y la validación de checkout leen PostgreSQL (anon + RLS); no hay fallback a `src/data/menu`. La persistencia remota de pedidos usa `public.create_customer_order` (migración local `0010`) vía `SupabaseOrderRepository`; local sigue demo. Operaciones staff de pedidos (11B-3) leen/actualizan `orders.status` vía RLS + Server Actions (`expectedStatus` optimista); `delivered` sigue bloqueado en app (11B-4 / inventario). Pagos reales siguen pendientes.
 - Administración de catálogo: owner/admin en `/admin/platos` y `/admin/categorias`; manager/editor activos en `/empleado/catalogo`. En `AUTH_MODE=disabled` + demo local usa Zustand; con Auth+DATA supabase escribe vía Server Actions + sesión + RLS (`can_manage_catalog`). Shell `/admin` exclusivo owner/admin. Sin `service_role` en la app.
 - En producción solo `AUTH_MODE=supabase` configurado es válido; `disabled`/ausente/`demo` → invalid.
 - Demo solo con `AUTH_MODE=disabled` explícito en `development` o `test` (E2E vía `next dev`, no `next start`).
@@ -78,11 +78,14 @@ Mantener `[db.seed].enabled = false`. `supabase/seed.sql` contiene datos demo y 
 
 ## Migraciones
 
-La secuencia canónica desplegada en remoto es `0001`–`0009`. Localmente existe además
-`0010_create_customer_order.sql` (RPC transaccional de pedidos; aún no desplegada ni
-conectada a la app). La RPC resuelve replay/conflicto de idempotencia antes del catálogo
-(serialización por `pg_advisory_xact_lock` + UNIQUE) e incrementa `coupons.redeemed_count`
-atómicamente solo en creación nueva. Añadir nuevas migraciones numeradas y append-only, sin editar
+La secuencia canónica desplegada en remoto es `0001`–`0009`. Localmente existen además
+`0010_create_customer_order.sql` (RPC de pedidos, conectada en app) y
+`0011_profiles_staff_status_select_grant.sql` (`GRANT SELECT (staff_status)` a
+`authenticated`, sin SELECT de tabla ni cambio de RLS; desbloquea el resolvedor de sesión).
+Ninguna de las dos está desplegada en remoto (sin db push). La RPC 0010 resuelve
+replay/conflicto de idempotencia antes del catálogo (serialización por
+`pg_advisory_xact_lock` + UNIQUE) e incrementa `coupons.redeemed_count` atómicamente solo
+en creación nueva. Añadir nuevas migraciones numeradas y append-only, sin editar
 silenciosamente las ya validadas. `0008_stripe_payment_state_ordering.sql` reemplaza (append-only) `public.process_stripe_payment_event` para imponer la monotonía de `payment_status`. `0009_remote_advisor_hardening.sql` añade índices de cobertura justificados y consolida políticas SELECT permisivas duplicadas sin ampliar RLS; ya fue auditada, dry-run aprobada y desplegada en el proyecto remoto autorizado. Ejecutar desde cero y probar antes de cualquier integración nueva. `npm run test:db` y `npm run test:db:concurrency` deben correrse en serie sobre la misma base, nunca en paralelo. No crear secuencias timestamp paralelas ni una tabla pública `sessions`.
 
 ## Operación segura

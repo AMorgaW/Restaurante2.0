@@ -120,9 +120,10 @@ persisten en el navegador. El panel `/admin` usa accesos demo etiquetados.
 Con URL y clave publicable válidas, las páginas públicas (`/menu`, búsqueda, detalle,
 carrito/favoritos) y `POST /api/orders` leen el mismo repositorio remoto. No hay
 fallback a fixtures. El carrito solo guarda selecciones; precios y totales se
-recalculan en servidor. La persistencia remota de pedidos **desde la app aún no está
-habilitada** (503 `persistence-pending`; 11B-2B). Localmente existe la migración
-`0010` con RPC `create_customer_order` (aún no desplegada ni conectada). La administración del catálogo con Auth+DATA supabase
+recalculan en servidor. Con `DATA_MODE=supabase`, el checkout persiste vía RPC
+`create_customer_order` (migración local `0010`, no desplegada en remoto) y las
+operaciones staff leen/actualizan `orders.status` (11B-3; `delivered` bloqueado
+hasta 11B-4). Local sigue demo/Zustand. La administración del catálogo con Auth+DATA supabase
 persiste en PostgreSQL vía Server Actions + RLS (roles owner/admin en `/admin`; manager/editor en `/empleado/catalogo`);
 en demo local (`AUTH_MODE=disabled`) el panel sigue usando ajustes en el navegador.
 
@@ -137,7 +138,7 @@ nunca `next start` con demo.
 
 ### Supabase Auth (Compuerta A — código listo)
 
-Migraciones remotas `0001`–`0009` (local puede incluir `0010` de pedidos sin desplegar). Bootstrap del primer **owner**: procedimiento manual en [`references/runbooks/FIRST_OWNER_BOOTSTRAP.md`](references/runbooks/FIRST_OWNER_BOOTSTRAP.md) (promoción serializada con lock de tabla; sin reversión automática). **Aún no ejecutado** (cero usuarios Auth remotos en esta compuerta). URL productiva pendiente. Compuerta B bloqueada hasta auditoría independiente final. No compartir credenciales en el chat.
+Migraciones remotas `0001`–`0009` (local `0001`–`0011`: pedidos RPC + grant `staff_status`; sin db push). Bootstrap del primer **owner**: procedimiento manual en [`references/runbooks/FIRST_OWNER_BOOTSTRAP.md`](references/runbooks/FIRST_OWNER_BOOTSTRAP.md) (promoción serializada con lock de tabla; sin reversión automática). **Aún no ejecutado** (cero usuarios Auth remotos en esta compuerta). URL productiva pendiente. Compuerta B bloqueada hasta auditoría independiente final. No compartir credenciales en el chat.
 
 Rutas Auth: `/login`, `/registro`, `/recuperar-contrasena`, `/actualizar-contrasena`, `/auth/callback`, `/auth/resolve`, `/auth/signout`, `/auth/update-password`. El registro crea siempre `customer` (trigger PostgreSQL); no envía rol en metadata. URL productiva de la app: **pendiente** de dominio de despliegue; Site URL / Redirect URLs se configuran en Compuerta B.
 

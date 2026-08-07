@@ -14,8 +14,25 @@ export interface MenuRepository {
   getCategories(): Promise<CategoryInfo[]>;
 }
 
+export type UpdateOrderStatusInput = {
+  orderId: string;
+  expectedStatus: Order["status"];
+  nextStatus: Order["status"];
+};
+
+export type UpdateOrderStatusResult =
+  | { ok: true; order: Order }
+  | { ok: false; reason: "not-found" | "stale" | "forbidden" };
+
 export interface OrderRepository {
   /** Persiste un pedido ya validado. En supabase llama la RPC (tipPercent de la intención). */
   saveOrder(order: Order, options?: { tipPercent?: number }): Promise<Order>;
   getOrderById(id: string): Promise<Order | null>;
+  /** Lectura operativa (staff) o propia (customer); RLS filtra el alcance. */
+  listOrders(options?: { limit?: number }): Promise<Order[]>;
+  /**
+   * Actualización optimista de status: exige expectedStatus vigente.
+   * Solo escribe la columna `status`; payment_* nunca se muta aquí.
+   */
+  updateOrderStatus(input: UpdateOrderStatusInput): Promise<UpdateOrderStatusResult>;
 }

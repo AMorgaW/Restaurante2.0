@@ -1,7 +1,7 @@
 import { getCategoriesInUse, getMenuItemBySlug, menuItems } from "@/data/menu";
 import type { CategoryInfo, MenuItem } from "@/types/menu";
 import type { Order } from "@/types/order";
-import type { MenuRepository, OrderRepository } from "./types";
+import type { MenuRepository, OrderRepository, UpdateOrderStatusInput, UpdateOrderStatusResult } from "./types";
 
 /**
  * Implementaciones locales (DATA_MODE=local explícito).
@@ -32,5 +32,14 @@ export class LocalOrderRepository implements OrderRepository {
 
   async getOrderById(_id: string): Promise<Order | null> {
     return null;
+  }
+
+  async listOrders(_options?: { limit?: number }): Promise<Order[]> {
+    // El historial demo vive en Zustand/localStorage del navegador.
+    return [];
+  }
+
+  async updateOrderStatus(_input: UpdateOrderStatusInput): Promise<UpdateOrderStatusResult> {
+    return { ok: false, reason: "not-found" };
   }
 }

@@ -15,11 +15,54 @@ import {
 import { createIncludedLunchSoupGroup, getIncludedLunchSoups, isSoupItem } from "@/lib/menu/included-soups";
 import { requireConfiguredBranch } from "@/server/catalog/branch-config";
 import { mapCreateCustomerOrderError, OrderPersistenceError } from "@/server/orders/rpc-errors";
+import {
+  isOrderStatus,
+  mapOrderRowsToOrders,
+  type BranchSlugRow,
+  type OrderItemRow,
+  type OrderRow,
+} from "@/server/orders/order-mapper";
+import { mapOrderStatusDbError } from "@/server/orders/staff-errors";
 import type { Database } from "@/types/database.generated";
 import type { CategoryInfo, MenuItem } from "@/types/menu";
 import type { MenuRepository } from "./types";
 import type { Order } from "@/types/order";
-import type { OrderRepository } from "./types";
+import type { OrderRepository, UpdateOrderStatusInput, UpdateOrderStatusResult } from "./types";
+
+const ORDER_SELECT =
+  "id, order_number, user_id, branch_id, status, payment_status, payment_method, fulfillment_type, subtotal, discount, tax, service_fee, delivery_fee, tip, total, currency, coupon_code, customer_name, customer_phone, customer_email, address_snapshot, notes, created_at";
+
+const ORDER_ITEM_SELECT =
+  "id, order_id, menu_item_id, name_snapshot, unit_price, quantity, modifiers_snapshot, notes, total";
+
+async function loadBranchSlugMap(
+  client: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  branchIds: string[],
+): Promise<Map<string, string>> {
+  const unique = [...new Set(branchIds.filter(Boolean))];
+  if (unique.length === 0) return new Map();
+  const { data, error } = await client.from("branches").select("id, slug").in("id", unique);
+  if (error) throw new Error("No se pudieron resolver las sucursales de los pedidos.");
+  return new Map(((data ?? []) as BranchSlugRow[]).map((row) => [row.id, row.slug]));
+}
+
+async function hydrateOrders(
+  client: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  orderRows: OrderRow[],
+): Promise<Order[]> {
+  if (orderRows.length === 0) return [];
+  const orderIds = orderRows.map((row) => row.id);
+  const { data: itemData, error: itemError } = await client
+    .from("order_items")
+    .select(ORDER_ITEM_SELECT)
+    .in("order_id", orderIds);
+  if (itemError) throw new Error("No se pudieron leer los ítems del pedido.");
+  const slugByUuid = await loadBranchSlugMap(
+    client,
+    orderRows.map((row) => row.branch_id),
+  );
+  return mapOrderRowsToOrders(orderRows, (itemData ?? []) as OrderItemRow[], slugByUuid);
+}
 
 const menuSelect =
   "id, slug, name, short_name, category_slug, short_description, description, base_price, available, featured, tags, ingredients, allergens, preparation_minutes, display_order, image_path, image_width, image_height, image_blur_data_url, original_filename";
@@ -255,18 +298,70 @@ export class SupabaseOrderRepository implements OrderRepository {
     };
   }
 
-  async getOrderById(_id: string): Promise<Order | null> {
-    return null;
+  async getOrderById(id: string): Promise<Order | null> {
+    const client = await createServerSupabaseClient();
+    const { data, error } = await client.from("orders").select(ORDER_SELECT).eq("id", id).maybeSingle();
+    if (error) throw new Error("No se pudo leer el pedido.");
+    if (!data) return null;
+    const orders = await hydrateOrders(client, [data as OrderRow]);
+    return orders[0] ?? null;
   }
-}
 
-function isOrderStatus(value: string): value is Order["status"] {
-  return (
-    value === "pending" ||
-    value === "confirmed" ||
-    value === "preparing" ||
-    value === "ready" ||
-    value === "delivered" ||
-    value === "cancelled"
-  );
+  async listOrders(options?: { limit?: number }): Promise<Order[]> {
+    const limit = Math.min(Math.max(options?.limit ?? 50, 1), 100);
+    const client = await createServerSupabaseClient();
+    const { data, error } = await client
+      .from("orders")
+      .select(ORDER_SELECT)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) throw new Error("No se pudieron leer los pedidos.");
+    return hydrateOrders(client, (data ?? []) as OrderRow[]);
+  }
+
+  async updateOrderStatus(input: UpdateOrderStatusInput): Promise<UpdateOrderStatusResult> {
+    const client = await createServerSupabaseClient();
+    // El generador estrecha Updates de orders a `never` en el client tipado;
+    // RLS + trigger siguen siendo la autoridad; solo enviamos `status`.
+    type OrdersWriter = {
+      from: (table: "orders") => {
+        update: (values: { status: string }) => {
+          eq: (column: string, value: string) => {
+            eq: (column: string, value: string) => {
+              select: (columns: string) => {
+                maybeSingle: () => Promise<{
+                  data: OrderRow | null;
+                  error: { message?: string; code?: string; details?: string } | null;
+                }>;
+              };
+            };
+          };
+        };
+      };
+    };
+
+    const { data: updated, error } = await (client as unknown as OrdersWriter)
+      .from("orders")
+      .update({ status: input.nextStatus })
+      .eq("id", input.orderId)
+      .eq("status", input.expectedStatus)
+      .select(ORDER_SELECT)
+      .maybeSingle();
+
+    if (error) {
+      throw mapOrderStatusDbError(error);
+    }
+
+    if (updated) {
+      const orders = await hydrateOrders(client, [updated]);
+      const order = orders[0];
+      if (!order) return { ok: false, reason: "not-found" };
+      return { ok: true, order };
+    }
+
+    const current = await this.getOrderById(input.orderId);
+    if (!current) return { ok: false, reason: "not-found" };
+    if (current.status !== input.expectedStatus) return { ok: false, reason: "stale" };
+    return { ok: false, reason: "forbidden" };
+  }
 }

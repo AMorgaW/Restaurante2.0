@@ -14,6 +14,8 @@ const harness = vi.hoisted(() => {
     current: {
       saveOrder: async (order) => order,
       getOrderById: async () => null,
+      listOrders: async () => [],
+      updateOrderStatus: async () => ({ ok: false, reason: "not-found" }),
     },
   };
   return { menuRepo, orderRepo };
@@ -100,6 +102,8 @@ describe("placeOrder catálogo autoritativo", () => {
     harness.orderRepo.current = {
       saveOrder: async (order) => order,
       getOrderById: async () => null,
+      listOrders: async () => [],
+      updateOrderStatus: async () => ({ ok: false, reason: "not-found" }),
     };
   });
 

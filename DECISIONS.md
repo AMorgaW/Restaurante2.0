@@ -1,5 +1,20 @@
 # DECISIONS — Registro de decisiones técnicas
 
+58. **Operaciones staff de pedidos (2026-08-07, etapa 11B-3)** — Con `DATA_MODE=supabase`,
+`/empleado` y `/admin/pedidos` leen pedidos reales vía RLS (`listOrders`) y transicionan
+`orders.status` con concurrencia optimista (`orderId` + `expectedStatus` + `nextStatus`).
+Sin fallback a Zustand. Roles de transición: owner/admin/manager/kitchen/cashier; editor/support
+leen según capacidades. `delivered` rechazado en app (`delivered-blocked`) porque DB dispara
+consumo de inventario (11B-4). `payment_status` no se escribe. Local (`DATA_MODE=local`) sigue
+demo. Sin db push / git push; Compuerta B no iniciada.
+
+57. **Grant mínimo `staff_status` (2026-08-07, migración 0011)** — El resolvedor SSR selecciona
+`role` + `staff_status` para destinos staff. `role` ya tenía grant de columna (0002);
+`staff_status` (0005) no → PostgreSQL 42501 → sesión sin perfil → `/cuenta`. Solución mínima:
+`GRANT SELECT (staff_status) ON public.profiles TO authenticated`. Sin SELECT de tabla, sin
+nueva policy, sin SECURITY DEFINER. RLS `profiles_read` (propia fila u owner/admin activo)
+sigue aislando filas. Local `0001`–`0011`; remoto `0001`–`0009`.
+
 56. **Checkout conectado a RPC de pedidos (2026-08-07, etapa 11B-2B)** — En `DATA_MODE=supabase`,
 `SupabaseOrderRepository` llama exactamente una vez `public.create_customer_order` (sin INSERT
 directo, sin `service_role`, sin `user_id`/precios/status del cliente). Guest = anon;
