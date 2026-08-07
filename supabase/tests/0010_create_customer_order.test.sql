@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(57);
+select plan(76);
 
 -- ACL / forma de la RPC
 select has_function(
@@ -69,6 +69,11 @@ insert into public.modifier_options (id, modifier_group_id, name, additional_pri
   ('rpc-extra-off', 'rpc-extra', 'Extra Off', 1000, false, 2);
 
 insert into public.coupons (code, type, value, active) values ('DIEZ', 'percent', 10, true);
+insert into public.coupons (code, type, value, active, max_redemptions, redeemed_count)
+values
+  ('MAXED', 'fixed', 1000, true, 1, 1),
+  ('ONCE', 'fixed', 500, true, 1, 0),
+  ('ROLLBACK', 'percent', 5, true, 10, 3);
 
 insert into public.inventory_items (
   id, branch_id, name, slug, category, base_unit, display_unit,
@@ -183,6 +188,16 @@ select ok(
    from public.order_items where order_id = (select order_id from rpc_result)),
   'modifiers_snapshot uses DB surcharge'
 );
+select is(
+  (select redeemed_count from public.coupons where code = 'DIEZ'),
+  1,
+  'valid coupon increments redeemed_count once on create'
+);
+
+create temporary table seq_after_create (
+  last_value bigint
+) on commit drop;
+insert into seq_after_create select last_value from public.order_number_seq;
 
 -- Inventario intacto
 select is(
@@ -228,6 +243,16 @@ select is(
   1,
   'replay does not duplicate items'
 );
+select is(
+  (select redeemed_count from public.coupons where code = 'DIEZ'),
+  1,
+  'replay does not increment redeemed_count again'
+);
+select is(
+  (select last_value from public.order_number_seq),
+  (select last_value from seq_after_create),
+  'replay does not consume order_number_seq'
+);
 
 -- Misma key, distinta intención
 select set_config('request.jwt.claim.sub', 'a4000000-0000-0000-0000-000000000001', true);
@@ -251,6 +276,17 @@ select throws_ok(
 );
 reset role;
 select set_config('request.jwt.claim.sub', '', true);
+
+select is(
+  (select redeemed_count from public.coupons where code = 'DIEZ'),
+  1,
+  'idempotency conflict does not change redeemed_count'
+);
+select is(
+  (select last_value from public.order_number_seq),
+  (select last_value from seq_after_create),
+  'idempotency conflict does not consume order_number_seq'
+);
 
 -- Nueva key → nuevo pedido
 create temporary table rpc_new (like rpc_result including all) on commit drop;
@@ -528,6 +564,186 @@ select throws_ok(
   'authenticated cannot insert orders directly'
 );
 reset role;
+
+-- Replay tras cambio de catálogo: recupera pedido histórico, no revalida
+create temporary table rpc_catalog_replay (like rpc_result including all) on commit drop;
+grant all on table rpc_catalog_replay to anon, authenticated;
+select set_config('request.jwt.claim.sub', 'a4000000-0000-0000-0000-000000000001', true);
+set local role authenticated;
+insert into rpc_catalog_replay
+select * from public.create_customer_order(
+  'd1000000-0000-0000-0000-000000000001'::uuid,
+  'a2000000-0000-0000-0000-000000000001'::uuid,
+  'pickup',
+  'Catalog Replay',
+  '3005556677',
+  'catalog-replay@test.local',
+  '[{"menu_item_id":"rpc-side","quantity":1,"notes":"","modifier_option_ids":[]}]'::jsonb,
+  null, null, 0, null
+);
+reset role;
+
+update public.menu_items set available = false where id = 'rpc-side';
+update public.branch_menu_items
+set price = 1, available = false
+where menu_item_id = 'rpc-side' and branch_id = 'a2000000-0000-0000-0000-000000000001';
+
+create temporary table rpc_catalog_replay2 (like rpc_result including all) on commit drop;
+grant all on table rpc_catalog_replay2 to anon, authenticated;
+create temporary table seq_before_catalog_replay (last_value bigint) on commit drop;
+insert into seq_before_catalog_replay select last_value from public.order_number_seq;
+
+select set_config('request.jwt.claim.sub', 'a4000000-0000-0000-0000-000000000001', true);
+set local role authenticated;
+insert into rpc_catalog_replay2
+select * from public.create_customer_order(
+  'd1000000-0000-0000-0000-000000000001'::uuid,
+  'a2000000-0000-0000-0000-000000000001'::uuid,
+  'pickup',
+  'Catalog Replay',
+  '3005556677',
+  'catalog-replay@test.local',
+  '[{"menu_item_id":"rpc-side","quantity":1,"notes":"","modifier_option_ids":[]}]'::jsonb,
+  null, null, 0, null
+);
+reset role;
+
+select is((select replay from rpc_catalog_replay2), true, 'replay succeeds after catalog becomes unavailable');
+select is(
+  (select order_id from rpc_catalog_replay2),
+  (select order_id from rpc_catalog_replay),
+  'catalog-changed replay returns original order id'
+);
+select is(
+  (select total from rpc_catalog_replay2),
+  (select total from rpc_catalog_replay),
+  'catalog-changed replay returns original total'
+);
+select is(
+  (select last_value from public.order_number_seq),
+  (select last_value from seq_before_catalog_replay),
+  'catalog-changed replay does not consume order_number_seq'
+);
+
+-- Restaurar rpc-side para no contaminar lecturas posteriores de fixtures
+update public.menu_items set available = true where id = 'rpc-side';
+update public.branch_menu_items
+set price = 12000, available = true
+where menu_item_id = 'rpc-side' and branch_id = 'a2000000-0000-0000-0000-000000000001';
+
+-- Cupón max_redemptions agotado
+set local role anon;
+select throws_ok(
+  $sql$ select public.create_customer_order(
+    'd2000000-0000-0000-0000-000000000001'::uuid,
+    'a2000000-0000-0000-0000-000000000001'::uuid,
+    'pickup', 'Maxed Coupon', '3001234567', 'maxed@test.local',
+    '[{"menu_item_id":"rpc-main","quantity":1,"notes":"","modifier_option_ids":["rpc-req-a"]}]'::jsonb,
+    null, null, 0, 'MAXED')
+  $sql$,
+  '22023',
+  'Cupon invalido',
+  'max_redemptions reached rejects order'
+);
+reset role;
+select is(
+  (select redeemed_count from public.coupons where code = 'MAXED'),
+  1,
+  'rejected maxed coupon does not change redeemed_count'
+);
+
+-- Cupón ONCE: primer uso consume el único redemption
+create temporary table rpc_once (like rpc_result including all) on commit drop;
+grant all on table rpc_once to anon, authenticated;
+set local role anon;
+insert into rpc_once
+select * from public.create_customer_order(
+  'd2000000-0000-0000-0000-000000000002'::uuid,
+  'a2000000-0000-0000-0000-000000000001'::uuid,
+  'pickup', 'Once Coupon', '3001234567', 'once@test.local',
+  '[{"menu_item_id":"rpc-main","quantity":1,"notes":"","modifier_option_ids":["rpc-req-a"]}]'::jsonb,
+  null, null, 0, 'ONCE'
+);
+reset role;
+select is((select redeemed_count from public.coupons where code = 'ONCE'), 1, 'ONCE coupon redeemed_count becomes 1');
+set local role anon;
+select throws_ok(
+  $sql$ select public.create_customer_order(
+    'd2000000-0000-0000-0000-000000000003'::uuid,
+    'a2000000-0000-0000-0000-000000000001'::uuid,
+    'pickup', 'Once Coupon 2', '3001234567', 'once2@test.local',
+    '[{"menu_item_id":"rpc-main","quantity":1,"notes":"","modifier_option_ids":["rpc-req-a"]}]'::jsonb,
+    null, null, 0, 'ONCE')
+  $sql$,
+  '22023',
+  'Cupon invalido',
+  'second distinct order cannot exceed max_redemptions'
+);
+reset role;
+select is(
+  (select redeemed_count from public.coupons where code = 'ONCE'),
+  1,
+  'failed second ONCE redemption leaves count at 1'
+);
+
+-- Rollback post-header: trigger temporal fuerza fallo en INSERT de order_items
+create function pg_temp.force_order_items_failure()
+returns trigger
+language plpgsql
+as $fn$
+begin
+  if NEW.notes is not distinct from 'FORCE_ITEM_FAIL' then
+    raise exception using errcode = 'P0001', message = 'forced order_items failure';
+  end if;
+  return NEW;
+end;
+$fn$;
+
+create trigger trg_force_order_items_failure
+  before insert on public.order_items
+  for each row
+  execute function pg_temp.force_order_items_failure();
+
+select is(
+  (select redeemed_count from public.coupons where code = 'ROLLBACK'),
+  3,
+  'ROLLBACK coupon starts at redeemed_count 3'
+);
+
+set local role anon;
+select throws_ok(
+  $sql$ select public.create_customer_order(
+    'd3000000-0000-0000-0000-000000000001'::uuid,
+    'a2000000-0000-0000-0000-000000000001'::uuid,
+    'pickup', 'Post Header Fail', '3001234567', 'post-header@test.local',
+    '[{"menu_item_id":"rpc-main","quantity":1,"notes":"FORCE_ITEM_FAIL","modifier_option_ids":["rpc-req-a"]}]'::jsonb,
+    null, null, 0, 'ROLLBACK')
+  $sql$,
+  'P0001',
+  'forced order_items failure',
+  'post-header order_items failure raises during item insert'
+);
+reset role;
+
+select is(
+  (select count(*)::integer from public.orders where idempotency_key = 'd3000000-0000-0000-0000-000000000001'),
+  0,
+  'post-header failure leaves zero orders'
+);
+select is(
+  (select count(*)::integer from public.order_items oi
+   join public.orders o on o.id = oi.order_id
+   where o.idempotency_key = 'd3000000-0000-0000-0000-000000000001'),
+  0,
+  'post-header failure leaves zero order_items'
+);
+select is(
+  (select redeemed_count from public.coupons where code = 'ROLLBACK'),
+  3,
+  'post-header failure rolls back coupon redeemed_count'
+);
+
+drop trigger trg_force_order_items_failure on public.order_items;
 
 select * from finish();
 rollback;

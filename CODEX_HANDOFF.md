@@ -19,8 +19,9 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
 - Checkpoint previo Etapa 11B-1B: `1944cce` (`fix: respeta rutas de staff y disponibilidad de catalogo`).
 - Etapa **11B-2A** (primitiva DB de pedidos): migración local `0010_create_customer_order.sql`
   + RPC `public.create_customer_order`. App aún **no** conectada (sigue `persistence-pending`).
+- Corrección post-auditoría Codex (replay temprano + cupón atómico + tests): ver decisión 55.
 - Secuencia SQL: local `0001`–`0010`; remoto de producción `0001`–`0009` (divergencia esperada; sin db push).
-- `graphify-out/` regenerado en 11B-2A: **1.938 nodos, 5.091 aristas, 143 comunidades**. Ignorado por Git.
+- `graphify-out/` regenerado tras corrección 11B-2A: **1.939 nodos, 5.092 aristas, 147 comunidades**. Ignorado por Git.
 
 ## Pedidos — primitiva PostgreSQL (11B-2A)
 
@@ -28,12 +29,18 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
 - SECURITY DEFINER, `search_path=''`, sin SQL dinámico, sin `service_role` EXECUTE.
 - EXECUTE solo `anon` + `authenticated`. Sin INSERT directo en tablas/secuencia.
 - Idempotencia: `idempotency_key` + `idempotency_scope` (`auth:<uid>`|`anon`) + fingerprint SHA-256;
-  UNIQUE parcial; replay mismo fingerprint; conflicto si cambia la intención.
-- Precios/disponibilidad/modificadores/totales reconstruidos en DB (TOCTOU cerrado).
+  UNIQUE parcial; **replay/conflicto se resuelven ANTES del catálogo** tras
+  `pg_advisory_xact_lock(hash(scope||key))` (xact-scoped; UNIQUE sigue siendo garantía).
+- Replay mismo fingerprint → snapshot histórico (`replay=true`); no revalida catálogo/cupón;
+  no `nextval`; no inserta items. Conflicto fingerprint distinto → error temprano sin side-effects.
+- Cupón: `FOR UPDATE` + incremento atómico de `redeemed_count` solo en pedido nuevo (nunca replay/conflicto);
+  rollback restaura contador.
+- Precios/disponibilidad/modificadores/totales reconstruidos en DB solo en creación nueva.
 - Status/payment iniciales: `pending` / `pending` / `demo`. No consume inventario.
 - Guest: `user_id` NULL, scope `anon`. Authenticated: `user_id = auth.uid()`.
 - Config comercial DB: `restaurants.checkout_tax_rate|service_fee_rate|max_line_quantity|order_number_prefix`,
   `branches.delivery_minimum` (valores alineados con `restaurantConfig`).
+- Harness concurrencia: fixtures únicas por run (repetible sin reset).
 - Siguiente: **11B-2B** cablea la app a la RPC; no declarar 11B-2 completa.
 
 ## Catálogo autoritativo (11B-1A)

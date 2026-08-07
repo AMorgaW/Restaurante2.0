@@ -149,7 +149,6 @@ declare
   new_order_id uuid;
   new_order_number text;
   existing public.orders%rowtype;
-  inserted_id uuid;
   i integer;
   g record;
   selection_group_counts jsonb;
@@ -272,9 +271,37 @@ begin
   );
   fingerprint := extensions.digest(fingerprint_payload::text, 'sha256');
 
-  -- Replay path race-safe: intentar insertar cabecera mínima vía conflicto único.
-  -- Primero resolvemos catálogo y totales; el insert final usa ON CONFLICT.
+  -- Serializa callers concurrentes con la misma (scope, key) ANTES del SELECT de
+  -- existencia. Lock transaction-scoped (pg_advisory_xact_lock); el UNIQUE
+  -- (scope,key) sigue siendo la garantía de unicidad. Una colisión de hash solo
+  -- añade serialización extra, nunca mezcla pedidos.
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(scope || E'\x1f' || p_idempotency_key::text, 0)
+  );
 
+  select o.* into existing
+  from public.orders o
+  where o.idempotency_scope = scope
+    and o.idempotency_key = p_idempotency_key
+  for share;
+
+  if found then
+    if existing.request_fingerprint is distinct from fingerprint then
+      raise exception using errcode = '23505', message = 'Conflicto de idempotencia';
+    end if;
+
+    -- Replay histórico: snapshot ya persistido; sin catálogo/cupón/nextval/items.
+    order_id := existing.id;
+    order_number := existing.order_number;
+    status := existing.status;
+    total := existing.total;
+    created_at := existing.created_at;
+    replay := true;
+    return next;
+    return;
+  end if;
+
+  -- Creación nueva únicamente (idempotencia ya resuelta).
   select b.* into branch_row
   from public.branches b
   where b.id = p_branch_id
@@ -302,7 +329,7 @@ begin
     select c.* into coupon_row
     from public.coupons c
     where c.code = coupon_code_norm
-    for share;
+    for update;
     if not found
       or not coupon_row.active
       or (coupon_row.expires_at is not null and coupon_row.expires_at <= pg_catalog.now())
@@ -614,39 +641,27 @@ begin
     p_idempotency_key,
     scope,
     fingerprint
-  )
-  on conflict (idempotency_scope, idempotency_key) where (idempotency_key is not null)
-  do nothing
-  returning id into inserted_id;
+  );
 
-  if inserted_id is null then
-    select o.* into existing
-    from public.orders o
-    where o.idempotency_scope = scope
-      and o.idempotency_key = p_idempotency_key
-    for share;
+  -- Consumo de cupón atómico tras cabecera (misma TX + FOR UPDATE; rollback si items fallan).
+  if coupon_code_norm is not null then
+    update public.coupons c
+    set redeemed_count = c.redeemed_count + 1
+    where c.code = coupon_code_norm
+      and (
+        c.max_redemptions is null
+        or c.redeemed_count < c.max_redemptions
+      );
     if not found then
-      raise exception using errcode = 'P0001', message = 'Conflicto de idempotencia inconsistente';
+      raise exception using errcode = '22023', message = 'Cupon invalido';
     end if;
-    if existing.request_fingerprint is distinct from fingerprint then
-      raise exception using errcode = '23505', message = 'Conflicto de idempotencia';
-    end if;
-
-    order_id := existing.id;
-    order_number := existing.order_number;
-    status := existing.status;
-    total := existing.total;
-    created_at := existing.created_at;
-    replay := true;
-    return next;
-    return;
   end if;
 
   insert into public.order_items (
     order_id, menu_item_id, name_snapshot, unit_price, quantity, modifiers_snapshot, notes, total
   )
   select
-    inserted_id, l.menu_item_id, l.name_snapshot, l.unit_price, l.quantity,
+    new_order_id, l.menu_item_id, l.name_snapshot, l.unit_price, l.quantity,
     l.modifiers_snapshot, l.notes, l.line_total
   from pg_temp._order_lines l
   order by l.pos;
@@ -654,7 +669,7 @@ begin
   select o.id, o.order_number, o.status, o.total, o.created_at
   into order_id, order_number, status, total, created_at
   from public.orders o
-  where o.id = inserted_id;
+  where o.id = new_order_id;
 
   replay := false;
   return next;

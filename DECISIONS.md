@@ -1,5 +1,15 @@
 # DECISIONS — Registro de decisiones técnicas
 
+55. **Corrección 11B-2A: replay temprano + cupón atómico (2026-08-07)** — Tras auditoría
+Codex, `create_customer_order` resuelve idempotencia **antes** de catálogo/pricing/cupón/`nextval`
+serializando con `pg_advisory_xact_lock` derivado de `(scope, key)` (transaction-scoped; el UNIQUE
+sigue siendo la garantía de unicidad). Replay = snapshot persistido; conflicto = error inmediato
+sin side-effects. `coupons.redeemed_count` se incrementa con `FOR UPDATE` exactamente una vez por
+pedido nuevo (nunca en replay/conflicto; rollback restaura). Tests: rollback post-header vía
+trigger temporal, sequence sin consumo en replay/conflicto, replay con catálogo mutado, cupón
+concurrente al último redemption, harness con fixtures por GUID (run1+run2 sin reset). 0010 sigue
+solo local; app `persistence-pending`; sin db push / remoto / git push.
+
 54. **RPC transaccional de pedidos 0010 (2026-08-07, etapa 11B-2A)** — Se añade
 `public.create_customer_order` (SECURITY DEFINER, `search_path=''`) para crear
 `orders` + `order_items` en una sola transacción con idempotencia por

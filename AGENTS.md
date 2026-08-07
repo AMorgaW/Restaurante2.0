@@ -80,7 +80,9 @@ Mantener `[db.seed].enabled = false`. `supabase/seed.sql` contiene datos demo y 
 
 La secuencia canónica desplegada en remoto es `0001`–`0009`. Localmente existe además
 `0010_create_customer_order.sql` (RPC transaccional de pedidos; aún no desplegada ni
-conectada a la app). Añadir nuevas migraciones numeradas y append-only, sin editar
+conectada a la app). La RPC resuelve replay/conflicto de idempotencia antes del catálogo
+(serialización por `pg_advisory_xact_lock` + UNIQUE) e incrementa `coupons.redeemed_count`
+atómicamente solo en creación nueva. Añadir nuevas migraciones numeradas y append-only, sin editar
 silenciosamente las ya validadas. `0008_stripe_payment_state_ordering.sql` reemplaza (append-only) `public.process_stripe_payment_event` para imponer la monotonía de `payment_status`. `0009_remote_advisor_hardening.sql` añade índices de cobertura justificados y consolida políticas SELECT permisivas duplicadas sin ampliar RLS; ya fue auditada, dry-run aprobada y desplegada en el proyecto remoto autorizado. Ejecutar desde cero y probar antes de cualquier integración nueva. `npm run test:db` y `npm run test:db:concurrency` deben correrse en serie sobre la misma base, nunca en paralelo. No crear secuencias timestamp paralelas ni una tabla pública `sessions`.
 
 ## Operación segura

@@ -485,13 +485,33 @@ Checkpoint base: `1944cce`. Migración local **0010** únicamente. App **no** ca
 |---|---|
 | `supabase db reset --local --no-seed` | OK (0001–0010) |
 | pgTAP `0001_backend_security` | **90/90** |
-| pgTAP `0010_create_customer_order` | **57/57** |
-| Concurrencia (`test:db:concurrency`) | **scenarios=10 assertions=16** |
+| pgTAP `0010_create_customer_order` | **57/57** (inicial) |
+| Concurrencia (`test:db:concurrency`) | **scenarios=10 assertions=16** (inicial) |
 | Vitest paridad RPC + cart | **2 archivos / 14 pruebas** |
 | Migraciones | local **0001–0010**; remoto **0001–0009** (esperado) |
 | App pedidos Supabase | sigue **503 persistence-pending** |
 | Inventario en creación | **intactos** (probado) |
 | Graphify | **1.938 nodos, 5.091 aristas, 143 comunidades** |
+
+## Corrección 11B-2A — replay temprano + cupón (2026-08-07)
+
+Checkpoint base: `fc9c543`. Solo 0010 + tests + harness + docs. Sin app / 0001–0009 / remoto.
+
+| Verificación | Resultado real |
+|---|---|
+| `supabase db reset --local --no-seed` | OK (0001–0010) |
+| pgTAP `0001_backend_security` | **90/90** |
+| pgTAP `0010_create_customer_order` | **76/76** |
+| Concurrencia run1 | **scenarios=12 assertions=19 PASS** |
+| Concurrencia run2 (sin reset) | **scenarios=12 assertions=19 PASS** |
+| Vitest paridad RPC + cart | **14/14** |
+| Replay con catálogo mutado | PASS (histórico; sin nextval) |
+| Conflict temprano sin nextval/cupón | PASS |
+| `redeemed_count` atómico + rollback post-header | PASS |
+| Último cupón concurrente | PASS (máx. 1 redemption) |
+| Migraciones | local **0001–0010**; remoto **0001–0009** |
+| App | sigue **persistence-pending** |
+| Graphify | **1.939 nodos, 5.092 aristas, 147 comunidades** |
 
 ## Verificación 11B-1B — rutas staff + disponibilidad (2026-08-07)
 
