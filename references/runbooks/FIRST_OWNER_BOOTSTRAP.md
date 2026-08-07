@@ -4,6 +4,11 @@ Procedimiento **manual, auditable e idempotente**. No contiene correos reales,
 contraseñas ni claves. **Ningún bloque de este documento se ha ejecutado** en
 Compuerta A.
 
+La promoción serializa intentos concurrentes con
+`LOCK TABLE public.profiles IN SHARE ROW EXCLUSIVE MODE` antes del conteo
+definitivo de owners. **No hay reversión automática**: solo diagnóstico SELECT
+y revisión humana.
+
 **Prohibiciones:** no compartas credenciales en el chat; no insertes en
 `auth.users` por SQL; no conviertas estos bloques en migración ni API; no
 ejecutes dos veces la promoción si ya existe un `owner`.
@@ -78,6 +83,9 @@ Si `normalized_email` es nulo, el literal no es un correo válido (p. ej. dejast
 Reemplaza únicamente el literal de correo editable dentro del SQL siguiente
 (aparece una sola vez). No ejecutes si el preflight falló.
 
+Dos ejecuciones concurrentes no pueden crear dos owners: el `LOCK TABLE`
+serializa los intentos; el segundo espera, vuelve a contar owners y aborta.
+
 ```sql
 begin;
 
@@ -92,22 +100,24 @@ declare
   v_audit_key text;
   v_audit_id bigint;
 begin
+  -- 1) Validar el único literal editable de correo.
   if v_owner_email is null or v_owner_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then
     raise exception 'Correo inválido: sustituye el literal editable del bloque por un correo controlado.';
+  end if;
+
+  -- 2) Serializar bootstraps concurrentes (se libera en COMMIT/ROLLBACK).
+  lock table public.profiles in share row exclusive mode;
+
+  -- 3) Exactamente un usuario Auth.
+  if (select count(*) from auth.users u where lower(u.email) = v_owner_email) <> 1 then
+    raise exception 'Se esperaba exactamente 1 usuario Auth para ese correo.';
   end if;
 
   select u.id into v_user_id
   from auth.users u
   where lower(u.email) = v_owner_email;
 
-  if v_user_id is null then
-    raise exception 'No hay exactamente un usuario Auth para ese correo.';
-  end if;
-
-  if (select count(*) from auth.users u where lower(u.email) = v_owner_email) <> 1 then
-    raise exception 'Coincidencia Auth ambigua; abortando.';
-  end if;
-
+  -- 4) Exactamente un perfil asociado.
   select p.role, p.staff_status into v_role, v_staff
   from public.profiles p
   where p.id = v_user_id;
@@ -116,6 +126,13 @@ begin
     raise exception 'No existe public.profiles para el usuario Auth; abortando.';
   end if;
 
+  -- 5) Contar owners DESPUÉS del lock (el segundo concurrente aborta aquí).
+  select count(*) into v_owners from public.profiles where role = 'owner';
+  if v_owners <> 0 then
+    raise exception 'Ya existen % owner(s); promoción abortada.', v_owners;
+  end if;
+
+  -- 6) Estado inicial esperado.
   if v_role is distinct from 'customer' then
     raise exception 'Rol inicial inesperado (%); se esperaba customer.', v_role;
   end if;
@@ -124,11 +141,7 @@ begin
     raise exception 'staff_status inicial inesperado (%); se esperaba null.', v_staff;
   end if;
 
-  select count(*) into v_owners from public.profiles where role = 'owner';
-  if v_owners <> 0 then
-    raise exception 'Ya existen % owner(s); promoción abortada.', v_owners;
-  end if;
-
+  -- 7) Un único UPDATE por UUID.
   update public.profiles
   set
     role = 'owner',
@@ -188,7 +201,7 @@ commit;
 ```
 
 Copia del resultado: `profile_id` y `bootstrap_audit_key` (necesarios para
-verificación y reversión). No se modifica `auth.users`, metadata ni membresías.
+verificación y diagnóstico). No se modifica `auth.users`, metadata ni membresías.
 
 ---
 
@@ -227,135 +240,86 @@ Esperado: `role=owner`, `staff_status=active`, `owner_count=1`,
 
 ---
 
-## D. Reversión extraordinaria
+## D. REVERSIÓN EXTRAORDINARIA — REVISIÓN MANUAL OBLIGATORIA
 
-No uses correo. Exige el UUID y la clave de auditoría del bootstrap exacto.
+**Reversión automática no segura; requiere revisión manual completa de
+`public.audit_log` y del estado actual del perfil.**
+
+El esquema actual no audita de forma completa todas las posibles modificaciones
+de `profiles`. No se puede demostrar con certeza que el perfil no tuvo una
+transición posterior no registrada. Por eso **este runbook no incluye** ningún
+`UPDATE` de perfiles, bloque `DO` ejecutable, confirmación de transacción de
+reversión, RPC ni migración que restaure el rol.
+
+### Diagnóstico de solo lectura
 
 Reemplaza únicamente:
 - `OWNER_USER_ID_HERE`
 - `BOOTSTRAP_AUDIT_KEY_HERE`
 
-Copiados del resultado del bootstrap. Si falta evidencia o hay ambigüedad, **no
-ejecutes** un UPDATE genérico.
+(copiados del resultado del bootstrap). La consulta **no modifica datos**.
 
 ```sql
-begin;
-
-do $$
-declare
-  v_user_id uuid := 'OWNER_USER_ID_HERE'::uuid;
-  v_audit_key text := btrim('BOOTSTRAP_AUDIT_KEY_HERE');
-  v_boot public.audit_log%rowtype;
-  v_role text;
-  v_staff text;
-  v_updated integer;
-  v_later integer;
-  v_prev_role text;
-  v_prev_staff text;
-  v_new_role text;
-  v_new_staff text;
-begin
-  if v_audit_key is null or v_audit_key = '' or v_audit_key = 'BOOTSTRAP_AUDIT_KEY_HERE' then
-    raise exception 'Clave de auditoría inválida.';
-  end if;
-
-  select * into v_boot
+-- DIAGNÓSTICO (solo SELECT). No concluye que la reversión sea segura.
+with params as (
+  select
+    'OWNER_USER_ID_HERE'::uuid as profile_id,
+    btrim('BOOTSTRAP_AUDIT_KEY_HERE') as audit_key
+),
+boot as (
+  select a.*
   from public.audit_log a
-  where a.idempotency_key = v_audit_key
+  join params p on true
+  where a.idempotency_key = p.audit_key
     and a.action = 'first_owner_bootstrap'
     and a.entity = 'profile'
-    and a.entity_id = v_user_id::text;
-
-  if not found then
-    raise exception 'No existe audit_log first_owner_bootstrap para ese UUID/clave.';
-  end if;
-
-  v_prev_role := v_boot.previous_state->>'role';
-  v_prev_staff := v_boot.previous_state->>'staff_status';
-  v_new_role := v_boot.new_state->>'role';
-  v_new_staff := v_boot.new_state->>'staff_status';
-
-  if v_prev_role is distinct from 'customer' then
-    raise exception 'previous_state.role inesperado.';
-  end if;
-  if v_boot.previous_state ? 'staff_status' and v_boot.previous_state->>'staff_status' is not null
-     and jsonb_typeof(v_boot.previous_state->'staff_status') <> 'null' then
-    -- staff_status previo debe ser JSON null
-    if v_prev_staff is not null then
-      raise exception 'previous_state.staff_status inesperado.';
-    end if;
-  end if;
-  if v_new_role is distinct from 'owner' or v_new_staff is distinct from 'active' then
-    raise exception 'new_state del bootstrap no coincide con owner/active.';
-  end if;
-
-  select p.role, p.staff_status into v_role, v_staff
-  from public.profiles p where p.id = v_user_id;
-
-  if not found then
-    raise exception 'Perfil ausente.';
-  end if;
-  if v_role is distinct from 'owner' or v_staff is distinct from 'active' then
-    raise exception 'El perfil no está en el estado post-bootstrap (owner/active).';
-  end if;
-
-  select count(*) into v_later
-  from public.audit_log a
-  where a.entity = 'profile'
-    and a.entity_id = v_user_id::text
-    and a.created_at > v_boot.created_at
-    and a.action in (
-      'employee_role_changed',
-      'employee_status_changed',
-      'first_owner_bootstrap',
-      'first_owner_bootstrap_revert'
-    );
-
-  if v_later <> 0 then
-    raise exception 'Reversión automática no segura; requiere revisión manual del audit_log (transiciones posteriores=%).', v_later;
-  end if;
-
-  update public.profiles
-  set
-    role = 'customer',
-    staff_status = null,
-    updated_at = pg_catalog.now()
-  where id = v_user_id
-    and role = 'owner'
-    and staff_status = 'active';
-
-  get diagnostics v_updated = row_count;
-  if v_updated <> 1 then
-    raise exception 'Reversión no actualizó exactamente 1 fila.';
-  end if;
-
-  insert into public.audit_log (
-    actor_id, action, entity, entity_id,
-    previous_state, new_state, changes, reason, idempotency_key
-  ) values (
-    v_user_id,
-    'first_owner_bootstrap_revert',
-    'profile',
-    v_user_id::text,
-    jsonb_build_object('role', 'owner', 'staff_status', 'active'),
-    jsonb_build_object('role', 'customer', 'staff_status', null),
-    jsonb_build_object('reverts', v_audit_key),
-    'Reversión extraordinaria del bootstrap del primer owner',
-    'first_owner_bootstrap_revert:' || v_user_id::text || ':' || v_boot.id::text
-  );
-
-  raise notice 'revert_ok profile_id=% restored_role=customer', v_user_id;
-end;
-$$;
-
-commit;
+    and a.entity_id = p.profile_id::text
+)
+select
+  p.id as profile_id,
+  p.role as current_role,
+  p.staff_status as current_staff_status,
+  b.id as bootstrap_audit_id,
+  b.idempotency_key as bootstrap_audit_key,
+  b.created_at as bootstrap_at,
+  b.previous_state,
+  b.new_state,
+  (b.previous_state ? 'role') and (b.previous_state ? 'staff_status') as previous_has_role_and_staff,
+  (b.new_state->>'role' = 'owner')
+    and (b.new_state->>'staff_status' = 'active') as new_state_is_owner_active,
+  (b.entity_id = p.id::text) as audit_uuid_matches,
+  (
+    select coalesce(jsonb_agg(jsonb_build_object(
+      'id', a.id,
+      'action', a.action,
+      'created_at', a.created_at,
+      'idempotency_key', a.idempotency_key
+    ) order by a.created_at), '[]'::jsonb)
+    from public.audit_log a
+    join boot b2 on true
+    where a.entity = 'profile'
+      and a.entity_id = p.id::text
+      and a.created_at > b2.created_at
+  ) as later_audit_events,
+  (select count(*) from public.pension_memberships m where m.profile_id = p.id) as membership_count,
+  (select count(*) from public.staff_branch_permissions s where s.profile_id = p.id) as branch_permission_count,
+  (select count(*) from public.profiles o where o.role = 'owner') as owner_count
+from public.profiles p
+join params x on x.profile_id = p.id
+left join boot b on true;
 ```
 
-El audit_log original **no se elimina ni se modifica**. Si el bloque aborta por
-transiciones posteriores: *«Reversión automática no segura; requiere revisión
-manual del audit_log.»*
+Esta consulta **no** autoriza revertir. Después del diagnóstico, cualquier
+reversión requiere:
 
-### Tras promoción o reversión
+1. Análisis humano del resultado anterior.
+2. Respaldo reciente de la base.
+3. Identificación explícita del estado correcto a restaurar.
+4. Una nueva transacción específica redactada y revisada (no incluida aquí).
+5. Un nuevo `audit_log` de reversión.
+6. Una **segunda aprobación** antes de ejecutar nada.
+
+### Tras una promoción exitosa
 
 Cerrar sesión en la app y volver a iniciar. Owner activo → `/admin`.
 
@@ -363,8 +327,9 @@ Cerrar sesión en la app y volver a iniciar. Owner activo → `/admin`.
 
 ## Checklist
 
-- [ ] Sin placeholders psql de correo ni instrucciones de reescritura masiva del documento
+- [ ] Promoción con `LOCK TABLE public.profiles IN SHARE ROW EXCLUSIVE MODE` antes del conteo de owners
 - [ ] Un solo literal de correo editable en el SQL de promoción
-- [ ] Reversión por UUID + clave de auditoría de bootstrap
+- [ ] Sin reversión automática (`UPDATE` de perfiles / confirmación de transacción)
+- [ ] Diagnóstico de reversión solo SELECT + revisión humana
 - [ ] Sin usuarios/secretos en este archivo
 - [ ] Compuerta B aún no autorizada

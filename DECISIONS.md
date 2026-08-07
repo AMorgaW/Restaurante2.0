@@ -339,5 +339,14 @@ valida aparte. No se usa `next start` para harness demo.
 
 89. **Runbook del owner endurecido** — placeholders `OWNER_EMAIL_HERE` /
 `OWNER_USER_ID_HERE` / `BOOTSTRAP_AUDIT_KEY_HERE`; promoción con un solo email
-editable, `ROW_COUNT=1` y `audit_log` `first_owner_bootstrap`; reversión por UUID +
-clave de auditoría (no por correo); aborta si hay transiciones posteriores.
+editable, `ROW_COUNT=1` y `audit_log` `first_owner_bootstrap` con `role` y
+`staff_status` en `previous_state`/`new_state`.
+
+90. **Bootstrap serializado y reversión manual** — la promoción adquiere
+`LOCK TABLE public.profiles IN SHARE ROW EXCLUSIVE MODE` tras validar el correo
+y **antes** del conteo definitivo de owners; dos bootstraps concurrentes no
+pueden promover dos owners. La reversión automática se eliminó: solo diagnóstico
+SELECT (`OWNER_USER_ID_HERE` + `BOOTSTRAP_AUDIT_KEY_HERE`) y revisión humana
+obligatoria (sin `UPDATE`/`COMMIT` de revert en el runbook). Runbook **no
+ejecutado**; cero usuarios Auth remotos; URL productiva pendiente; Compuerta B
+bloqueada hasta auditoría independiente final.

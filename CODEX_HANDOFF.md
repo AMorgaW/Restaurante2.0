@@ -101,10 +101,13 @@ npm.cmd run test
 npm.cmd run build
 ```
 
-Último ciclo local (corrección bloqueadores Compuerta A): `production+disabled` → invalid;
-E2E demo solo vía `next dev`; runbook owner con UUID+audit. Vitest **362/362**; E2E
-auth+session **10/10** Chromium y **10/10** WebKit. Bootstrap remoto **no ejecutado**.
-Compuerta B sigue bloqueada hasta nueva auditoría. Consulte `TEST_REPORT.md`.
+Último ciclo local (serialización bootstrap Compuerta A): AUTH_MODE sigue
+aprobado; promoción con `LOCK TABLE ... SHARE ROW EXCLUSIVE` antes del conteo
+de owners; reversión automática eliminada (solo diagnóstico SELECT + revisión
+humana). Graphify **no regenerado** (solo runbook, pruebas y docs). Vitest /
+typecheck / lint / build / E2E Auth: ver `TEST_REPORT.md`. Bootstrap remoto
+**no ejecutado**; cero usuarios Auth remotos; URL productiva pendiente.
+Compuerta B sigue bloqueada hasta auditoría independiente final.
 
 ## Archivos principales por área
 
@@ -120,7 +123,7 @@ Compuerta B sigue bloqueada hasta nueva auditoría. Consulte `TEST_REPORT.md`.
 
 - Local y remoto alineados en `0001`–`0009`. Advisors post-despliegue: FKs sin índice 24→20; 7 avisos `multiple_permissive_policies` eliminados; `unused_index` diferidos hasta tráfico real; `payment_webhook_events` sin policies (deny-by-default aceptado). No se afirma advisors en cero.
 - FKs de auditoría/ON DELETE lógico no indexadas a propósito.
-- Auth real / Site URL / Redirect URLs / bootstrap del primer owner: Compuerta B pendiente (`references/runbooks/FIRST_OWNER_BOOTSTRAP.md`). URL productiva de la app aún no definida en el repositorio.
+- Auth real / Site URL / Redirect URLs / bootstrap del primer owner: Compuerta B pendiente (`references/runbooks/FIRST_OWNER_BOOTSTRAP.md`). Promoción serializada por lock; sin reversión automática. URL productiva de la app aún no definida en el repositorio.
 - Auth real, secretos fuera de Git, conciliación de pagos y despliegue de aplicación siguen requiriendo aprobación expresa.
 - La definición comercial final de pensionados sigue abierta: cantidad de comidas, días calendario o modalidad híbrida.
 - Resolver comercialmente la discrepancia de sopas (cerdo/pollo) antes de publicar un menú pensionado definitivo.
@@ -130,4 +133,4 @@ Compuerta B sigue bloqueada hasta nueva auditoría. Consulte `TEST_REPORT.md`.
 
 ## Siguiente etapa recomendada
 
-`0009` ya está en producción. **Etapa 10 Compuerta A** deja Auth SSR listo en código (variables publicables, fail-closed en producción, runbook del primer owner). Compuerta B (Dashboard + bootstrap owner) requiere la frase exacta de autorización del operador. No usar Graphify como sustituto de leer el código exacto que vaya a cambiar.
+`0009` ya está en producción. **Etapa 10 Compuerta A** deja Auth SSR listo en código (AUTH_MODE aprobado, runbook del primer owner serializado y sin reversión automática). Compuerta B (Dashboard + bootstrap owner) requiere auditoría independiente final y la frase exacta de autorización del operador. No usar Graphify como sustituto de leer el código exacto que vaya a cambiar.

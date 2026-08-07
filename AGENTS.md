@@ -59,7 +59,7 @@ Mantener `[db.seed].enabled = false`. `supabase/seed.sql` contiene datos demo y 
 - `AUTH_MODE` y `DATA_MODE` son independientes. Los stores demo nunca conceden identidad en modo Supabase.
 - En producción solo `AUTH_MODE=supabase` configurado es válido; `disabled`/ausente/`demo` → invalid.
 - Demo solo con `AUTH_MODE=disabled` explícito en `development` o `test` (E2E vía `next dev`, no `next start`).
-- Bootstrap del primer owner: solo vía `references/runbooks/FIRST_OWNER_BOOTSTRAP.md` tras autorización explícita; nunca por API ni chat con credenciales.
+- Bootstrap del primer owner: solo vía `references/runbooks/FIRST_OWNER_BOOTSTRAP.md` tras autorización explícita; promoción serializada (`LOCK TABLE`); sin reversión automática; nunca por API ni chat con credenciales.
 
 ## Invariantes de negocio y seguridad
 

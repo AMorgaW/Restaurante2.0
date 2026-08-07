@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { getAuthModeStatusFromEnv, isDemoAuthMode } from "@/lib/env/modes";
+import { getAuthModeStatusFromEnv, isDemoAuthMode, type AuthModeStatus } from "@/lib/env/modes";
 import { canAccessAdminPath } from "@/lib/admin/authorization";
+
+/**
+ * Mismo criterio de puerta que `authorizeAdminSection` / `admin/layout.tsx`
+ * (sin montar Next ni mocks de redirect).
+ */
+function adminGateFromAuthStatus(status: AuthModeStatus): "local" | "unavailable" | "supabase" {
+  if (status.mode === "disabled") return "local";
+  if (status.mode !== "supabase" || !status.configured) return "unavailable";
+  return "supabase";
+}
 
 /**
  * Defensa en profundidad: producción invalid no habilita harness demo ni
@@ -17,15 +27,21 @@ describe("producción invalid cierra demo y admin", () => {
     expect(isDemoAuthMode(invalidProd)).toBe(false);
   });
 
-  it("sin sesión supabase, un rol demo no basta para rutas admin reales", () => {
+  it("production invalid no renderiza controles demo", () => {
+    expect(isDemoAuthMode(invalidProd)).toBe(false);
+    expect(adminGateFromAuthStatus(invalidProd)).toBe("unavailable");
+  });
+
+  it("el guard administrativo trata invalid como acceso denegado", () => {
+    expect(adminGateFromAuthStatus(invalidProd)).toBe("unavailable");
     // canAccessAdminPath es capa UI; layouts no abren AdminShell local si mode≠disabled.
     expect(invalidProd.mode === "disabled").toBe(false);
     expect(canAccessAdminPath("owner", "/admin")).toBe(true);
-    // El gate real es el modo: invalid → panel cerrado (admin/layout.tsx).
   });
 
   it("development+disabled sí habilita harness", () => {
     const demo = getAuthModeStatusFromEnv({ NODE_ENV: "development", AUTH_MODE: "disabled" });
     expect(isDemoAuthMode(demo)).toBe(true);
+    expect(adminGateFromAuthStatus(demo)).toBe("local");
   });
 });

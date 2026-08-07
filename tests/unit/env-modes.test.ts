@@ -102,6 +102,34 @@ describe("matriz canónica AUTH_MODE", () => {
       });
     });
 
+    it("supabase + URL inválida → invalid", () => {
+      expect(getAuthModeStatusFromEnv({
+        NODE_ENV,
+        AUTH_MODE: "supabase",
+        NEXT_PUBLIC_SUPABASE_URL: "not-a-url",
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: configured.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+      })).toEqual({
+        mode: "invalid",
+        configured: false,
+        missing: [],
+        invalid: ["NEXT_PUBLIC_SUPABASE_URL"],
+      });
+    });
+
+    it("supabase + clave inválida → invalid", () => {
+      expect(getAuthModeStatusFromEnv({
+        NODE_ENV,
+        AUTH_MODE: "supabase",
+        NEXT_PUBLIC_SUPABASE_URL: configured.NEXT_PUBLIC_SUPABASE_URL,
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_secret_should_never_be_public",
+      })).toEqual({
+        mode: "invalid",
+        configured: false,
+        missing: [],
+        invalid: ["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"],
+      });
+    });
+
     it.each(["demo", "unknown", "SUPABASE", ""])("valor no canónico %j → invalid", (AUTH_MODE) => {
       expect(getAuthModeStatusFromEnv({ NODE_ENV, AUTH_MODE, ...configured })).toEqual({
         mode: "invalid", configured: false, missing: [], invalid: ["AUTH_MODE"],

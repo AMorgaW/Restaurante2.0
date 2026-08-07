@@ -120,7 +120,7 @@ nunca `next start` con demo.
 
 ### Supabase Auth (Compuerta A — código listo)
 
-Migraciones remotas `0001`–`0009`. Bootstrap del primer **owner**: procedimiento manual en [`references/runbooks/FIRST_OWNER_BOOTSTRAP.md`](references/runbooks/FIRST_OWNER_BOOTSTRAP.md). **Aún no ejecutado** (cero usuarios Auth remotos en esta compuerta). No compartir credenciales en el chat.
+Migraciones remotas `0001`–`0009`. Bootstrap del primer **owner**: procedimiento manual en [`references/runbooks/FIRST_OWNER_BOOTSTRAP.md`](references/runbooks/FIRST_OWNER_BOOTSTRAP.md) (promoción serializada con lock de tabla; sin reversión automática). **Aún no ejecutado** (cero usuarios Auth remotos en esta compuerta). URL productiva pendiente. Compuerta B bloqueada hasta auditoría independiente final. No compartir credenciales en el chat.
 
 Rutas Auth: `/login`, `/registro`, `/recuperar-contrasena`, `/actualizar-contrasena`, `/auth/callback`, `/auth/resolve`, `/auth/signout`, `/auth/update-password`. El registro crea siempre `customer` (trigger PostgreSQL); no envía rol en metadata. URL productiva de la app: **pendiente** de dominio de despliegue; Site URL / Redirect URLs se configuran en Compuerta B.
 

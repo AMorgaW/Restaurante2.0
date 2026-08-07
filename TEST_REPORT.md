@@ -384,3 +384,35 @@ No se afirma que todos los advisors queden en cero.
 | E2E auth+session WebKit (`next dev`) | **10/10** |
 | Bootstrap remoto | **no ejecutado** |
 | Compuerta B | **bloqueada** (requiere nueva auditoría) |
+
+## Etapa 10 — serialización bootstrap y reversión manual (2026-08-06)
+
+| Verificación | Resultado real |
+|---|---|
+| AUTH_MODE | **sigue aprobado** (sin cambio de contrato) |
+| Promoción | `LOCK TABLE public.profiles IN SHARE ROW EXCLUSIVE MODE` antes del conteo de owners |
+| Concurrencia | segundo bootstrap espera el lock y aborta si ya hay owner |
+| Reversión automática | **eliminada** |
+| Diagnóstico | solo SELECT + revisión humana obligatoria |
+| Runbook text tests | ampliados (lock, orden, audit states, sin UPDATE/COMMIT de revert) |
+| AUTH_MODE inválido URL/clave en development/test | cubierto |
+| Guard admin / demo invalid | invalid → unavailable; sin controles demo |
+| Graphify | **no regenerado** (solo runbook/pruebas/docs) |
+| Bootstrap remoto / usuarios Auth | **no ejecutado / cero** |
+| URL productiva | **pendiente** |
+| Compuerta B | **bloqueada** hasta auditoría independiente final |
+| Vitest / typecheck / lint / build / E2E Auth | ver filas de validación del commit `fix: serializa bootstrap…` |
+
+### Validación del commit de serialización
+
+| Verificación | Resultado real |
+|---|---|
+| Runbook dirigido | **10/10** |
+| AUTH_MODE + defense + auth-security | **67** tests en 4 archivos (dirigidos) |
+| Vitest completo | **43 archivos / 374 pruebas** |
+| typecheck / lint / build | correctos |
+| E2E Auth+session Chromium | **11/11** |
+| E2E Auth+session WebKit | **11/11** (1 flaky a11y reintentado OK) |
+| `git diff --check` | limpio |
+| Migración 0010 / SQL versionado | **no creado / no modificado** |
+| Graphify | métricas previas conservadas (sin regenerar) |
