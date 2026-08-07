@@ -2,19 +2,21 @@ import { NextResponse, type NextRequest } from "next/server";
 import { checkoutInputSchema } from "@/features/checkout/schema";
 import { getDataModeStatus } from "@/lib/env/server";
 import { OrderValidationError, placeOrder } from "@/server/services/orders";
+import { SupabaseApplicationWriteDisabledError } from "@/server/repositories/supabase";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Crea un pedido. El cuerpo se valida con Zod y todos los importes se
- * recalculan en el servidor. En modo local el pedido validado se
- * devuelve al cliente (que lo persiste); con Supabase se guarda en BD.
+ * Valida y recalcula un pedido con el catálogo autoritativo.
+ * - DATA_MODE=local: devuelve el pedido demo (persistencia en el navegador).
+ * - DATA_MODE=supabase: valida contra Supabase y responde 503 porque la
+ *   persistencia remota aún no está habilitada (11B-2).
  */
 export async function POST(request: NextRequest) {
   const dataMode = getDataModeStatus();
-  if (dataMode.mode !== "local") {
+  if (dataMode.mode === "invalid" || (dataMode.mode === "supabase" && !dataMode.configured)) {
     return NextResponse.json(
-      { error: "Los pedidos remotos aún no están habilitados; continúa como invitado en modo local." },
+      { error: "La configuracion de datos no permite crear pedidos.", code: "data-mode-invalid" },
       { status: 503 },
     );
   }
@@ -46,6 +48,16 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof OrderValidationError) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: 409 });
+    }
+    if (error instanceof SupabaseApplicationWriteDisabledError) {
+      return NextResponse.json(
+        {
+          error:
+            "El catálogo se validó correctamente, pero la persistencia remota de pedidos aún no está habilitada.",
+          code: "persistence-pending",
+        },
+        { status: 503 },
+      );
     }
     console.error("[api/orders] Error inesperado creando pedido");
     return NextResponse.json(

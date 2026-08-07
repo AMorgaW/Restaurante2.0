@@ -31,16 +31,21 @@ export function ProductDetailScreen({
   item: baseItem,
   includedSoups,
   initialServiceSnapshot,
+  allowDemoOverrides = true,
 }: {
   item: MenuItem;
   includedSoups: MenuItem[];
   initialServiceSnapshot: ServiceSnapshot;
+  allowDemoOverrides?: boolean;
 }) {
   const router = useTransitionRouter();
   const reduced = useReducedMotion() ?? false;
   const { toast } = useToast();
   const addItem = useCartStore((state) => state.addItem);
-  const [adjustedItem] = useMenuItemsWithAdminOverrides(useMemo(() => [baseItem], [baseItem]));
+  const [adjustedItem] = useMenuItemsWithAdminOverrides(
+    useMemo(() => [baseItem], [baseItem]),
+    allowDemoOverrides,
+  );
   const item = adjustedItem ?? baseItem;
   const service = useServicePeriod(initialServiceSnapshot);
   const visual = getDishVisual(item.slug);
@@ -51,12 +56,18 @@ export function ProductDetailScreen({
     [includedSoups],
   );
   const soupGroup = getIncludedLunchSoupGroup(item);
+  const commercialGroups = useMemo(
+    () => item.modifierGroups.filter((group) => group.kind !== "includedLunchSoup"),
+    [item.modifierGroups],
+  );
   const supportsLunchSoup = !isSoupItem(item) && Boolean(soupGroup);
   const initialSoupId =
     initialServiceSnapshot.period === "lunch" && supportsLunchSoup
       ? (availableSoups[0]?.id ?? NO_SOUP_OPTION_ID)
       : null;
   const [selectedSoupId, setSelectedSoupId] = useState<string | null>(initialSoupId);
+  /** Opción elegida por grupo comercial (radio: máximo 1 por grupo en esta UI). */
+  const [commercialSelections, setCommercialSelections] = useState<Record<string, string>>({});
 
   useEffect(() => {
     track("view_item", { item: item.slug, source: "detail" });
@@ -79,9 +90,37 @@ export function ProductDetailScreen({
     });
   }, [availableSoups, service.period, supportsLunchSoup]);
 
+  useEffect(() => {
+    setCommercialSelections((current) => {
+      const next: Record<string, string> = {};
+      for (const group of commercialGroups) {
+        const availableOptions = group.options.filter((option) => option.available);
+        const previous = current[group.id];
+        if (previous && availableOptions.some((option) => option.id === previous)) {
+          next[group.id] = previous;
+        }
+      }
+      return next;
+    });
+  }, [commercialGroups]);
+
   const selectedSoup = availableSoups.find((soupItem) => soupItem.id === selectedSoupId);
   const selectedSoupOption = soupGroup?.options.find((option) => option.id === selectedSoupId);
-  const selectedModifiers: CartItemModifierSelection[] =
+  const commercialModifiers: CartItemModifierSelection[] = commercialGroups.flatMap((group) => {
+    const optionId = commercialSelections[group.id];
+    const option = group.options.find((candidate) => candidate.id === optionId && candidate.available);
+    if (!option) return [];
+    return [
+      {
+        groupId: group.id,
+        groupName: group.name,
+        optionId: option.id,
+        optionName: option.name,
+        priceSnapshot: option.additionalPrice,
+      },
+    ];
+  });
+  const soupModifiers: CartItemModifierSelection[] =
     service.period === "lunch" && selectedSoupOption
       ? [
           {
@@ -93,8 +132,19 @@ export function ProductDetailScreen({
           },
         ]
       : [];
-  const lineTotal = item.price * quantity;
-  const canAdd = item.available && service.period !== "closed";
+  const selectedModifiers = [...commercialModifiers, ...soupModifiers];
+  const modifiersSurcharge = commercialModifiers.reduce(
+    (sum, modifier) => sum + modifier.priceSnapshot,
+    0,
+  );
+  const lineTotal = (item.price + modifiersSurcharge) * quantity;
+  const commercialComplete = commercialGroups.every((group) => {
+    const selected = commercialSelections[group.id] ? 1 : 0;
+    if (group.required && selected < group.minSelections) return false;
+    if (selected > group.maxSelections) return false;
+    return true;
+  });
+  const canAdd = item.available && service.period !== "closed" && commercialComplete;
 
   const handleAdd = () => {
     if (!canAdd) return;
@@ -205,6 +255,61 @@ export function ProductDetailScreen({
           </m.div>
         ) : null}
 
+        {commercialGroups.length > 0 ? (
+          <m.div {...enter(0.11)} className="mt-3 flex flex-col gap-3">
+            {commercialGroups.map((group) => {
+              const availableOptions = group.options.filter((option) => option.available);
+              return (
+                <section
+                  key={group.id}
+                  aria-labelledby={`modifier-group-${group.id}`}
+                  data-testid={`modifier-group-${group.id}`}
+                >
+                  <h2 id={`modifier-group-${group.id}`} className="font-extrabold">
+                    {group.name}
+                    {group.required ? <span className="ml-1 text-sm font-semibold text-muted">(obligatorio)</span> : null}
+                  </h2>
+                  {availableOptions.length === 0 ? (
+                    <p className="mt-2 text-sm text-muted">No hay opciones disponibles en este grupo.</p>
+                  ) : (
+                    <div
+                      role="radiogroup"
+                      aria-label={group.name}
+                      className="soup-option-grid mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-4"
+                    >
+                      {availableOptions.map((option) => {
+                        const selected = commercialSelections[group.id] === option.id;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            onClick={() =>
+                              setCommercialSelections((current) => ({
+                                ...current,
+                                [group.id]: option.id,
+                              }))
+                            }
+                            className={cn("soup-option", selected && "soup-option-selected")}
+                          >
+                            <span>{option.name}</span>
+                            {option.additionalPrice > 0 ? (
+                              <span className="text-xs font-semibold text-lime">
+                                +{formatCurrency(option.additionalPrice)}
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+              );
+            })}
+          </m.div>
+        ) : null}
+
         {service.period === "lunch" && supportsLunchSoup ? (
           <m.section
             {...enter(0.12)}
@@ -282,7 +387,13 @@ export function ProductDetailScreen({
             fullWidth
             disabled={!canAdd}
             onClick={handleAdd}
-            aria-describedby={service.period === "closed" ? "closed-add-reason" : undefined}
+            aria-describedby={
+              service.period === "closed"
+                ? "closed-add-reason"
+                : !commercialComplete
+                  ? "modifier-incomplete-reason"
+                  : undefined
+            }
             className="h-14 min-w-0 flex-1 rounded-full text-[15px]"
           >
             <ShoppingBag aria-hidden className="size-5" />
@@ -290,6 +401,11 @@ export function ProductDetailScreen({
           </Button>
         </div>
         {service.period === "closed" ? <p id="closed-add-reason" className="sr-only">Las nuevas adiciones están desactivadas porque el restaurante está cerrado.</p> : null}
+        {!commercialComplete ? (
+          <p id="modifier-incomplete-reason" className="sr-only">
+            Completa las opciones obligatorias antes de añadir al carrito.
+          </p>
+        ) : null}
       </m.div>
     </div>
   );

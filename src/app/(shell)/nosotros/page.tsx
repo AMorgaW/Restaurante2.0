@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { restaurantConfig } from "@/config/restaurant";
-import { getFeaturedItems } from "@/data/menu";
 import { siteUrl } from "@/lib/env/client";
+import { loadPublicCatalog } from "@/server/catalog/load-public-catalog";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Nosotros",
@@ -11,8 +13,18 @@ export const metadata: Metadata = {
   alternates: { canonical: `${siteUrl}/nosotros` },
 };
 
-export default function AboutPage() {
-  const hero = getFeaturedItems()[0];
+export default async function AboutPage() {
+  let hero: {
+    fullName: string;
+    image: { publicPath: string; blurDataURL: string; width: number; height: number };
+  } | null = null;
+  try {
+    const catalog = await loadPublicCatalog();
+    const featured = catalog.items.find((item) => item.featured) ?? catalog.items[0];
+    if (featured) hero = featured;
+  } catch {
+    hero = null;
+  }
 
   return (
     <div className="flex flex-col gap-6 px-4 pt-5 pb-6 md:px-0">

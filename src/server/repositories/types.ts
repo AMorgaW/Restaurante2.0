@@ -8,8 +8,9 @@ import type { Order } from "@/types/order";
  */
 
 export interface MenuRepository {
-  getMenuItems(): Promise<MenuItem[]>;
-  getMenuItemBySlug(slug: string): Promise<MenuItem | null>;
+  /** Catálogo para una sucursal de la app (`restaurantConfig` branch id). */
+  getMenuItems(options?: { branchId: string }): Promise<MenuItem[]>;
+  getMenuItemBySlug(slug: string, options?: { branchId: string }): Promise<MenuItem | null>;
   getCategories(): Promise<CategoryInfo[]>;
 }
 

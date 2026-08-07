@@ -32,9 +32,9 @@ Formato: fecha · decisión · motivo.
 
 7. **Precios demo deterministas** por hash FNV-1a del slug dentro de rangos por categoría (COP, múltiplos de 500) — misma entrada → mismo precio, sin aleatoriedad entre builds. Documentados como contenido a validar.
 
-8. **Pedidos/reservas demo: validación en servidor, persistencia en navegador** — El API valida con Zod y **recalcula todos los importes en servidor**; en modo local el pedido validado se devuelve y el cliente lo persiste (localStorage) porque no hay BD. Con `DATA_MODE=supabase` se persiste en PostgreSQL. La clave de idempotencia es el id del pedido: reintentos no duplican.
+8. **Pedidos demo: validación en servidor, persistencia según DATA_MODE** — El API valida con Zod y **recalcula todos los importes en servidor**. En `DATA_MODE=local` el pedido validado se devuelve y el cliente lo persiste (localStorage). En `DATA_MODE=supabase` la validación usa el catálogo remoto, pero la **persistencia remota aún no está habilitada** (respuesta 503 `persistence-pending`; etapa 11B-2). La clave de idempotencia es el id del pedido cuando exista guardado.
 
-9. **Degradación controlada de entorno** — `DATA_MODE=supabase` sin credenciales completas: error claro en consola del servidor y caída automática a modo local. Igual para pagos (Stripe/Mercado Pago → demo) y correo (resend → noop).
+9. **Fail-closed de DATA_MODE (sin degradación silenciosa a local)** — `DATA_MODE=supabase` sin credenciales válidas falla cerrado; **no** hay caída automática a fixtures locales para el catálogo. Pagos (Stripe/Mercado Pago → demo) y correo (resend → noop) conservan degradación controlada documentada aparte.
 
 10. **Adaptadores de pago sin SDK** — Stripe/Mercado Pago implementados sobre su API HTTP con verificación de firmas de webhook en `node:crypto`. No se instala SDK hasta activar el proveedor (regla: no instalar dependencias innecesarias).
 
@@ -356,3 +356,17 @@ extraen la sección de reversión de forma aislada, inspeccionan **todos** los
 bloques `sql` y fallan ante operaciones de escritura/ejecución, CTE modificadores
 o un segundo bloque con mutaciones. Casos negativos sobre helpers en memoria;
 el documento del runbook permanece estable tras la aprobación independiente.
+
+## 2026-08-07 (Etapa 11B-1A — catálogo autoritativo)
+
+92. **Una sola fuente comercial por DATA_MODE** — `local` usa fixtures explícitas;
+`supabase` lee PostgreSQL vía anon + RLS. Sin hybrid, sin fallback silencioso, sin
+mezclar precios/disponibilidad/modificadores locales en modo remoto.
+
+93. **Sucursal por slug de configuración** — los IDs de UI (`branch-centro`) viven en
+`restaurantConfig`; el repositorio resuelve `slug` contra `public.branches` y exige
+`branch_menu_items` para listar/comprar.
+
+94. **Checkout valida y no finge persistencia** — `placeOrder` recalcula contra el mismo
+`MenuRepository` que las páginas; `saveOrder` Supabase lanza
+`SupabaseApplicationWriteDisabledError` → API 503 `persistence-pending`.

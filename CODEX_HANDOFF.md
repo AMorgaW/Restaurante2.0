@@ -16,12 +16,26 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
 
 - Proyecto: Restaurante2.0 / Brisas del Sinú.
 - Rama: `master`.
-- Commit base anterior: `ba23b5e` (`Actualiza documentación del rediseño visual`).
-- Checkpoint de cierre: este archivo forma parte del commit local `chore: consolida etapas 1-7 y actualiza handoff técnico`; obtenga su hash con `git log -1 --oneline`.
-- Etapas 1–7 completadas y validadas localmente. No hubo `supabase link`, `db push`, push Git ni cambios remotos.
-- La secuencia SQL canónica es `0001`–`0009` en local y en el remoto de producción (`nasenphzywwufntvrzpc`, Brisas del sinu). No existen migraciones timestamp paralelas.
-- `0009` fue auditada de forma independiente, dry-run correcta, desplegada y verificada en producción (índices, grants y advisors post-despliegue). No hubo `git push` de este cierre documental.
-- `graphify-out/` se regeneró tras la corrección de bloqueadores Compuerta A: **1.805 nodos, 4.608 aristas, 137 comunidades**. La salida queda ignorada por Git.
+- Checkpoint previo Etapa 11A: `d89a35b` (`test: endurece validacion read-only del bootstrap owner`).
+- Etapa **11B-1A** (catálogo Supabase + precios autoritativos): commit local
+  `feat: conecta catalogo supabase y precios autoritativos` (hash tras commit).
+- Secuencia SQL canónica: `0001`–`0009` (sin 0010; sin ediciones a migraciones).
+- `graphify-out/` regenerado en 11B-1A: **1.861 nodos, 4.769 aristas, 144 comunidades**. Ignorado por Git.
+
+## Catálogo autoritativo (11B-1A)
+
+- Resolución única: `getResolvedDataMode()` / `getMenuRepository()` — sin alias hybrid/demo/fallback.
+- `DATA_MODE=local`: fixtures `src/data/menu` + overrides demo del panel solo en ese modo.
+- `DATA_MODE=supabase`: lectura vía `SupabaseMenuRepository` + `menu-mapper` (anon, RLS pública).
+  Sin mezclar precios/nombres/disponibilidad/modificadores desde fixtures.
+- Sucursal: IDs de UI en `restaurantConfig` (`branch-centro`); slug `centro`/`norte` resuelto
+  contra `public.branches`. Precio/disponibilidad exigen fila en `branch_menu_items`.
+- Imágenes: `image_path` remoto o placeholder `/icon.svg`; no se sustituye identidad por otro plato local.
+- Checkout: `placeOrder` usa el mismo repositorio; payload de precio del cliente no es autoridad.
+- Pedidos Supabase: tras validar → `SupabaseApplicationWriteDisabledError` → API **503**
+  `persistence-pending` (11B-2). No hay ID falso ni guardado remoto.
+- Admin de catálogo y escrituras de productos: **11B-1B** (pendiente).
+- Compuerta B: **no iniciada**.
 
 ## Resultado funcional por etapa
 
@@ -101,11 +115,9 @@ npm.cmd run test
 npm.cmd run build
 ```
 
-Último ciclo local (cobertura negativa runbook Compuerta A): implementación del
-runbook **aprobada**; pruebas endurecidas para inspeccionar todos los bloques SQL
-de reversión como read-only (sin tocar el Markdown). Vitest / typecheck / lint:
-ver `TEST_REPORT.md`. Bootstrap remoto **no ejecutado**; Compuerta B **no
-ejecutada**.
+Último ciclo local (11B-1A): Vitest **46 archivos / 403 pruebas**; typecheck/lint/build OK;
+E2E catálogo Supabase 5/5 × Chromium+WebKit; pedidos remotes siguen 503. Bootstrap remoto
+**no ejecutado**; Compuerta B **no ejecutada**. Ver `TEST_REPORT.md`.
 
 ## Archivos principales por área
 
@@ -114,11 +126,13 @@ ejecutada**.
 - Empleados: `src/lib/employee/`, `src/lib/staff/`, `src/stores/staff.ts`, `src/app/empleado/`, `src/app/admin/empleados/`.
 - Pensionados: `src/lib/pension/`, `src/lib/pension-admin/`, stores asociados, `src/app/pensionado/`, `src/app/admin/pensionados/`.
 - Inventario: `src/lib/inventory/`, `src/stores/inventory.ts`, `src/app/admin/inventario/`.
-- Pedidos/pagos: `src/stores/orders.ts`, `src/server/repositories/`, `src/lib/payments/`, webhooks API.
+- Pedidos/pagos: `src/stores/orders.ts`, `src/server/repositories/`, `src/server/catalog/`, `src/lib/payments/`, webhooks API.
+- Catálogo: `src/server/repositories/menu-mapper.ts`, `SupabaseMenuRepository`, `load-public-catalog.ts`.
 - PostgreSQL: `supabase/migrations/0001_initial.sql`–`0009_remote_advisor_hardening.sql`, `supabase/tests/0001_backend_security.test.sql`, `scripts/test-supabase-concurrency.ps1`.
 
 ## Pendientes y riesgos conocidos
 
+- Persistencia remota de pedidos y panel admin de catálogo pendientes (11B-2 / 11B-1B).
 - Local y remoto alineados en `0001`–`0009`. Advisors post-despliegue: FKs sin índice 24→20; 7 avisos `multiple_permissive_policies` eliminados; `unused_index` diferidos hasta tráfico real; `payment_webhook_events` sin policies (deny-by-default aceptado). No se afirma advisors en cero.
 - FKs de auditoría/ON DELETE lógico no indexadas a propósito.
 - Auth real / Site URL / Redirect URLs / bootstrap del primer owner: Compuerta B pendiente (`references/runbooks/FIRST_OWNER_BOOTSTRAP.md`). Promoción serializada por lock; sin reversión automática. URL productiva de la app aún no definida en el repositorio.
@@ -131,4 +145,6 @@ ejecutada**.
 
 ## Siguiente etapa recomendada
 
-`0009` ya está en producción. **Etapa 10 Compuerta A** deja Auth SSR listo en código (AUTH_MODE aprobado, runbook del primer owner serializado y sin reversión automática). Compuerta B (Dashboard + bootstrap owner) requiere auditoría independiente final y la frase exacta de autorización del operador. No usar Graphify como sustituto de leer el código exacto que vaya a cambiar.
+**11B-1B** — administración real del catálogo (escrituras). Luego **11B-2** persistencia de
+pedidos reutilizando la validación autoritativa. Compuerta B (Dashboard + bootstrap owner)
+sigue bloqueada hasta autorización expresa. No usar Graphify como sustituto del código exacto.

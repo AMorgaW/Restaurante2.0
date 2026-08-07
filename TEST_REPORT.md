@@ -432,3 +432,26 @@ reversión; se prohíben escritura y ejecución (`UPDATE`/`INSERT`/`DELETE`/`MER
 | typecheck / lint | correctos |
 | Runbook Markdown | **sin cambios** |
 | Compuerta B | **no ejecutada** |
+
+## Etapa 11B-1A — catálogo Supabase y precios autoritativos (2026-08-07)
+
+Checkpoint base: `d89a35b`. Catálogo público y validación de checkout leen la misma
+abstracción de repositorio; `DATA_MODE=supabase` sin fallback local silencioso;
+`saveOrder` remoto sigue deshabilitado (`persistence-pending` / 503). Sin migraciones,
+sin SQL remoto, sin admin de catálogo, sin Compuerta B.
+
+| Verificación | Resultado real |
+|---|---|
+| Vitest completo | **46 archivos / 403 pruebas** (todas aprobadas; 0 fallidas) |
+| Integración catálogo Supabase local | **1/1** (fixtures controladas; anon + RLS) |
+| Unit mapper + validación checkout | **8 + 7** |
+| typecheck / lint / build | correctos |
+| E2E menú/carrito/detalle local Chromium | dirigidos OK; scroll-back histórico **fuera de alcance** (1 fallo conocido) |
+| E2E catálogo Supabase (`playwright.catalog-supabase.config.ts`) | **5/5 Chromium**, **5/5 WebKit** |
+| E2E local WebKit (home/cart/detail sin scroll) | verdes (2 flaky reintentados OK) |
+| `git diff --check` | limpio |
+| Migraciones 0001–0009 / 0010 | **sin cambios / no creada** |
+| Persistencia pedidos Supabase | **no implementada** (503 `persistence-pending`) |
+| Admin catálogo / Compuerta B | **no iniciados** |
+| Graphify | **1.861 nodos, 4.769 aristas, 144 comunidades** (`graphify-out/` ignorado) |
+| Remoto / `db push` / `git push` | **cero** |

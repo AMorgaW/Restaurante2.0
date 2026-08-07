@@ -26,11 +26,17 @@ import type { MenuItem } from "@/types/menu";
  * hacia el checkout. Detecta cambios de precio/disponibilidad frente al
  * menú vigente al montar.
  */
-export function CartScreen({ menuItems }: { menuItems: MenuItem[] }) {
+export function CartScreen({
+  menuItems,
+  allowDemoOverrides = true,
+}: {
+  menuItems: MenuItem[];
+  allowDemoOverrides?: boolean;
+}) {
   const router = useRouter();
   const { toast } = useToast();
   const mounted = useMounted();
-  const adjustedMenu = useMenuItemsWithAdminOverrides(menuItems);
+  const adjustedMenu = useMenuItemsWithAdminOverrides(menuItems, allowDemoOverrides);
 
   const items = useCartStore((state) => state.items);
   const couponCode = useCartStore((state) => state.couponCode);

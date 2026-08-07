@@ -12,10 +12,16 @@ import { useFavoritesStore } from "@/stores/favorites";
 import type { MenuItem } from "@/types/menu";
 
 /** Pantalla de favoritos persistidos por navegador. */
-export function FavoritesScreen({ items }: { items: MenuItem[] }) {
+export function FavoritesScreen({
+  items,
+  allowDemoOverrides = true,
+}: {
+  items: MenuItem[];
+  allowDemoOverrides?: boolean;
+}) {
   const router = useTransitionRouter();
   const mounted = useMounted();
-  const adjusted = useMenuItemsWithAdminOverrides(items);
+  const adjusted = useMenuItemsWithAdminOverrides(items, allowDemoOverrides);
   const favoriteSlugs = useFavoritesStore((state) => state.slugs);
 
   const favorites = useMemo(

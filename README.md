@@ -57,7 +57,13 @@ npm run start
 
 ## El menú y las imágenes
 
-**La carpeta `images/` es la fuente de verdad del menú.** Cada archivo es un plato y su nombre de archivo es el nombre del plato.
+**En `DATA_MODE=local`**, la carpeta `images/` alimenta el manifiesto demo del menú.
+Cada archivo es un plato y su nombre de archivo es el nombre del plato.
+
+**En `DATA_MODE=supabase`**, el catálogo comercial (nombres, precios, disponibilidad,
+categorías, modificadores) procede de PostgreSQL vía `SupabaseMenuRepository`.
+`src/data/menu` **no** aporta autoridad comercial en ese modo; las imágenes usan
+`image_path` remoto o un placeholder seguro.
 
 - `scripts/generate-menu-manifest.ts` valida cada archivo por firma binaria (no solo extensión), extrae dimensiones, genera un placeholder blur, copia la imagen a `public/generated/menu/<slug>.<ext>` (byte a byte, sin recomprimir) y emite el manifiesto tipado `src/data/generated/menu-manifest.ts`.
 - Los originales **nunca** se modifican, renombran ni eliminan.
@@ -108,6 +114,14 @@ Requiere `AUTH_MODE=disabled` y `DATA_MODE=local` **explícitos** (p. ej. vía
 `.env.local`). Sin `AUTH_MODE` el estado es inválido en todos los entornos.
 El menú sale del manifiesto; los pedidos se validan en el servidor y se
 persisten en el navegador. El panel `/admin` usa accesos demo etiquetados.
+
+### Catálogo con DATA_MODE=supabase
+
+Con URL y clave publicable válidas, las páginas públicas (`/menu`, búsqueda, detalle,
+carrito/favoritos) y `POST /api/orders` leen el mismo repositorio remoto. No hay
+fallback a fixtures. El carrito solo guarda selecciones; precios y totales se
+recalculan en servidor. La persistencia remota de pedidos **aún no está habilitada**
+(503 `persistence-pending`). La administración real del catálogo es etapa 11B-1B.
 
 En **producción** (`NODE_ENV=production`) solo es válido `AUTH_MODE=supabase` con
 `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` válidas.

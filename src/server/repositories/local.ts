@@ -4,21 +4,19 @@ import type { Order } from "@/types/order";
 import type { MenuRepository, OrderRepository } from "./types";
 
 /**
- * Implementaciones locales (modo demo, sin credenciales).
+ * Implementaciones locales (DATA_MODE=local explícito).
  *
- * El menú proviene del manifiesto generado. Los pedidos se
- * validan y construyen en el servidor, y el NAVEGADOR los persiste
- * (localStorage) porque en modo demo no existe base de datos; por eso
- * `getOrderById` devuelve null en el servidor y la página de
- * confirmación los lee del almacenamiento del cliente.
+ * El menú proviene del manifiesto generado. Los pedidos se validan y
+ * construyen en el servidor; el navegador los persiste en localStorage
+ * porque no hay base de datos en este modo.
  */
 
 export class LocalMenuRepository implements MenuRepository {
-  async getMenuItems(): Promise<MenuItem[]> {
+  async getMenuItems(_options?: { branchId: string }): Promise<MenuItem[]> {
     return menuItems;
   }
 
-  async getMenuItemBySlug(slug: string): Promise<MenuItem | null> {
+  async getMenuItemBySlug(slug: string, _options?: { branchId: string }): Promise<MenuItem | null> {
     return getMenuItemBySlug(slug) ?? null;
   }
 
@@ -29,8 +27,6 @@ export class LocalMenuRepository implements MenuRepository {
 
 export class LocalOrderRepository implements OrderRepository {
   async saveOrder(order: Order): Promise<Order> {
-    // Sin base de datos en modo demo: el pedido validado se devuelve al
-    // cliente, que lo persiste localmente. No se registra PII en logs.
     return order;
   }
 

@@ -49,10 +49,13 @@ export async function placeOrder(input: CheckoutInput): Promise<Order> {
   const cartItems: CartItem[] = [];
 
   for (const line of input.items) {
-    const menuItem = await menuRepository.getMenuItemBySlug(line.slug);
+    // Catálogo autoritativo de la misma abstracción que las páginas públicas.
+    const menuItem = await menuRepository.getMenuItemBySlug(line.slug, {
+      branchId: input.branchId,
+    });
     if (!menuItem) {
       throw new OrderValidationError(
-        "Uno de los platos del carrito ya no existe en el menú.",
+        "Uno de los platos del carrito ya no existe en el menú o no se vende en esta sucursal.",
         "item-missing",
       );
     }
@@ -63,7 +66,8 @@ export async function placeOrder(input: CheckoutInput): Promise<Order> {
       );
     }
 
-    // Reconstrucción de modificadores con precios del SERVIDOR.
+    const seenOptions = new Set<string>();
+    // Reconstrucción de modificadores con precios del SERVIDOR (nunca del cliente).
     const modifiers = line.modifiers.map((selection) => {
       const group = menuItem.modifierGroups.find((candidate) => candidate.id === selection.groupId);
       const option = group?.options.find((candidate) => candidate.id === selection.optionId);
@@ -73,6 +77,14 @@ export async function placeOrder(input: CheckoutInput): Promise<Order> {
           "modifier-invalid",
         );
       }
+      const dedupeKey = `${group.id}:${option.id}`;
+      if (seenOptions.has(dedupeKey)) {
+        throw new OrderValidationError(
+          `Hay opciones duplicadas en “${menuItem.fullName}”.`,
+          "modifier-duplicate",
+        );
+      }
+      seenOptions.add(dedupeKey);
       return {
         groupId: group.id,
         groupName: group.name,

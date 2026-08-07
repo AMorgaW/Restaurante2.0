@@ -8,7 +8,11 @@ export default defineConfig({
     environment: "jsdom",
     globals: true, // habilita el auto-cleanup de Testing Library entre pruebas
     setupFiles: ["./tests/setup.ts"],
-    include: ["tests/unit/**/*.test.{ts,tsx}", "tests/components/**/*.test.{ts,tsx}"],
+    include: [
+      "tests/unit/**/*.test.{ts,tsx}",
+      "tests/components/**/*.test.{ts,tsx}",
+      "tests/integration/**/*.test.{ts,tsx}",
+    ],
     css: false,
     restoreMocks: true,
   },

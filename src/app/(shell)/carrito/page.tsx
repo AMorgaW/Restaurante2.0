@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { CartScreen } from "@/components/cart/cart-screen";
-import { menuItems } from "@/data/menu";
+import { EmptyState } from "@/components/ui/states";
+import { loadPublicCatalog } from "@/server/catalog/load-public-catalog";
+import { CatalogReadError } from "@/server/repositories/supabase";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Carrito",
@@ -8,6 +12,19 @@ export const metadata: Metadata = {
   robots: { index: false },
 };
 
-export default function CartPage() {
-  return <CartScreen menuItems={menuItems} />;
+export default async function CartPage() {
+  try {
+    const catalog = await loadPublicCatalog();
+    return (
+      <CartScreen
+        menuItems={catalog.items}
+        allowDemoOverrides={catalog.allowDemoOverrides}
+      />
+    );
+  } catch (error) {
+    const message = error instanceof CatalogReadError
+      ? error.message
+      : "No pudimos sincronizar el carrito con el menú.";
+    return <EmptyState title="Catálogo no disponible" description={message} />;
+  }
 }

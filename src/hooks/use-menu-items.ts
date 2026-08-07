@@ -6,16 +6,19 @@ import { useAdminStore } from "@/stores/admin";
 import type { MenuItem } from "@/types/menu";
 
 /**
- * Aplica los ajustes demo del panel de administración (precio,
- * disponibilidad, destacado, descripción) sobre los platos base.
- * Se aplican tras el montaje para no romper la hidratación.
+ * Aplica los ajustes demo del panel de administración únicamente cuando
+ * `allowDemoOverrides` es true (DATA_MODE=local). En Supabase los precios y
+ * la disponibilidad autoritativos vienen del servidor.
  */
-export function useMenuItemsWithAdminOverrides(baseItems: MenuItem[]): MenuItem[] {
+export function useMenuItemsWithAdminOverrides(
+  baseItems: MenuItem[],
+  allowDemoOverrides = true,
+): MenuItem[] {
   const mounted = useMounted();
   const overrides = useAdminStore((state) => state.overrides);
 
   return useMemo(() => {
-    if (!mounted || Object.keys(overrides).length === 0) return baseItems;
+    if (!allowDemoOverrides || !mounted || Object.keys(overrides).length === 0) return baseItems;
     return baseItems.map((item) => {
       const override = overrides[item.slug];
       if (!override) return item;
@@ -29,5 +32,5 @@ export function useMenuItemsWithAdminOverrides(baseItems: MenuItem[]): MenuItem[
           : {}),
       };
     });
-  }, [baseItems, overrides, mounted]);
+  }, [allowDemoOverrides, baseItems, overrides, mounted]);
 }

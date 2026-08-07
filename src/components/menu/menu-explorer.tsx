@@ -46,6 +46,7 @@ export function MenuExplorer({
   excludeSlugs = [],
   entrance: _legacyEntrance = false,
   entranceDelay = 0,
+  allowDemoOverrides = true,
 }: {
   items: MenuItem[];
   categories: CategoryInfo[];
@@ -60,8 +61,10 @@ export function MenuExplorer({
   /** Compatibilidad con antiguos consumidores; la entrada se decide por sesión. */
   entrance?: boolean;
   entranceDelay?: number;
+  /** Solo DATA_MODE=local puede aplicar overrides demo del panel. */
+  allowDemoOverrides?: boolean;
 }) {
-  const items = useMenuItemsWithAdminOverrides(baseItems);
+  const items = useMenuItemsWithAdminOverrides(baseItems, allowDemoOverrides);
   const query = useMenuViewStore((state) => state.query);
   const setQuery = useMenuViewStore((state) => state.setQuery);
   const storedCategory = useMenuViewStore((state) => state.categorySlug);
