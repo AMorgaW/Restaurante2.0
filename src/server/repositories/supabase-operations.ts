@@ -87,5 +87,182 @@ export function createSupabaseOperations(client: SupabaseClient<Database>) {
         target_idempotency_key: input.idempotencyKey,
       }));
     },
+
+    /** Prefer `SupabasePensionRepository` for app flows; thin RPC wrappers for ops/tests. */
+    createAndActivatePensionMembership(input: {
+      customerId: string;
+      planId: string;
+      branchId: string;
+      agreedPrice: number;
+      paymentMethod: string;
+      paymentReference: string;
+      paymentDate: string;
+      startsAt: string;
+      mealLimit: number;
+      allowSurcharge: boolean;
+      reason: string;
+      idempotencyKey: string;
+    }) {
+      return unwrap(client.rpc("create_and_activate_pension_membership", {
+        target_customer: input.customerId,
+        target_plan: input.planId,
+        target_branch: input.branchId,
+        target_agreed_price: input.agreedPrice,
+        target_payment_method: input.paymentMethod,
+        target_payment_reference: input.paymentReference,
+        target_payment_date: input.paymentDate,
+        target_starts_at: input.startsAt,
+        target_meal_limit: input.mealLimit,
+        target_allow_surcharge: input.allowSurcharge,
+        target_reason: input.reason,
+        target_idempotency_key: input.idempotencyKey,
+      }));
+    },
+
+    activatePensionMembership(input: {
+      membershipId: string;
+      agreedPrice: number;
+      paymentMethod: string;
+      paymentReference: string;
+      paymentDate: string;
+      startsAt: string;
+      endsAt: string;
+      mealLimit: number;
+      allowSurcharge: boolean;
+      reason: string;
+      idempotencyKey: string;
+    }) {
+      return unwrap(client.rpc("activate_pension_membership", {
+        target_membership: input.membershipId,
+        target_agreed_price: input.agreedPrice,
+        target_payment_method: input.paymentMethod,
+        target_payment_reference: input.paymentReference,
+        target_payment_date: input.paymentDate,
+        target_starts_at: input.startsAt,
+        target_ends_at: input.endsAt,
+        target_meal_limit: input.mealLimit,
+        target_allow_surcharge: input.allowSurcharge,
+        target_reason: input.reason,
+        target_idempotency_key: input.idempotencyKey,
+      }));
+    },
+
+    renewPensionMembership(input: {
+      membershipId: string;
+      agreedPrice: number;
+      paymentMethod: string;
+      paymentReference: string;
+      paymentDate: string;
+      startsAt: string;
+      endsAt: string;
+      mealLimit: number;
+      allowSurcharge: boolean;
+      reason: string;
+      idempotencyKey: string;
+    }) {
+      return unwrap(client.rpc("renew_pension_membership", {
+        target_membership: input.membershipId,
+        target_agreed_price: input.agreedPrice,
+        target_payment_method: input.paymentMethod,
+        target_payment_reference: input.paymentReference,
+        target_payment_date: input.paymentDate,
+        target_starts_at: input.startsAt,
+        target_ends_at: input.endsAt,
+        target_meal_limit: input.mealLimit,
+        target_allow_surcharge: input.allowSurcharge,
+        target_reason: input.reason,
+        target_idempotency_key: input.idempotencyKey,
+      }));
+    },
+
+    savePensionMenuDraft(input: {
+      branchId: string;
+      serviceDate: string;
+      period: string;
+      note: string;
+      idempotencyKey: string;
+    }) {
+      return unwrap(client.rpc("save_pension_menu_draft", {
+        target_branch: input.branchId,
+        target_service_date: input.serviceDate,
+        target_period: input.period,
+        target_note: input.note,
+        target_idempotency_key: input.idempotencyKey,
+      }));
+    },
+
+    upsertPensionMenuItem(input: {
+      menuId: string;
+      category: string;
+      categoryLabel: string;
+      isRequired: boolean;
+      maxSelections: number;
+      menuItemId: string;
+      isIncluded: boolean;
+      surchargeAmount: number;
+      isAvailable: boolean;
+      displayOrder: number;
+    }) {
+      return unwrap(client.rpc("upsert_pension_menu_item", {
+        target_menu: input.menuId,
+        target_category: input.category,
+        target_category_label: input.categoryLabel,
+        target_is_required: input.isRequired,
+        target_max_selections: input.maxSelections,
+        target_menu_item_id: input.menuItemId,
+        target_is_included: input.isIncluded,
+        target_surcharge_amount: input.surchargeAmount,
+        target_is_available: input.isAvailable,
+        target_display_order: input.displayOrder,
+      }));
+    },
+
+    publishPensionMenu(input: {
+      menuId: string;
+      expectedStatus: string;
+      idempotencyKey: string;
+    }) {
+      return unwrap(client.rpc("publish_pension_menu", {
+        target_menu: input.menuId,
+        expected_status: input.expectedStatus,
+        target_idempotency_key: input.idempotencyKey,
+      }));
+    },
+
+    closePensionMenu(input: {
+      menuId: string;
+      expectedStatus: string;
+      idempotencyKey: string;
+    }) {
+      return unwrap(client.rpc("close_pension_menu", {
+        target_menu: input.menuId,
+        expected_status: input.expectedStatus,
+        target_idempotency_key: input.idempotencyKey,
+      }));
+    },
+
+    setPensionDeliveryFee(input: {
+      branchId: string;
+      fee: number;
+      idempotencyKey: string;
+    }) {
+      return unwrap(client.rpc("set_pension_delivery_fee", {
+        target_branch: input.branchId,
+        target_fee: input.fee,
+        target_idempotency_key: input.idempotencyKey,
+      }));
+    },
+
+    reversePensionOrderConsumption(input: {
+      orderId: string;
+      reason: string;
+      idempotencyKey: string;
+    }) {
+      return unwrap(client.rpc("reverse_pension_order_consumption", {
+        target_order: input.orderId,
+        target_reason: input.reason,
+        target_idempotency_key: input.idempotencyKey,
+      }));
+    },
   };
 }

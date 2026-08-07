@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
+import { adminRoleCan } from "@/lib/admin/authorization";
 import { getPensionAdminRows, getPensionAdminSummary, PENSION_ADMIN_STATUS_LABELS } from "@/lib/pension-admin/selectors";
 import type { PensionCycleInput, PensionPaymentInput, PensionPaymentMethod } from "@/lib/pension-admin/types";
 import type { PensionMembershipStatus, PensionPlanModality } from "@/lib/pension/types";
@@ -50,7 +51,7 @@ export function PensionAdminScreen() {
   const [mealsAvailable, setMealsAvailable] = useState("30");
   const [confirmed, setConfirmed] = useState(false);
   const [reason, setReason] = useState("");
-  const canManage = role === "owner";
+  const canManage = adminRoleCan(role, "manage-pension-memberships");
   const rows = useMemo(() => getPensionAdminRows(memberships, consumptions).filter((row) => {
     const matchesSearch = `${row.profileName} ${row.membership.id}`.toLocaleLowerCase("es").includes(search.trim().toLocaleLowerCase("es"));
     return matchesSearch && (statusFilter === "all" || row.membership.status === statusFilter);

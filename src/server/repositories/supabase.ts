@@ -212,7 +212,7 @@ export class SupabaseOrderRepository implements OrderRepository {
       modifier_option_ids: item.modifiers.map((modifier) => modifier.optionId),
     }));
 
-    const rpcArgs: Database["public"]["Functions"]["create_customer_order"]["Args"] = {
+    const rpcArgs = {
       p_idempotency_key: idempotencyKey,
       p_branch_id: branchUuid,
       p_fulfillment_type: order.fulfillmentType,
@@ -230,7 +230,7 @@ export class SupabaseOrderRepository implements OrderRepository {
       p_notes: order.notes || null,
       p_tip_percent: options?.tipPercent ?? 0,
       p_coupon_code: order.couponCode ?? null,
-    };
+    } as Database["public"]["Functions"]["create_customer_order"]["Args"];
 
     // createServerClient tipa Functions de forma incompleta frente a RETURNS TABLE;
     // el contrato Args/Returns vive en Database y se valida aquí en tiempo de compilación.

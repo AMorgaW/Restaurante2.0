@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -7,6 +7,31 @@
   | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       allergens: {
@@ -156,11 +181,13 @@ export type Database = {
           delivery_area_note: string | null
           delivery_enabled: boolean
           delivery_fee: number
+          delivery_minimum: number
           email: string | null
           id: string
           latitude: number | null
           longitude: number | null
           name: string
+          pension_delivery_fee: number | null
           phone: string | null
           pickup_enabled: boolean
           restaurant_id: string
@@ -175,11 +202,13 @@ export type Database = {
           delivery_area_note?: string | null
           delivery_enabled?: boolean
           delivery_fee?: number
+          delivery_minimum?: number
           email?: string | null
           id?: string
           latitude?: number | null
           longitude?: number | null
           name: string
+          pension_delivery_fee?: number | null
           phone?: string | null
           pickup_enabled?: boolean
           restaurant_id: string
@@ -194,11 +223,13 @@ export type Database = {
           delivery_area_note?: string | null
           delivery_enabled?: boolean
           delivery_fee?: number
+          delivery_minimum?: number
           email?: string | null
           id?: string
           latitude?: number | null
           longitude?: number | null
           name?: string
+          pension_delivery_fee?: number | null
           phone?: string | null
           pickup_enabled?: boolean
           restaurant_id?: string
@@ -991,11 +1022,15 @@ export type Database = {
           discount: number
           fulfillment_type: string
           id: string
+          idempotency_key: string | null
+          idempotency_scope: string | null
           notes: string | null
+          order_kind: string
           order_number: string
           payment_method: string
           payment_reference: string | null
           payment_status: string
+          request_fingerprint: string | null
           scheduled_at: string | null
           service_fee: number
           status: string
@@ -1018,11 +1053,15 @@ export type Database = {
           discount?: number
           fulfillment_type: string
           id: string
+          idempotency_key?: string | null
+          idempotency_scope?: string | null
           notes?: string | null
+          order_kind?: string
           order_number: string
           payment_method?: string
           payment_reference?: string | null
           payment_status?: string
+          request_fingerprint?: string | null
           scheduled_at?: string | null
           service_fee?: number
           status?: string
@@ -1045,11 +1084,15 @@ export type Database = {
           discount?: number
           fulfillment_type?: string
           id?: string
+          idempotency_key?: string | null
+          idempotency_scope?: string | null
           notes?: string | null
+          order_kind?: string
           order_number?: string
           payment_method?: string
           payment_reference?: string | null
           payment_status?: string
+          request_fingerprint?: string | null
           scheduled_at?: string | null
           service_fee?: number
           status?: string
@@ -1112,6 +1155,7 @@ export type Database = {
           consumption_id: string
           created_at: string
           included_credit_snapshot: number
+          order_item_id: string
           pension_menu_item_id: string
           product_price_snapshot: number
           surcharge_snapshot: number
@@ -1120,6 +1164,7 @@ export type Database = {
           consumption_id: string
           created_at?: string
           included_credit_snapshot: number
+          order_item_id: string
           pension_menu_item_id: string
           product_price_snapshot: number
           surcharge_snapshot: number
@@ -1128,6 +1173,7 @@ export type Database = {
           consumption_id?: string
           created_at?: string
           included_credit_snapshot?: number
+          order_item_id?: string
           pension_menu_item_id?: string
           product_price_snapshot?: number
           surcharge_snapshot?: number
@@ -1138,6 +1184,13 @@ export type Database = {
             columns: ["consumption_id"]
             isOneToOne: false
             referencedRelation: "pension_consumptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pension_consumption_selections_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
             referencedColumns: ["id"]
           },
           {
@@ -1157,7 +1210,7 @@ export type Database = {
           meals_used: number
           membership_id: string
           menu_id: string
-          order_id: string | null
+          order_id: string
           reversal_reason: string | null
           reversed_at: string | null
           reversed_by: string | null
@@ -1171,7 +1224,7 @@ export type Database = {
           meals_used?: number
           membership_id: string
           menu_id: string
-          order_id?: string | null
+          order_id: string
           reversal_reason?: string | null
           reversed_at?: string | null
           reversed_by?: string | null
@@ -1185,7 +1238,7 @@ export type Database = {
           meals_used?: number
           membership_id?: string
           menu_id?: string
-          order_id?: string | null
+          order_id?: string
           reversal_reason?: string | null
           reversed_at?: string | null
           reversed_by?: string | null
@@ -1843,6 +1896,7 @@ export type Database = {
       }
       restaurants: {
         Row: {
+          checkout_tax_rate: number
           created_at: string
           currency: string
           default_language: string
@@ -1850,13 +1904,17 @@ export type Database = {
           email: string | null
           id: string
           logo_url: string | null
+          max_line_quantity: number
           name: string
+          order_number_prefix: string
           phone: string | null
+          service_fee_rate: number
           slug: string
           status: string
           timezone: string
         }
         Insert: {
+          checkout_tax_rate?: number
           created_at?: string
           currency?: string
           default_language?: string
@@ -1864,13 +1922,17 @@ export type Database = {
           email?: string | null
           id?: string
           logo_url?: string | null
+          max_line_quantity?: number
           name: string
+          order_number_prefix?: string
           phone?: string | null
+          service_fee_rate?: number
           slug: string
           status?: string
           timezone?: string
         }
         Update: {
+          checkout_tax_rate?: number
           created_at?: string
           currency?: string
           default_language?: string
@@ -1878,8 +1940,11 @@ export type Database = {
           email?: string | null
           id?: string
           logo_url?: string | null
+          max_line_quantity?: number
           name?: string
+          order_number_prefix?: string
           phone?: string | null
+          service_fee_rate?: number
           slug?: string
           status?: string
           timezone?: string
@@ -2119,6 +2184,14 @@ export type Database = {
         }
         Returns: string
       }
+      close_pension_menu: {
+        Args: {
+          expected_status: string
+          target_idempotency_key: string
+          target_menu: string
+        }
+        Returns: string
+      }
       consume_pension_benefit: {
         Args: {
           target_idempotency_key: string
@@ -2129,19 +2202,36 @@ export type Database = {
         }
         Returns: string
       }
+      create_and_activate_pension_membership: {
+        Args: {
+          target_agreed_price: number
+          target_allow_surcharge: boolean
+          target_branch: string
+          target_customer: string
+          target_idempotency_key: string
+          target_meal_limit: number
+          target_payment_date: string
+          target_payment_method: string
+          target_payment_reference: string
+          target_plan: string
+          target_reason: string
+          target_starts_at: string
+        }
+        Returns: string
+      }
       create_customer_order: {
         Args: {
-          p_address: Json | null
+          p_address?: Json
           p_branch_id: string
-          p_coupon_code: string | null
+          p_coupon_code?: string
           p_customer_email: string
           p_customer_name: string
           p_customer_phone: string
           p_fulfillment_type: string
           p_idempotency_key: string
           p_items: Json
-          p_notes: string | null
-          p_tip_percent: number
+          p_notes?: string
+          p_tip_percent?: number
         }
         Returns: {
           created_at: string
@@ -2150,7 +2240,30 @@ export type Database = {
           replay: boolean
           status: string
           total: number
+        }[]
+      }
+      create_pension_order: {
+        Args: {
+          p_address?: Json
+          p_customer_email: string
+          p_customer_name: string
+          p_customer_phone: string
+          p_fulfillment_type: string
+          p_idempotency_key: string
+          p_menu_id: string
+          p_notes?: string
+          p_pension_menu_item_ids: string[]
+          p_tip_percent?: number
         }
+        Returns: {
+          consumption_id: string
+          created_at: string
+          order_id: string
+          order_number: string
+          replay: boolean
+          status: string
+          total: number
+        }[]
       }
       manage_staff_profile: {
         Args: {
@@ -2169,6 +2282,14 @@ export type Database = {
           target_event_type: string
           target_order: string
           target_payload_digest: string
+        }
+        Returns: string
+      }
+      publish_pension_menu: {
+        Args: {
+          expected_status: string
+          target_idempotency_key: string
+          target_menu: string
         }
         Returns: string
       }
@@ -2212,6 +2333,47 @@ export type Database = {
           original_movement: string
           reversal_reason: string
           target_idempotency_key: string
+        }
+        Returns: string
+      }
+      reverse_pension_order_consumption: {
+        Args: {
+          target_idempotency_key: string
+          target_order: string
+          target_reason: string
+        }
+        Returns: string
+      }
+      save_pension_menu_draft: {
+        Args: {
+          target_branch: string
+          target_idempotency_key: string
+          target_note: string
+          target_period: string
+          target_service_date: string
+        }
+        Returns: string
+      }
+      set_pension_delivery_fee: {
+        Args: {
+          target_branch: string
+          target_fee: number
+          target_idempotency_key: string
+        }
+        Returns: number
+      }
+      upsert_pension_menu_item: {
+        Args: {
+          target_category: string
+          target_category_label: string
+          target_display_order: number
+          target_is_available: boolean
+          target_is_included: boolean
+          target_is_required: boolean
+          target_max_selections: number
+          target_menu: string
+          target_menu_item_id: string
+          target_surcharge_amount: number
         }
         Returns: string
       }
@@ -2343,6 +2505,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

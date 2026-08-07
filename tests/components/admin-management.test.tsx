@@ -29,15 +29,21 @@ describe("gestión administrativa local", () => {
     await waitFor(() => expect(useStaffStore.getState().members.some((member) => member.role === "cashier" && member.id === "demo-manager")).toBe(true));
   });
 
-  it("mantiene las acciones sensibles fuera de la consulta administrativa", () => {
-    useAdminStore.setState({ demoRole: "admin" });
+  it("mantiene las acciones sensibles fuera de la consulta operativa (manager)", () => {
+    useAdminStore.setState({ demoRole: "manager" });
     renderAdmin(<PensionAdminScreen />);
     expect(screen.getByRole("heading", { name: "Pensionados" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Activar pensionado" })).not.toBeInTheDocument();
     expect(screen.getByText(/Consulta operativa/)).toBeVisible();
   });
 
-  it("presenta el flujo de pago y activación solo al jefe", () => {
+  it("permite activación a admin (misma capacidad que owner en contrato DB)", () => {
+    useAdminStore.setState({ demoRole: "admin" });
+    renderAdmin(<PensionAdminScreen />);
+    expect(screen.getByRole("button", { name: "Activar pensionado" })).toBeVisible();
+  });
+
+  it("presenta el flujo de pago y activación al owner", () => {
     renderAdmin(<PensionAdminScreen />);
     fireEvent.click(screen.getByRole("button", { name: "Registrar pago" }));
     expect(screen.getByRole("heading", { name: "Registrar pago presencial" })).toBeVisible();

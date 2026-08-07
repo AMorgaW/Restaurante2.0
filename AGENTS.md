@@ -84,7 +84,8 @@ La secuencia canónica desplegada en remoto es `0001`–`0009`. Localmente exist
 `authenticated`, sin SELECT de tabla ni cambio de RLS; desbloquea el resolvedor de sesión)
 y `0012_pension_orders_and_management.sql` (pedidos pensionados atómicos, activación
 presencial owner/admin, menús, fee domicilio pensionado, coupling order↔consumption;
-UI `/pensionado` y `/admin/pensionados` aún no conectadas).
+UI `/pensionado` y `/admin/pensionados` conectadas en `DATA_MODE=supabase`; local demo
+intacta).
 Ninguna de `0010`–`0012` está desplegada en remoto (sin db push). La RPC 0010 resuelve
 replay/conflicto de idempotencia antes del catálogo (serialización por
 `pg_advisory_xact_lock` + UNIQUE) e incrementa `coupons.redeemed_count` atómicamente solo

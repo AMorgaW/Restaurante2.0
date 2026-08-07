@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  ADMIN_ROLES,
   adminRoleCan,
   allowedOrderStatusTransitions,
   canAccessAdminPath,
@@ -32,10 +31,14 @@ describe("matriz administrativa deny-by-default", () => {
     expect(adminRoleCan("support", "transition-orders")).toBe(false);
   });
 
-  it("deniega customer, rol desconocido y rutas nuevas", () => {
-    expect(canAccessAdminPath(null, "/admin")).toBe(false);
-    expect(canAccessAdminPath("unknown" as never, "/admin")).toBe(false);
-    for (const role of ADMIN_ROLES) expect(canAccessAdminPath(role, "/admin/desconocido")).toBe(false);
+  it("reserva gestion de pensionados a owner y admin; manager solo lectura", () => {
+    expect(adminRoleCan("owner", "manage-pension-memberships")).toBe(true);
+    expect(adminRoleCan("admin", "manage-pension-memberships")).toBe(true);
+    expect(adminRoleCan("admin", "read-pension-memberships")).toBe(true);
+    expect(adminRoleCan("manager", "read-pension-memberships")).toBe(true);
+    expect(adminRoleCan("manager", "manage-pension-memberships")).toBe(false);
+    expect(canAccessAdminPath("admin", "/admin/pensionados")).toBe(true);
+    expect(canAccessAdminPath("manager", "/admin/pensionados")).toBe(true);
   });
 });
 

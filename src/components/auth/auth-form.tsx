@@ -24,7 +24,7 @@ const copy: Record<AuthFormMode, { title: string; submit: string; alternate: str
 export function AuthForm({
   mode,
   enabled,
-  nextPath = "/cuenta",
+  nextPath,
   tokenHash,
   unavailableMessage,
 }: {
@@ -77,13 +77,14 @@ export function AuthForm({
     setBusy(true);
     try {
       const supabase = getSupabaseBrowserClient();
+      const requestedNext = nextPath ? safeNextPath(nextPath, "") : "";
       if (mode === "login") {
         const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
         if (authError) throw authError;
         const resolution = await fetch("/auth/resolve", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ next: safeNextPath(nextPath) }),
+          body: JSON.stringify({ next: requestedNext || undefined }),
         });
         const resolved = await resolution.json() as { destination?: string };
         if (!resolution.ok || !resolved.destination) throw new Error("session-resolution-failed");
@@ -96,7 +97,7 @@ export function AuthForm({
           options: {
             // Solo metadata no privilegiada; el rol lo fija PostgreSQL (siempre customer).
             data: buildPublicSignupMetadata({ name }),
-            emailRedirectTo: `${siteUrl}/auth/callback?next=${encodeURIComponent(safeNextPath(nextPath))}`,
+            emailRedirectTo: `${siteUrl}/auth/callback${requestedNext ? `?next=${encodeURIComponent(requestedNext)}` : ""}`,
           },
         });
         if (authError) throw authError;
@@ -104,7 +105,7 @@ export function AuthForm({
           const resolution = await fetch("/auth/resolve", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ next: safeNextPath(nextPath) }),
+            body: JSON.stringify({ next: requestedNext || undefined }),
           });
           const resolved = await resolution.json() as { destination?: string };
           if (!resolution.ok || !resolved.destination) throw new Error("session-resolution-failed");

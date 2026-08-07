@@ -35,7 +35,7 @@ export type AdminCapability =
 
 export const ROLE_CAPABILITIES: Record<AdminRole, ReadonlySet<AdminCapability>> = {
   owner: new Set(["view-dashboard", "edit-catalog", "read-catalog", "edit-prices", "manage-inventory", "read-inventory", "read-orders", "transition-orders", "read-history", "read-incidents", "view-branches", "view-marketing", "edit-settings", "manage-users", "read-employees", "manage-employees", "read-pension-memberships", "manage-pension-memberships", "read-pension-consumption"]),
-  admin: new Set(["view-dashboard", "edit-catalog", "read-catalog", "edit-prices", "manage-inventory", "read-inventory", "read-orders", "transition-orders", "read-history", "read-incidents", "view-branches", "view-marketing", "edit-settings", "manage-users", "read-employees", "read-pension-memberships", "read-pension-consumption"]),
+  admin: new Set(["view-dashboard", "edit-catalog", "read-catalog", "edit-prices", "manage-inventory", "read-inventory", "read-orders", "transition-orders", "read-history", "read-incidents", "view-branches", "view-marketing", "edit-settings", "manage-users", "read-employees", "read-pension-memberships", "manage-pension-memberships", "read-pension-consumption"]),
   manager: new Set(["view-dashboard", "edit-catalog", "read-catalog", "edit-prices", "read-inventory", "read-orders", "transition-orders", "read-history", "read-incidents", "view-branches", "view-marketing", "read-employees", "read-pension-memberships", "read-pension-consumption"]),
   kitchen: new Set(["view-dashboard", "read-catalog", "read-inventory", "read-orders", "transition-orders", "read-history"]),
   cashier: new Set(["view-dashboard", "read-inventory", "read-orders", "transition-orders", "read-history", "read-incidents"]),

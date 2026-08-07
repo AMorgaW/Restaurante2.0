@@ -1,6 +1,10 @@
 # Reglas de negocio: clientes pensionados
 
-Estado: contrato PostgreSQL 0012 listo; UI `/pensionado` y `/admin/pensionados` aún demo/local (no conectadas a Supabase).
+Estado: contrato PostgreSQL 0012 + WEB conectada (11B-5). `DATA_MODE=supabase` usa
+PostgreSQL vía RPC/RLS; `DATA_MODE=local` conserva demo Zustand.
+
+Brisas del Sinú es un **sistema web responsive** (URL en navegador). No es aplicación
+móvil descargable, ni requisito de Play Store / App Store / PWA instalable.
 
 ## Identidad
 

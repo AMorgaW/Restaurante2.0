@@ -439,3 +439,16 @@ de catálogo a manager/editor, pero el shell `/admin` no se abre a esos cargos. 
 operan catálogo desde `/empleado/catalogo` reutilizando las mismas Server Actions. Soft-disable
 vía `menu_items.available` (global) y `branch_menu_items.available` (sucursal); sin DELETE
 físico en UI; grupos de modificadores sin soft-delete de esquema.
+
+## 2026-08-07 (Etapa 11B-5 WEB — pensionados conectados)
+
+97. **Producto = sistema web responsive** — Brisas del Sinú se usa por URL en navegador
+(teléfono/tablet/escritorio). No es app nativa descargable ni requisito de Play Store /
+App Store / PWA instalable. La infraestructura web/PWA existente no se amplía en 11B-5.
+
+98. **Pension web usa DATA_MODE estricto** — `supabase` → `src/server/pension` + RPC 0012
+sin fallback a fixtures; `local` → Zustand demo. Owner/admin activos gestionan
+(`manage-pension-memberships`); manager y demás no. Customer pide solo vía
+`create_pension_order`; `/menu` sigue `create_customer_order` sin consumir pensión.
+Surcharge, delivery fee y totales son autoridad PostgreSQL; payment permanece `pending`.
+Notificaciones web de nuevo pedido quedan diferidas.

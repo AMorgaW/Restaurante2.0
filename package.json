@@ -2,7 +2,7 @@
   "name": "restaurante-2-0",
   "version": "0.1.0",
   "private": true,
-  "description": "Aplicación web mobile-first para restaurante con menú generado desde imágenes locales, carrito, pedidos locales y modo demo sin credenciales.",
+  "description": "Sistema web responsive para restaurante (Next.js): menú desde imágenes locales, carrito, pedidos locales/domicilios, pensionados y panel admin; modo demo sin credenciales y adaptadores Supabase.",
   "engines": {
     "node": ">=18.18.0"
   },

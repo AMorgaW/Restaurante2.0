@@ -597,3 +597,19 @@ Corrección post-11B-1B: shell `/admin` exclusivo owner/admin; catálogo manager
 | typecheck / lint / build | correctos |
 | E2E catálogo empleado (3) Chromium+WebKit | **6/6** |
 | Sin SQL/RLS/migraciones/remoto/push | **confirmado** |
+
+## Etapa 11B-5 WEB — pensionados conectados a Supabase (2026-08-07)
+
+Checkpoint SQL previo `e15842f`. WEB conectada sin cambiar migraciones.
+
+| Verificación | Resultado real |
+|---|---|
+| Vitest completo | **58 archivos / 485 pruebas / 0 failed** |
+| Integración pension | **12/12** |
+| typecheck / lint / build | correctos (lint: 0 errors; warnings preexistentes dashboard) |
+| E2E pension Chromium | **7/7** |
+| E2E pension WebKit | **7/7** |
+| Migraciones | local **0001–0012**; remoto **0001–0009**; `0013_*.test.sql` = pgTAP |
+| Producto | sistema **web responsive** (no app móvil / stores / PWA requisito) |
+| Notifications / Stripe / db push / git push / Compuerta B | **no** |
+| Graphify | **2.300 nodos, 6.112 aristas, 165 comunidades** |

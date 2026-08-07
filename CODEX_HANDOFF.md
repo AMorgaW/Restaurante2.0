@@ -15,30 +15,24 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
 ## Estado del checkpoint
 
 - Proyecto: Restaurante2.0 / Brisas del Sinú.
+- **Producto:** sistema **web responsive** (URL en navegador). No es aplicación móvil
+  descargable, ni requisito de Play Store / App Store / PWA instalable.
 - Rama: `master`.
-- Checkpoint **11B-5 SQL**: `0012_pension_orders_and_management.sql` local.
-  Pedido pensionado atómico (`create_pension_order`) separado de
-  `create_customer_order` (standard). Coupling bidireccional order↔consumption;
-  calendar_period 30 días (`ends_at = starts_at + 29`); 1 lunch + 1 dinner/día;
-  surcharge y `pension_delivery_fee` autoritativos en DB; activación presencial
-  owner/admin sin request previo; menús draft→published→closed; legacy
-  `consume_pension_benefit` revocado para clientes; cancelación coordina reverse.
-  UI `/pensionado` y `/admin/pensionados` **aún no conectadas**. Notificaciones
-  de nuevo pedido: requisito registrado, no implementado.
+- Checkpoint **11B-5 WEB**: UI `/pensionado` y `/admin/pensionados` conectadas a
+  PostgreSQL en `DATA_MODE=supabase` (RPC 0012: `create_pension_order`,
+  `create_and_activate_pension_membership`, menús, `pension_delivery_fee`).
+  Local demo Zustand se conserva con `DATA_MODE=local`. Owner/admin activos gestionan;
+  surcharge/delivery/totales autoritativos en DB; payment `pending`; sin Stripe.
+  Notificaciones web de nuevo pedido: requisito registrado, **no implementado**.
+- Checkpoint **11B-5 SQL**: `0012_pension_orders_and_management.sql` local (cerrada).
+  Pedido pensionado atómico; coupling order↔consumption; calendar_period 30 días
+  (`ends_at = starts_at + 29`); 1 lunch + 1 dinner/día.
 - Checkpoint previo **11B-4**: delivery + inventario real en `DATA_MODE=supabase`.
-  `ready → delivered` vía Server Action → UPDATE status → trigger
-  `private.enforce_order_status_transition` → `private.consume_order_inventory`
-  (misma TX). Sin motor de inventario en Node/React; sin llamada manual a consume.
-- UI inventario (`/admin/inventario`, dashboard, quick inventory empleado): lectura
-  PostgreSQL; recepción/ajuste/merma vía RPC `apply_inventory_movement` (owner/admin).
-  Alta/edición/borrado de insumos y UI de reversión: no conectados (sin primitiva/UX).
 - Secuencia SQL: local `0001`–`0012`; remoto `0001`–`0009` (sin db push;
-  0010/0011/0012 no desplegadas). Tests: `0012_delivery_inventory.test.sql` (11B-4)
-  y `0013_pension_orders.test.sql` (11B-5).
-- `payment_status` read-only en delivery. Modifiers no afectan consumo (solo
-  `menu_item_id × quantity / portion_yield`).
+  0010/0011/0012 no desplegadas). Tests SQL: `0012_delivery_inventory.test.sql` y
+  `0013_pension_orders.test.sql` (suite pgTAP, **no** migration).
 - Compuerta B no iniciada.
-- `graphify-out/` regenerado en 11B-5 SQL: **2.084 nodos, 5.476 aristas, 150 comunidades**. Ignorado por Git.
+- `graphify-out/` regenerado en 11B-5 WEB: **2.300 nodos, 6.112 aristas, 165 comunidades**. Ignorado por Git.
 
 ## Pedidos — primitiva PostgreSQL (11B-2A)
 
@@ -174,7 +168,8 @@ siguen 503. Bootstrap remoto **no ejecutado**; Compuerta B **no ejecutada**. Ver
 - Sesión/Auth: `middleware.ts`, `src/lib/session/`, `src/lib/auth/`, `src/lib/supabase/`, `src/app/auth/`.
 - Autorización administrativa: `src/lib/admin/`, `src/app/admin/layout.tsx`.
 - Empleados: `src/lib/employee/`, `src/lib/staff/`, `src/stores/staff.ts`, `src/app/empleado/`, `src/app/admin/empleados/`.
-- Pensionados: `src/lib/pension/`, `src/lib/pension-admin/`, stores asociados, `src/app/pensionado/`, `src/app/admin/pensionados/`.
+- Pensionados: `src/server/pension/` (repo/service/actions), `src/lib/pension/`,
+  `src/lib/pension-admin/`, stores demo, `src/app/pensionado/`, `src/app/admin/pensionados/`.
 - Inventario: `src/lib/inventory/`, `src/stores/inventory.ts`, `src/app/admin/inventario/`.
 - Pedidos/pagos: `src/stores/orders.ts`, `src/server/repositories/`, `src/server/catalog/`, `src/lib/payments/`, webhooks API.
 - Catálogo: `src/server/repositories/menu-mapper.ts`, `SupabaseMenuRepository`, `load-public-catalog.ts`.
@@ -195,5 +190,6 @@ siguen 503. Bootstrap remoto **no ejecutado**; Compuerta B **no ejecutada**. Ver
 
 ## Siguiente etapa recomendada
 
-**11B-2** — persistencia de pedidos reutilizando la validación autoritativa.
-Compuerta B (Dashboard + bootstrap owner) sigue bloqueada hasta autorización expresa.
+**Notificaciones web** (nuevo pedido → empleado operativo + aviso paralelo al dueño
+de supervisión) y/o pagos reales quedan fuera de 11B-5. Compuerta B sigue bloqueada
+hasta autorización expresa. No iniciar 11B-6 sin prompt.
