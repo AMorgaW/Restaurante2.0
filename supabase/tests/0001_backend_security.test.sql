@@ -28,8 +28,9 @@ select ok(not exists (
 ), 'PUBLIC cannot execute SECURITY DEFINER functions');
 select ok(not exists (
   select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-  where n.nspname = 'public' and p.prosecdef and p.proname <> 'process_stripe_payment_event'
-), 'no client-facing SECURITY DEFINER remains in public');
+  where n.nspname = 'public' and p.prosecdef
+    and p.proname not in ('process_stripe_payment_event', 'create_customer_order')
+), 'no unexpected client-facing SECURITY DEFINER remains in public');
 
 insert into public.restaurants (id, name, slug)
 values ('10000000-0000-0000-0000-000000000001', 'Test restaurant', 'test-restaurant');

@@ -16,11 +16,25 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
 
 - Proyecto: Restaurante2.0 / Brisas del Sinú.
 - Rama: `master`.
-- Checkpoint previo Etapa 11B-1A: `5b40d8c` (`feat: conecta catalogo supabase y precios autoritativos`).
-- Etapa **11B-1B** (administración real del catálogo): commit local
-  `feat: conecta administracion de catalogo a supabase`.
-- Secuencia SQL canónica: `0001`–`0009` (sin 0010; sin ediciones a migraciones).
-- `graphify-out/` regenerado en 11B-1B: **1.926 nodos, 5.000 aristas, 149 comunidades**. Ignorado por Git.
+- Checkpoint previo Etapa 11B-1B: `1944cce` (`fix: respeta rutas de staff y disponibilidad de catalogo`).
+- Etapa **11B-2A** (primitiva DB de pedidos): migración local `0010_create_customer_order.sql`
+  + RPC `public.create_customer_order`. App aún **no** conectada (sigue `persistence-pending`).
+- Secuencia SQL: local `0001`–`0010`; remoto de producción `0001`–`0009` (divergencia esperada; sin db push).
+- `graphify-out/` regenerado en 11B-2A: **1.938 nodos, 5.091 aristas, 143 comunidades**. Ignorado por Git.
+
+## Pedidos — primitiva PostgreSQL (11B-2A)
+
+- RPC única transaccional: `orders` + `order_items` (modifiers en `modifiers_snapshot`).
+- SECURITY DEFINER, `search_path=''`, sin SQL dinámico, sin `service_role` EXECUTE.
+- EXECUTE solo `anon` + `authenticated`. Sin INSERT directo en tablas/secuencia.
+- Idempotencia: `idempotency_key` + `idempotency_scope` (`auth:<uid>`|`anon`) + fingerprint SHA-256;
+  UNIQUE parcial; replay mismo fingerprint; conflicto si cambia la intención.
+- Precios/disponibilidad/modificadores/totales reconstruidos en DB (TOCTOU cerrado).
+- Status/payment iniciales: `pending` / `pending` / `demo`. No consume inventario.
+- Guest: `user_id` NULL, scope `anon`. Authenticated: `user_id = auth.uid()`.
+- Config comercial DB: `restaurants.checkout_tax_rate|service_fee_rate|max_line_quantity|order_number_prefix`,
+  `branches.delivery_minimum` (valores alineados con `restaurantConfig`).
+- Siguiente: **11B-2B** cablea la app a la RPC; no declarar 11B-2 completa.
 
 ## Catálogo autoritativo (11B-1A)
 
@@ -33,7 +47,7 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
 - Imágenes: `image_path` remoto o placeholder `/icon.svg`; no se sustituye identidad por otro plato local.
 - Checkout: `placeOrder` usa el mismo repositorio; payload de precio del cliente no es autoridad.
 - Pedidos Supabase: tras validar → `SupabaseApplicationWriteDisabledError` → API **503**
-  `persistence-pending` (11B-2). No hay ID falso ni guardado remoto.
+  `persistence-pending` (11B-2B pendiente; RPC 0010 ya existe solo en DB local).
 - Compuerta B: **no iniciada**.
 
 ## Administración de catálogo (11B-1B)

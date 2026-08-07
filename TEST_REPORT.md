@@ -476,6 +476,23 @@ Sin migraciones, sin service_role en app, sin persistencia de pedidos, sin Compu
 | Graphify | **1.926 nodos, 5.000 aristas, 149 comunidades** |
 | Pedidos / inventario / pensionados / Compuerta B | **sin cambios de alcance** |
 
+## Etapa 11B-2A — RPC transaccional de pedidos (2026-08-07)
+
+Checkpoint base: `1944cce`. Migración local **0010** únicamente. App **no** cableada
+(`persistence-pending` intacto). Sin db push / remoto / git push.
+
+| Verificación | Resultado real |
+|---|---|
+| `supabase db reset --local --no-seed` | OK (0001–0010) |
+| pgTAP `0001_backend_security` | **90/90** |
+| pgTAP `0010_create_customer_order` | **57/57** |
+| Concurrencia (`test:db:concurrency`) | **scenarios=10 assertions=16** |
+| Vitest paridad RPC + cart | **2 archivos / 14 pruebas** |
+| Migraciones | local **0001–0010**; remoto **0001–0009** (esperado) |
+| App pedidos Supabase | sigue **503 persistence-pending** |
+| Inventario en creación | **intactos** (probado) |
+| Graphify | **1.938 nodos, 5.091 aristas, 143 comunidades** |
+
 ## Verificación 11B-1B — rutas staff + disponibilidad (2026-08-07)
 
 Corrección post-11B-1B: shell `/admin` exclusivo owner/admin; catálogo manager/editor en

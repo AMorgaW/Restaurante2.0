@@ -20,7 +20,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:db": "supabase test db --local supabase/tests/0001_backend_security.test.sql",
+    "test:db": "supabase test db --local supabase/tests/0001_backend_security.test.sql && supabase test db --local supabase/tests/0010_create_customer_order.test.sql",
     "test:db:concurrency": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-supabase-concurrency.ps1",
     "test:e2e": "playwright test --project=mobile-chromium && playwright test --project=mobile-webkit && playwright test --project=desktop",
     "test:e2e:ui": "playwright test --ui",

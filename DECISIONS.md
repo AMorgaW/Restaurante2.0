@@ -1,5 +1,18 @@
 # DECISIONS — Registro de decisiones técnicas
 
+54. **RPC transaccional de pedidos 0010 (2026-08-07, etapa 11B-2A)** — Se añade
+`public.create_customer_order` (SECURITY DEFINER, `search_path=''`) para crear
+`orders` + `order_items` en una sola transacción con idempotencia por
+`(idempotency_scope, idempotency_key)` + `request_fingerprint` SHA-256 de la
+intención (no del precio). Scope `auth:<uid>` o `anon`. Totales/precios/
+modificadores se reconstruyen en PostgreSQL (cierra TOCTOU). Status/payment
+iniciales: `pending`/`pending`/`demo`. Secuencia `order_number_seq`. Config
+comercial mínima en `restaurants`/`branches` (tax, service fee, max qty, prefix,
+delivery_minimum) alineada con `restaurantConfig`. Guest checkout preservado
+(`user_id` nullable). Sin INSERT directo a clientes. Sin consumo de inventario.
+La app **sigue** respondiendo `persistence-pending` hasta 11B-2B. Migración
+local `0010` versionada; remoto permanece en `0001`–`0009` (sin db push).
+
 53. **Raíz independiente e hidratación real del onboarding (2026-07-14)** — `/` se trasladó a
 `src/app/page.tsx`, fuera de `(shell)`. `OnboardingGate` espera `hasHydrated` desde
 `persist.onRehydrateStorage` y siempre pinta navy `min-h-dvh` al hidratar/redirigir. Se retiró
@@ -32,7 +45,7 @@ Formato: fecha · decisión · motivo.
 
 7. **Precios demo deterministas** por hash FNV-1a del slug dentro de rangos por categoría (COP, múltiplos de 500) — misma entrada → mismo precio, sin aleatoriedad entre builds. Documentados como contenido a validar.
 
-8. **Pedidos demo: validación en servidor, persistencia según DATA_MODE** — El API valida con Zod y **recalcula todos los importes en servidor**. En `DATA_MODE=local` el pedido validado se devuelve y el cliente lo persiste (localStorage). En `DATA_MODE=supabase` la validación usa el catálogo remoto, pero la **persistencia remota aún no está habilitada** (respuesta 503 `persistence-pending`; etapa 11B-2). La clave de idempotencia es el id del pedido cuando exista guardado.
+8. **Pedidos demo: validación en servidor, persistencia según DATA_MODE** — El API valida con Zod y **recalcula todos los importes en servidor**. En `DATA_MODE=local` el pedido validado se devuelve y el cliente lo persiste (localStorage). En `DATA_MODE=supabase` la validación usa el catálogo remoto, pero la **persistencia remota desde la app aún no está habilitada** (respuesta 503 `persistence-pending`; 11B-2B conectará `SupabaseOrderRepository` a `public.create_customer_order` de la migración local `0010`). La clave de idempotencia del cliente sigue siendo UUID de intento; en DB es distinta de `orders.id`.
 
 9. **Fail-closed de DATA_MODE (sin degradación silenciosa a local)** — `DATA_MODE=supabase` sin credenciales válidas falla cerrado; **no** hay caída automática a fixtures locales para el catálogo. Pagos (Stripe/Mercado Pago → demo) y correo (resend → noop) conservan degradación controlada documentada aparte.
 

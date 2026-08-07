@@ -98,4 +98,135 @@ do $$ begin
 end $$;
 '@
 Invoke-DatabaseSql $assertions
-Write-Output 'CONCURRENCY_TESTS_PASS scenarios=6 assertions=10'
+
+# --- 11B-2A: create_customer_order concurrency ---
+$orderSetup = @'
+insert into public.branch_menu_items (branch_id, menu_item_id, price, available) values
+('82000000-0000-0000-0000-000000000001', 'race-product-1', 10000, true),
+('82000000-0000-0000-0000-000000000001', 'race-product-2', 10000, true)
+on conflict do nothing;
+update public.restaurants set checkout_tax_rate = 0.0800, service_fee_rate = 0, max_line_quantity = 20, order_number_prefix = 'CB'
+where id = '81000000-0000-0000-0000-000000000001';
+'@
+Invoke-DatabaseSql $orderSetup
+
+$orderPayload = @"
+select * from public.create_customer_order(
+  '91000000-0000-0000-0000-000000000001'::uuid,
+  '82000000-0000-0000-0000-000000000001'::uuid,
+  'pickup',
+  'Race Customer',
+  '3001234567',
+  'race-order@test.local',
+  '[{"menu_item_id":"race-product-1","quantity":1,"notes":"","modifier_option_ids":[]}]'::jsonb,
+  null, null, 0, null
+);
+"@
+
+$orderPayloadB = @"
+select * from public.create_customer_order(
+  '91000000-0000-0000-0000-000000000002'::uuid,
+  '82000000-0000-0000-0000-000000000001'::uuid,
+  'pickup',
+  'Race Customer',
+  '3001234567',
+  'race-order@test.local',
+  '[{"menu_item_id":"race-product-1","quantity":1,"notes":"","modifier_option_ids":[]}]'::jsonb,
+  null, null, 0, null
+);
+"@
+
+$customer1 = "select set_config('request.jwt.claim.sub','84000000-0000-0000-0000-000000000003',false); set role authenticated;"
+
+# A: same key + same intention concurrent → exactly one order (both succeed via create/replay)
+Invoke-SqlPair "$customer1 begin; $orderPayload select pg_sleep(0.5); commit;" "$customer1 $orderPayload" 0 'order same-key same-intent'
+
+# B: same key + different intention concurrent → one creates, one conflicts
+$conflictA = @"
+select set_config('request.jwt.claim.sub','84000000-0000-0000-0000-000000000003',false);
+set role authenticated;
+begin;
+select public.create_customer_order(
+  '91000000-0000-0000-0000-0000000000cc'::uuid,
+  '82000000-0000-0000-0000-000000000001'::uuid,
+  'pickup','Race Customer','3001234567','race-order@test.local',
+  '[{"menu_item_id":"race-product-1","quantity":1,"notes":"","modifier_option_ids":[]}]'::jsonb,
+  null,null,0,null);
+select pg_sleep(0.8);
+commit;
+"@
+$conflictB = @"
+select set_config('request.jwt.claim.sub','84000000-0000-0000-0000-000000000003',false);
+set role authenticated;
+select public.create_customer_order(
+  '91000000-0000-0000-0000-0000000000cc'::uuid,
+  '82000000-0000-0000-0000-000000000001'::uuid,
+  'pickup','Race Customer','3001234567','race-order@test.local',
+  '[{"menu_item_id":"race-product-2","quantity":1,"notes":"","modifier_option_ids":[]}]'::jsonb,
+  null,null,0,null);
+"@
+Invoke-SqlPair $conflictA $conflictB 1 'order same-key different-intent'
+
+# C: different keys → 2 orders
+Invoke-SqlPair "$customer1 begin; $orderPayloadB select pg_sleep(0.3); commit;" "$customer1 select * from public.create_customer_order('91000000-0000-0000-0000-000000000003'::uuid,'82000000-0000-0000-0000-000000000001'::uuid,'pickup','Race Customer','3001234567','race-order@test.local','[{""menu_item_id"":""race-product-1"",""quantity"":1,""notes"":"""",""modifier_option_ids"":[]}]'::jsonb,null,null,0,null);" 0 'order different keys'
+
+# D: two users same key UUID → 2 orders (scopes differ)
+$sharedKeyA = @"
+select set_config('request.jwt.claim.sub','84000000-0000-0000-0000-000000000003',false);
+set role authenticated;
+select public.create_customer_order(
+  '91000000-0000-0000-0000-0000000000dd'::uuid,
+  '82000000-0000-0000-0000-000000000001'::uuid,
+  'pickup','Race Customer','3001234567','race-order@test.local',
+  '[{"menu_item_id":"race-product-1","quantity":1,"notes":"","modifier_option_ids":[]}]'::jsonb,
+  null,null,0,null);
+"@
+$sharedKeyB = @"
+select set_config('request.jwt.claim.sub','84000000-0000-0000-0000-000000000001',false);
+set role authenticated;
+select public.create_customer_order(
+  '91000000-0000-0000-0000-0000000000dd'::uuid,
+  '82000000-0000-0000-0000-000000000001'::uuid,
+  'pickup','Race Owner','3001234567','race-owner-order@test.local',
+  '[{"menu_item_id":"race-product-1","quantity":1,"notes":"","modifier_option_ids":[]}]'::jsonb,
+  null,null,0,null);
+"@
+Invoke-SqlPair $sharedKeyA $sharedKeyB 0 'order same-key different-users'
+
+$orderAssertions = @'
+do $$ begin
+  if (select count(*) from public.orders where idempotency_key = '91000000-0000-0000-0000-000000000001') <> 1 then
+    raise exception 'same-key same-intent concurrency created % orders',
+      (select count(*) from public.orders where idempotency_key = '91000000-0000-0000-0000-000000000001');
+  end if;
+  if (select count(*) from public.order_items oi
+      join public.orders o on o.id = oi.order_id
+      where o.idempotency_key = '91000000-0000-0000-0000-000000000001') <> 1 then
+    raise exception 'same-key same-intent concurrency duplicated items';
+  end if;
+  if (select count(*) from public.orders where idempotency_key = '91000000-0000-0000-0000-0000000000cc') <> 1 then
+    raise exception 'same-key different-intent created more than one order';
+  end if;
+  if (select count(*) from public.orders where idempotency_key in (
+        '91000000-0000-0000-0000-000000000002',
+        '91000000-0000-0000-0000-000000000003'
+      )) <> 2 then
+    raise exception 'different keys did not create two orders';
+  end if;
+  if (select count(*) from public.orders where idempotency_key = '91000000-0000-0000-0000-0000000000dd') <> 2 then
+    raise exception 'shared key across users did not isolate by scope';
+  end if;
+  if exists (
+    select 1 from public.inventory_movements m
+    join public.orders o on o.id = m.order_id
+    where o.idempotency_key is not null
+      and o.created_at > now() - interval '10 minutes'
+      and m.movement_type = 'consumption'
+      and o.status = 'pending'
+  ) then
+    raise exception 'order create consumed inventory';
+  end if;
+end $$;
+'@
+Invoke-DatabaseSql $orderAssertions
+Write-Output 'CONCURRENCY_TESTS_PASS scenarios=10 assertions=16'
