@@ -350,3 +350,9 @@ SELECT (`OWNER_USER_ID_HERE` + `BOOTSTRAP_AUDIT_KEY_HERE`) y revisión humana
 obligatoria (sin `UPDATE`/`COMMIT` de revert en el runbook). Runbook **no
 ejecutado**; cero usuarios Auth remotos; URL productiva pendiente; Compuerta B
 bloqueada hasta auditoría independiente final.
+
+91. **Cobertura negativa del diagnóstico de reversión** — las pruebas del runbook
+extraen la sección de reversión de forma aislada, inspeccionan **todos** los
+bloques `sql` y fallan ante operaciones de escritura/ejecución, CTE modificadores
+o un segundo bloque con mutaciones. Casos negativos sobre helpers en memoria;
+el documento del runbook permanece estable tras la aprobación independiente.

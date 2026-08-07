@@ -101,13 +101,11 @@ npm.cmd run test
 npm.cmd run build
 ```
 
-Último ciclo local (serialización bootstrap Compuerta A): AUTH_MODE sigue
-aprobado; promoción con `LOCK TABLE ... SHARE ROW EXCLUSIVE` antes del conteo
-de owners; reversión automática eliminada (solo diagnóstico SELECT + revisión
-humana). Graphify **no regenerado** (solo runbook, pruebas y docs). Vitest /
-typecheck / lint / build / E2E Auth: ver `TEST_REPORT.md`. Bootstrap remoto
-**no ejecutado**; cero usuarios Auth remotos; URL productiva pendiente.
-Compuerta B sigue bloqueada hasta auditoría independiente final.
+Último ciclo local (cobertura negativa runbook Compuerta A): implementación del
+runbook **aprobada**; pruebas endurecidas para inspeccionar todos los bloques SQL
+de reversión como read-only (sin tocar el Markdown). Vitest / typecheck / lint:
+ver `TEST_REPORT.md`. Bootstrap remoto **no ejecutado**; Compuerta B **no
+ejecutada**.
 
 ## Archivos principales por área
 

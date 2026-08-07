@@ -416,3 +416,19 @@ No se afirma que todos los advisors queden en cero.
 | `git diff --check` | limpio |
 | Migración 0010 / SQL versionado | **no creado / no modificado** |
 | Graphify | métricas previas conservadas (sin regenerar) |
+
+## Etapa 10 — cobertura negativa read-only del runbook (2026-08-06)
+
+Implementación del runbook **aprobada** (serialización + reversión manual). Se cerró el
+punto ciego de la prueba: se inspeccionan **todos** los bloques SQL de la sección de
+reversión; se prohíben escritura y ejecución (`UPDATE`/`INSERT`/`DELETE`/`MERGE`/`CALL`/
+`DO`/`EXECUTE`/`COMMIT`/`BEGIN`/DDL/DCL/`LOCK`, CTE modificadores y multi-sentencia).
+
+| Verificación | Resultado real |
+|---|---|
+| Runbook dirigido | **23/23** |
+| Conjunto dirigido (runbook+AUTH) | **80** tests / 4 archivos |
+| Vitest completo | **43 archivos / 387 pruebas** |
+| typecheck / lint | correctos |
+| Runbook Markdown | **sin cambios** |
+| Compuerta B | **no ejecutada** |
