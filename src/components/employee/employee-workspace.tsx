@@ -27,6 +27,7 @@ import { useStaffStore } from "@/stores/staff";
 import { resetStaffDemo } from "@/stores/staff";
 import { resetPensionDemo } from "@/stores/pension";
 import type { Order } from "@/types/order";
+import type { InventoryItem } from "@/lib/inventory/types";
 
 const ROLE_LABELS: Record<EmployeeRole, string> = {
   manager: "Gerente",
@@ -45,6 +46,8 @@ export function EmployeeWorkspace({
   supabaseProfile,
   operationalOrders = [],
   ordersError = null,
+  inventoryItems: supabaseInventoryItems = [],
+  inventoryError = null,
 }: {
   initialSnapshot: ServiceSnapshot;
   mode: "local" | "supabase" | "closed";
@@ -52,6 +55,8 @@ export function EmployeeWorkspace({
   supabaseProfile?: { id: string; name: string | null; email: string | null; branchIds?: string[]; branchNames?: string[] };
   operationalOrders?: Order[];
   ordersError?: string | null;
+  inventoryItems?: InventoryItem[];
+  inventoryError?: string | null;
 }) {
   const mounted = useMounted();
   const demoRole = useAdminStore((state) => state.demoRole);
@@ -59,7 +64,8 @@ export function EmployeeWorkspace({
   const selectedEmployeeId = useStaffStore((state) => state.selectedEmployeeId);
   const logout = useAdminStore((state) => state.logout);
   const storeOrders = useOrdersStore((state) => state.orders);
-  const inventoryItems = useInventoryStore((state) => state.items);
+  const storeInventoryItems = useInventoryStore((state) => state.items);
+  const inventoryItems = mode === "supabase" ? supabaseInventoryItems : storeInventoryItems;
   const service = useServicePeriod(initialSnapshot);
   const branch = branches[0]!;
   const selectedStaff = selectedEmployeeId ? staffMembers.find((member) => member.id === selectedEmployeeId) ?? null : null;
@@ -134,7 +140,13 @@ export function EmployeeWorkspace({
         <div className="mt-6 grid gap-8">
           {canAccessEmployeeSection(role, "orders") ? <EmployeeOrderQueue role={role} observedAt={service.observedAt} orders={scopedOrders} mode={mode === "supabase" ? "supabase" : "local"} loadError={ordersError} /> : null}
           {canAccessEmployeeSection(role, "menu") ? <EmployeeMenuDay role={role} period={service.period} menuItems={menu} /> : null}
-          {canAccessEmployeeSection(role, "inventory") ? <EmployeeQuickInventory items={quickInventory} /> : null}
+          {canAccessEmployeeSection(role, "inventory") ? (
+            <EmployeeQuickInventory
+              items={quickInventory}
+              mode={mode === "supabase" ? "supabase" : "local"}
+              loadError={inventoryError}
+            />
+          ) : null}
           <EmployeeShiftPanels role={role} profile={profile} shift={shift} activities={DEMO_EMPLOYEE_ACTIVITIES} incidents={DEMO_EMPLOYEE_INCIDENTS} orders={scopedOrders} observedAt={service.observedAt} showHistory={canAccessEmployeeSection(role, "history")} showIncidents={canAccessEmployeeSection(role, "incidents")} />
         </div>
       </main>

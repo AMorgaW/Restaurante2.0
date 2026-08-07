@@ -82,7 +82,7 @@ export async function listOperationalOrders(limit = 50): Promise<Order[]> {
 
 /**
  * Transición de status con concurrencia optimista.
- * `delivered` queda bloqueado en app (11B-3) porque DB consume inventario.
+ * `ready → delivered` dispara `consume_order_inventory` en PostgreSQL (misma TX).
  */
 export async function transitionOrderStatus(raw: unknown): Promise<Order> {
   const { role } = await requireStaffOrderSession("transition-orders");
@@ -96,18 +96,11 @@ export async function transitionOrderStatus(raw: unknown): Promise<Order> {
 
   const { orderId, expectedStatus, nextStatus } = parsed.data;
 
-  if (nextStatus === "delivered") {
-    throw new StaffOrderError(
-      "La entrega real quedará disponible cuando se conecte el consumo de inventario (11B-4).",
-      "delivered-blocked",
-    );
-  }
-
   if (nextStatus === expectedStatus) {
     throw new StaffOrderError("El pedido ya se encuentra en ese estado.", "invalid-transition");
   }
 
-  const allowed = allowedOrderStatusTransitions(role, expectedStatus, { blockDelivered: true });
+  const allowed = allowedOrderStatusTransitions(role, expectedStatus);
   if (!allowed.includes(nextStatus)) {
     throw new StaffOrderError("La transición de estado no está permitida para tu rol.", "invalid-transition");
   }

@@ -12,6 +12,7 @@ function revalidateOrderSurfaces() {
   revalidatePath("/empleado");
   revalidatePath("/admin/pedidos");
   revalidatePath("/admin");
+  revalidatePath("/admin/inventario");
 }
 
 export async function transitionOrderStatusAction(input: unknown): Promise<OrderStatusActionResult> {

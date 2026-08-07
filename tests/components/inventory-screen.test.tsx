@@ -1,8 +1,12 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 import { InventoryScreen } from "@/components/admin/inventory-screen";
 import { ToastProvider } from "@/components/ui/toast";
 import { resetInventoryDemo, useInventoryStore } from "@/stores/inventory";
+
+vi.mock("@/app/admin/inventory-actions", () => ({
+  applyInventoryMovementAction: vi.fn(),
+}));
 
 describe("pantalla local de inventario", () => {
   beforeEach(() => {

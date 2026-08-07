@@ -27,7 +27,7 @@ import {
   listOperationalOrders,
   transitionOrderStatus,
 } from "@/server/orders/staff-operations";
-import { StaffOrderError } from "@/server/orders/staff-errors";
+import { StaffOrderError, mapOrderStatusDbError } from "@/server/orders/staff-errors";
 import { mapOrderRowsToOrders, parseModifiersSnapshot } from "@/server/orders/order-mapper";
 
 function sampleOrder(overrides: Partial<Order> = {}): Order {
@@ -176,16 +176,21 @@ describe("staff-operations", () => {
     ).rejects.toMatchObject({ code: "forbidden" });
   });
 
-  it("bloquea delivered en supabase sin tocar DB", async () => {
+  it("permite delivered en supabase para roles autorizados", async () => {
     session.resolve.mockResolvedValue(staffSession("cashier"));
-    await expect(
-      transitionOrderStatus({
-        orderId: "11111111-1111-4111-8111-111111111111",
-        expectedStatus: "ready",
-        nextStatus: "delivered",
-      }),
-    ).rejects.toMatchObject({ code: "delivered-blocked" });
-    expect(repo.updateOrderStatus).not.toHaveBeenCalled();
+    const updated = sampleOrder({ status: "delivered" });
+    repo.updateOrderStatus.mockResolvedValue({ ok: true, order: updated });
+    const result = await transitionOrderStatus({
+      orderId: updated.id,
+      expectedStatus: "ready",
+      nextStatus: "delivered",
+    });
+    expect(result.status).toBe("delivered");
+    expect(repo.updateOrderStatus).toHaveBeenCalledWith({
+      orderId: updated.id,
+      expectedStatus: "ready",
+      nextStatus: "delivered",
+    });
   });
 
   it("persiste transición válida con expected status", async () => {
@@ -237,5 +242,19 @@ describe("staff-operations", () => {
     const arg = repo.updateOrderStatus.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(arg).not.toHaveProperty("paymentStatus");
     expect(Object.keys(arg)).toEqual(["orderId", "expectedStatus", "nextStatus"]);
+  });
+});
+
+describe("mapOrderStatusDbError inventario", () => {
+  it("mapea stock insuficiente y receta faltante sin filtrar SQL crudo", () => {
+    expect(mapOrderStatusDbError({ message: "El stock es insuficiente para entregar el pedido", code: "23514" })).toMatchObject({
+      code: "insufficient-stock",
+    });
+    expect(mapOrderStatusDbError({ message: "El pedido tiene productos sin receta activa completa", code: "23514" })).toMatchObject({
+      code: "missing-recipe",
+    });
+    expect(mapOrderStatusDbError({ message: "Transicion de pedido no permitida para el rol", code: "23514" })).toMatchObject({
+      code: "invalid-transition",
+    });
   });
 });

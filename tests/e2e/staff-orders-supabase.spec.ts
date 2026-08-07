@@ -20,6 +20,8 @@ const BRANCH_B = "41111111-1111-4111-8111-111111111103";
 const ITEM_ID = "e11b3e2e-plato";
 const GROUP_ID = "e11b3e2e-group";
 const OPTION_ID = "e11b3e2e-option";
+const INV_ID = "41111111-1111-4111-8111-111111111201";
+const RECIPE_ID = "41111111-1111-4111-8111-111111111202";
 const PASSWORD = "[REDACTED_LOCAL_PASSWORD]";
 
 const users = {
@@ -55,8 +57,16 @@ function psql(sql: string): string {
 
 function seed() {
   psql(`
+    set session_replication_role = replica;
+    delete from public.audit_log where branch_id in ('${BRANCH_A}', '${BRANCH_B}');
+    delete from public.inventory_consumption_sources where inventory_item_id = '${INV_ID}';
+    delete from public.inventory_movements where inventory_item_id = '${INV_ID}';
     delete from public.order_items where menu_item_id = '${ITEM_ID}';
     delete from public.orders where branch_id in ('${BRANCH_A}', '${BRANCH_B}');
+    set session_replication_role = DEFAULT;
+    delete from public.recipe_items where recipe_id = '${RECIPE_ID}';
+    delete from public.recipes where id = '${RECIPE_ID}';
+    delete from public.inventory_items where id = '${INV_ID}';
     delete from public.modifier_options where id = '${OPTION_ID}';
     delete from public.modifier_groups where id = '${GROUP_ID}';
     delete from public.branch_menu_items where menu_item_id = '${ITEM_ID}';
@@ -96,6 +106,17 @@ function seed() {
 
     insert into public.modifier_options (id, modifier_group_id, name, additional_price, available, display_order)
     values ('${OPTION_ID}', '${GROUP_ID}', 'Guacamole', 2000, true, 1);
+
+    insert into public.inventory_items (
+      id, branch_id, name, slug, category, base_unit, display_unit,
+      current_quantity, minimum_quantity, cost_per_base_unit
+    ) values (
+      '${INV_ID}', '${BRANCH_A}', 'Insumo E2E', 'e11b3e2e-insumo', 'test', 'g', 'g', 500, 50, 1
+    );
+    insert into public.recipes (id, product_id, branch_id, portion_yield)
+    values ('${RECIPE_ID}', '${ITEM_ID}', '${BRANCH_A}', 1);
+    insert into public.recipe_items (recipe_id, inventory_item_id, quantity_required, base_unit)
+    values ('${RECIPE_ID}', '${INV_ID}', 60, 'g');
   `);
 }
 
@@ -243,8 +264,11 @@ test.describe("Staff orders Supabase local", () => {
     await expect(page.getByRole("heading", { name: "Cola de pedidos" })).toHaveCount(0);
   });
 
-  test("cashier confirma y refresh conserva; delivered bloqueado en ready", async ({ page }) => {
+  test("cashier confirma, entrega con inventario y refresh conserva delivered", async ({ page }) => {
     const order = await createOrder(BRANCH_A);
+    const stockBefore = Number(
+      psql(`select current_quantity::text from public.inventory_items where id = '${INV_ID}'`),
+    );
     await login(page, users.cashierA.email);
     await expect(orderInQueue(page, order.orderNumber)).toBeVisible();
     await orderInQueue(page, order.orderNumber).getByRole("button", { name: "Confirmar" }).click();
@@ -271,9 +295,83 @@ test.describe("Staff orders Supabase local", () => {
 
     await page.reload();
     await expect(orderInQueue(page, order.orderNumber)).toBeVisible();
+    await expect(orderInQueue(page, order.orderNumber).getByRole("button", { name: "Entregar" })).toBeVisible();
+    await orderInQueue(page, order.orderNumber).getByRole("button", { name: "Entregar" }).click();
+    await expect(page.getByText("Pedido actualizado")).toBeVisible();
+    await page.reload();
+    await expect(orderInQueue(page, order.orderNumber)).toContainText(/Entregado|delivered/i);
+    expect(psql(`select status from public.orders where id = '${order.id}'`)).toBe("delivered");
+    expect(psql(`select payment_status from public.orders where id = '${order.id}'`)).toBe("pending");
+    const stockAfter = Number(
+      psql(`select current_quantity::text from public.inventory_items where id = '${INV_ID}'`),
+    );
+    expect(stockAfter).toBe(stockBefore - 60);
+    const movements = Number(
+      psql(
+        `select count(*)::text from public.inventory_movements where order_id = '${order.id}' and movement_type = 'consumption'`,
+      ),
+    );
+    expect(movements).toBe(1);
+
+    // Doble acción: terminal → sin segundo consumo
     await expect(orderInQueue(page, order.orderNumber).getByRole("button", { name: "Entregar" })).toHaveCount(0);
-    await expect(page.getByText(/Entrega pendiente de inventario/i)).toBeVisible();
+    expect(
+      Number(
+        psql(
+          `select count(*)::text from public.inventory_movements where order_id = '${order.id}' and movement_type = 'consumption'`,
+        ),
+      ),
+    ).toBe(1);
+  });
+
+  test("stock insuficiente muestra error y pedido sigue ready", async ({ page }) => {
+    const order = await createOrder(BRANCH_A);
+
+    const cashierClient = createClient(LOCAL_URL, LOCAL_ANON, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const cashierSession = await cashierClient.auth.signInWithPassword({
+      email: users.cashierA.email,
+      password: PASSWORD,
+    });
+    const cashierAuthed = createClient(LOCAL_URL, LOCAL_ANON, {
+      global: { headers: { Authorization: `Bearer ${cashierSession.data.session!.access_token}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    await cashierAuthed.from("orders").update({ status: "confirmed" }).eq("id", order.id).eq("status", "pending");
+
+    const kitchenClient = createClient(LOCAL_URL, LOCAL_ANON, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const kitchenSession = await kitchenClient.auth.signInWithPassword({
+      email: users.kitchenA.email,
+      password: PASSWORD,
+    });
+    const kitchenAuthed = createClient(LOCAL_URL, LOCAL_ANON, {
+      global: { headers: { Authorization: `Bearer ${kitchenSession.data.session!.access_token}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    await kitchenAuthed.from("orders").update({ status: "preparing" }).eq("id", order.id).eq("status", "confirmed");
+    await kitchenAuthed.from("orders").update({ status: "ready" }).eq("id", order.id).eq("status", "preparing");
+
+    const stockBefore = Number(
+      psql(`select current_quantity::text from public.inventory_items where id = '${INV_ID}'`),
+    );
+    psql(`update public.inventory_items set current_quantity = 1 where id = '${INV_ID}'`);
+
+    await login(page, users.cashierA.email);
+    await expect(orderInQueue(page, order.orderNumber).getByRole("button", { name: "Entregar" })).toBeVisible();
+    await orderInQueue(page, order.orderNumber).getByRole("button", { name: "Entregar" }).click();
+    await expect(page.getByText(/el inventario de la sucursal no alcanza/i)).toBeVisible();
     expect(psql(`select status from public.orders where id = '${order.id}'`)).toBe("ready");
+    expect(
+      Number(
+        psql(
+          `select count(*)::text from public.inventory_movements where order_id = '${order.id}' and movement_type = 'consumption'`,
+        ),
+      ),
+    ).toBe(0);
+    psql(`update public.inventory_items set current_quantity = ${stockBefore} where id = '${INV_ID}'`);
   });
 
   test("manager transición válida y stale conflict", async ({ page }) => {

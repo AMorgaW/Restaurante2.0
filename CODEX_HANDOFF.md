@@ -16,17 +16,19 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
 
 - Proyecto: Restaurante2.0 / Brisas del Sinú.
 - Rama: `master`.
-- Checkpoint **11B-3**: operaciones staff de pedidos sobre PostgreSQL real
-  (`listOrders` / `updateOrderStatus` + Server Actions + `/empleado` + `/admin/pedidos`).
-- Bloqueo previo de sesión: `authenticated` leía `role` pero no `staff_status` → 42501 en
-  `getServerSessionContext` → staff caía en `/cuenta`. Corregido con migración local
-  `0011` (`GRANT SELECT (staff_status)` únicamente; RLS `profiles_read` intacta).
-- Etapa **11B-2B** previa: checkout → RPC `create_customer_order`. Local sigue demo.
-- Secuencia SQL: local `0001`–`0011`; remoto de producción `0001`–`0009` (sin db push;
-  0010/0011 no desplegadas).
-- `delivered` bloqueado en capa app (11B-4 / `consume_order_inventory`). `payment_status` read-only.
+- Checkpoint **11B-4**: delivery + inventario real en `DATA_MODE=supabase`.
+  `ready → delivered` vía Server Action → UPDATE status → trigger
+  `private.enforce_order_status_transition` → `private.consume_order_inventory`
+  (misma TX). Sin motor de inventario en Node/React; sin llamada manual a consume.
+- UI inventario (`/admin/inventario`, dashboard, quick inventory empleado): lectura
+  PostgreSQL; recepción/ajuste/merma vía RPC `apply_inventory_movement` (owner/admin).
+  Alta/edición/borrado de insumos y UI de reversión: no conectados (sin primitiva/UX).
+- Secuencia SQL: local `0001`–`0011` (sin 0012); remoto `0001`–`0009` (sin db push;
+  0010/0011 no desplegadas). Tests pgTAP `0012_delivery_inventory.test.sql` (solo tests).
+- `payment_status` read-only en delivery. Modifiers no afectan consumo (solo
+  `menu_item_id × quantity / portion_yield`).
 - Compuerta B no iniciada.
-- `graphify-out/` regenerado en 11B-3: **2.018 nodos, 5.305 aristas, 147 comunidades**. Ignorado por Git.
+- `graphify-out/` regenerado en 11B-4: **2.049 nodos, 5.427 aristas, 156 comunidades**. Ignorado por Git.
 
 ## Pedidos — primitiva PostgreSQL (11B-2A)
 

@@ -16,14 +16,29 @@ import { useInventoryStore } from "@/stores/inventory";
 import { useOrdersStore } from "@/stores/orders";
 import type { MenuItem } from "@/types/menu";
 import type { OpeningStatus } from "@/types/restaurant";
+import type { InventoryItem, InventoryMovement } from "@/lib/inventory/types";
 
-/** Dashboard local: métricas e inventario provienen de selectores centrales. */
-export function DashboardScreen({ items: _items }: { items: MenuItem[] }) {
+/** Dashboard: local=Zustand demo; supabase=inventario PostgreSQL (sin fallback silencioso). */
+export function DashboardScreen({
+  items: _items,
+  mode = "local",
+  inventoryItems: supabaseItems,
+  inventoryMovements: supabaseMovements,
+  inventoryError = null,
+}: {
+  items: MenuItem[];
+  mode?: "local" | "supabase";
+  inventoryItems?: InventoryItem[];
+  inventoryMovements?: InventoryMovement[];
+  inventoryError?: string | null;
+}) {
   const orders = useOrdersStore((state) => state.orders);
   const overrides = useAdminStore((state) => state.overrides);
   const demoRole = useAdminStore((state) => state.demoRole);
-  const inventoryItems = useInventoryStore((state) => state.items);
-  const inventoryMovements = useInventoryStore((state) => state.movements);
+  const storeInventoryItems = useInventoryStore((state) => state.items);
+  const storeInventoryMovements = useInventoryStore((state) => state.movements);
+  const inventoryItems = mode === "supabase" ? (supabaseItems ?? []) : storeInventoryItems;
+  const inventoryMovements = mode === "supabase" ? (supabaseMovements ?? []) : storeInventoryMovements;
   const role = useEffectiveAdminRole(demoRole);
   const branch = branches[0]!;
   const [openingStatus, setOpeningStatus] = useState<OpeningStatus | null>(null);
@@ -35,7 +50,10 @@ export function DashboardScreen({ items: _items }: { items: MenuItem[] }) {
   }, [branch]);
 
   const metrics = useMemo(() => getAdminDashboardMetrics(orders), [orders]);
-  const inventorySummary = useMemo(() => getInventorySummary(inventoryItems, inventoryMovements), [inventoryItems, inventoryMovements]);
+  const inventorySummary = useMemo(
+    () => getInventorySummary(inventoryItems, inventoryMovements),
+    [inventoryItems, inventoryMovements],
+  );
   const currentSchedule = useMemo(() => {
     if (!openingStatus) return "Consultando horario local…";
     const local = getLocalDateParts(new Date(), branch.timezone);
@@ -80,7 +98,15 @@ export function DashboardScreen({ items: _items }: { items: MenuItem[] }) {
 
       <section aria-labelledby="metricas-admin"><h2 id="metricas-admin" className="sr-only">Métricas operativas</h2><div className="grid grid-cols-2 gap-3 md:grid-cols-4">{visibleStats.map((stat) => { const Icon = stat.icon; return <Link key={stat.label} href={stat.href} className="group flex min-h-28 flex-col justify-between rounded-card border border-border-soft bg-surface p-4 transition-colors hover:border-border-strong"><Icon aria-hidden className="size-5 text-lime" /><span className="text-2xl font-extrabold tabular-nums">{stat.value}</span><span className="text-xs font-semibold text-muted">{stat.label}</span></Link>; })}</div></section>
 
-      {canAccessInventory ? <InventoryDashboardCard items={inventoryItems} summary={inventorySummary} /> : null}
+      {canAccessInventory ? (
+        inventoryError ? (
+          <p role="alert" className="rounded-card border border-error/40 bg-error/10 p-4 text-sm text-error">
+            {inventoryError}
+          </p>
+        ) : (
+          <InventoryDashboardCard items={inventoryItems} summary={inventorySummary} />
+        )
+      ) : null}
 
       {canAccessCatalog && overridesCount > 0 ? <div className="flex items-start gap-3 rounded-card border border-warning/40 bg-warning/10 p-4"><Wrench aria-hidden className="mt-0.5 size-5 shrink-0 text-warning" /><div><p className="font-bold text-warning">{overridesCount} {overridesCount === 1 ? "plato tiene" : "platos tienen"} ajustes demo activos</p><p className="mt-0.5 text-[13px] text-muted">Precios, disponibilidad o textos modificados desde este panel.</p></div></div> : null}
 

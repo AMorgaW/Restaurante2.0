@@ -79,11 +79,10 @@ export function EmployeeOrderQueue({
   const [filter, setFilter] = useState<EmployeeOrderFilter>("all");
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const blockDelivered = mode === "supabase";
   const views = useMemo(() => {
     const orders = mode === "supabase" ? (scopedOrders ?? []) : (scopedOrders ?? storeOrders);
-    return filterEmployeeOrders(getEmployeeOrderViews(orders, role, observedAt, { blockDelivered }), filter);
-  }, [mode, scopedOrders, storeOrders, role, observedAt, filter, blockDelivered]);
+    return filterEmployeeOrders(getEmployeeOrderViews(orders, role, observedAt), filter);
+  }, [mode, scopedOrders, storeOrders, role, observedAt, filter]);
 
   function runTransition(order: Order, nextStatus: OrderStatus, label: string) {
     if (mode === "local") {
@@ -161,7 +160,6 @@ export function EmployeeOrderQueue({
             const ChannelIcon = channelIcon(channelLabel);
             const label = actionLabel(role, nextStatus);
             const canAct = actionCapability(role, order.status, nextStatus);
-            const deliveredBlocked = mode === "supabase" && order.status === "ready" && (role === "cashier" || role === "manager");
             return (
               <article key={order.id} className="rounded-card border border-border-soft bg-surface p-4 shadow-card">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -197,8 +195,6 @@ export function EmployeeOrderQueue({
                     {nextStatus === "preparing" ? <ChefHat aria-hidden className="size-5" /> : nextStatus === "delivered" ? <Check aria-hidden className="size-5" /> : <Check aria-hidden className="size-5" />}
                     {label}
                   </Button>
-                ) : deliveredBlocked ? (
-                  <p className="mt-4 flex items-center gap-2 text-xs font-semibold text-muted"><XCircle aria-hidden className="size-4" /> Entrega pendiente de inventario (11B-4)</p>
                 ) : order.status === "delivered" || order.status === "cancelled" ? (
                   <p className="mt-4 flex items-center gap-2 text-xs font-semibold text-muted"><XCircle aria-hidden className="size-4" /> Estado terminal</p>
                 ) : null}

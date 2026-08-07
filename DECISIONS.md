@@ -1,12 +1,22 @@
 # DECISIONS — Registro de decisiones técnicas
 
+59. **Delivery + inventario real (2026-08-07, etapa 11B-4)** — Contrato DB existente
+(0004/0007) basta: consumo en `BEFORE UPDATE` de `orders.status` vía
+`private.consume_order_inventory` en la misma TX. Exactly-once =
+movimientos `consumption` por pedido + `idempotency_key` UNIQUE
+`(branch,item,key)` + estado terminal (no reabre). Concurrencia: lock de fila del
+UPDATE + `FOR UPDATE` en order/items. Rollback real ante stock/receta insuficiente.
+Reversión solo `reverse_inventory_consumption` (owner/admin), no UPDATE de status.
+App habilita `delivered` para roles DB; UI inventario supabase lee DB y escribe
+solo vía `apply_inventory_movement`. Sin migración 0012; local `0001`–`0011`;
+remoto `0001`–`0009`; sin db push / git push; Compuerta B no iniciada.
+
 58. **Operaciones staff de pedidos (2026-08-07, etapa 11B-3)** — Con `DATA_MODE=supabase`,
 `/empleado` y `/admin/pedidos` leen pedidos reales vía RLS (`listOrders`) y transicionan
 `orders.status` con concurrencia optimista (`orderId` + `expectedStatus` + `nextStatus`).
 Sin fallback a Zustand. Roles de transición: owner/admin/manager/kitchen/cashier; editor/support
-leen según capacidades. `delivered` rechazado en app (`delivered-blocked`) porque DB dispara
-consumo de inventario (11B-4). `payment_status` no se escribe. Local (`DATA_MODE=local`) sigue
-demo. Sin db push / git push; Compuerta B no iniciada.
+leen según capacidades. `delivered` quedó retenido en 11B-3 y se habilita en 11B-4.
+`payment_status` no se escribe. Local (`DATA_MODE=local`) sigue demo.
 
 57. **Grant mínimo `staff_status` (2026-08-07, migración 0011)** — El resolvedor SSR selecciona
 `role` + `staff_status` para destinos staff. `role` ya tenía grant de columna (0002);

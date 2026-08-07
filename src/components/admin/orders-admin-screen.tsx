@@ -53,7 +53,6 @@ export function OrdersAdminScreen({
   const role = useEffectiveAdminRole(useAdminStore((state) => state.demoRole));
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const blockDelivered = mode === "supabase";
   const orders = mode === "supabase" ? initialOrders : storeOrders;
 
   function applyTransition(order: Order, next: OrderStatus) {
@@ -96,7 +95,7 @@ export function OrdersAdminScreen({
           <h1 className="text-2xl font-extrabold tracking-tight">Pedidos</h1>
           <p className="mt-1 text-sm text-muted">
             {mode === "supabase"
-              ? "Pedidos reales de PostgreSQL. Solo se cambia el estado operativo; el pago es de solo lectura. La entrega (delivered) queda retenida hasta conectar inventario."
+              ? "Pedidos reales de PostgreSQL. Solo se cambia el estado operativo; el pago es de solo lectura. La entrega consume inventario en la misma transacción."
               : "Pedidos de demostración realizados desde este navegador."}
           </p>
         </div>
@@ -125,8 +124,7 @@ export function OrdersAdminScreen({
         <ul className="flex flex-col gap-4">
           {orders.map((order) => {
             const branch = branches.find((candidate) => candidate.id === order.branchId);
-            const allowedStatuses = allowedOrderStatusTransitions(role, order.status, { blockDelivered });
-            const showDeliveredHold = blockDelivered && order.status === "ready";
+            const allowedStatuses = allowedOrderStatusTransitions(role, order.status);
             return (
               <li key={order.id} className="rounded-card border border-border-soft bg-surface p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -178,10 +176,6 @@ export function OrdersAdminScreen({
                       ))}
                     </select>
                   </div>
-                ) : showDeliveredHold ? (
-                  <p className="mt-3 text-[12px] text-faint">
-                    Entrega (delivered) retenida hasta 11B-4: consume inventario en PostgreSQL.
-                  </p>
                 ) : (
                   <p className="mt-3 text-[12px] text-faint">
                     No hay transiciones permitidas para tu rol y el estado actual.

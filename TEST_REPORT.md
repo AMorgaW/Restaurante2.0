@@ -530,6 +530,25 @@ Checkpoint base: `1dd2132`. Sin cambios SQL/migraciones. App cablea pedidos supa
 | Compuerta B | **no iniciada** |
 | Graphify | **1.952 nodos, 5.127 aristas, 141 comunidades** |
 
+## Etapa 11B-4 — delivery + inventario real (2026-08-07)
+
+Contrato DB 0004/0007 suficiente (sin migración 0012). App conecta `delivered` y UI inventario.
+
+| Verificación | Resultado real |
+|---|---|
+| pgTAP 0001 / 0010 / 0011 / 0012 | **90 + 76 + 16 + 52** / 0 failed |
+| Concurrency harness | **12 escenarios / 19 assertions**; run1+run2 PASS |
+| Vitest | **56 archivos / 459 pruebas / 0 failed** |
+| typecheck / lint / build | correctos |
+| E2E staff Chromium | **7/7** |
+| E2E staff WebKit | **7/7** |
+| Migraciones | local **0001–0011**; remoto **0001–0009** |
+| Consumo | trigger TX en `ready→delivered`; exactly-once demostrado |
+| UI inventario supabase | lectura DB; movements vía RPC; sin fallback |
+| payment_status | **intacta** en delivery |
+| db push / git push / Compuerta B | **no** |
+| Graphify | **2.049 nodos, 5.427 aristas, 156 comunidades** |
+
 ## Etapa 11B-3 — operaciones staff + grant staff_status (2026-08-07)
 
 Commits: `79ae495` (0011 grant) + feat operaciones. Bloqueo: SELECT `staff_status` faltaba → 42501 en resolver.

@@ -6,7 +6,9 @@ import { resolveServerSession } from "@/lib/session/server-resolver";
 import { redirect } from "next/navigation";
 import { isEmployeeRole } from "@/lib/employee/authorization";
 import { loadOperationalOrdersForUi } from "@/server/orders/load-operational-orders";
+import { loadOperationalInventoryForUi } from "@/server/inventory/load-inventory";
 import { adminRoleCan } from "@/lib/admin/authorization";
+import type { InventoryItem } from "@/lib/inventory/types";
 
 export const metadata: Metadata = {
   title: "Operación de empleado",
@@ -25,9 +27,13 @@ export default async function EmployeePage() {
     }
 
     const canReadOrders = adminRoleCan(session.profile.role, "read-orders");
+    const canReadInventory = adminRoleCan(session.profile.role, "read-inventory");
     const loaded = canReadOrders
       ? await loadOperationalOrdersForUi()
       : { mode: "supabase" as const, orders: [], error: null };
+    const inventoryLoaded = canReadInventory
+      ? await loadOperationalInventoryForUi()
+      : { mode: "supabase" as const, items: [] as InventoryItem[], movements: [], error: null };
 
     return (
       <EmployeeWorkspace
@@ -37,6 +43,8 @@ export default async function EmployeePage() {
         supabaseProfile={session.profile}
         operationalOrders={loaded.mode === "supabase" ? loaded.orders : []}
         ordersError={loaded.mode === "supabase" ? loaded.error : null}
+        inventoryItems={inventoryLoaded.items}
+        inventoryError={inventoryLoaded.error}
       />
     );
   }

@@ -21,6 +21,7 @@ const ITEM_ID = "e11b3-plato";
 const GROUP_ID = "e11b3-group";
 const OPTION_ID = "e11b3-option";
 const INV_ID = "31111111-1111-4111-8111-111111111199";
+const RECIPE_ID = "31111111-1111-4111-8111-111111111198";
 
 type StaffFixture = {
   id: string;
@@ -69,10 +70,16 @@ function psql(sql: string): string {
 
 function seedCatalog() {
   psql(`
+    set session_replication_role = replica;
+    delete from public.audit_log where branch_id in ('${BRANCH_A}', '${BRANCH_B}');
+    delete from public.inventory_consumption_sources where inventory_item_id = '${INV_ID}';
     delete from public.inventory_movements where inventory_item_id = '${INV_ID}';
-    delete from public.inventory_items where id = '${INV_ID}';
     delete from public.order_items where menu_item_id = '${ITEM_ID}';
     delete from public.orders where branch_id in ('${BRANCH_A}', '${BRANCH_B}');
+    set session_replication_role = DEFAULT;
+    delete from public.recipe_items where recipe_id = '${RECIPE_ID}';
+    delete from public.recipes where id = '${RECIPE_ID}';
+    delete from public.inventory_items where id = '${INV_ID}';
     delete from public.modifier_options where id = '${OPTION_ID}';
     delete from public.modifier_groups where id = '${GROUP_ID}';
     delete from public.branch_menu_items where menu_item_id = '${ITEM_ID}';
@@ -118,6 +125,10 @@ function seedCatalog() {
     ) values (
       '${INV_ID}', '${BRANCH_A}', 'Ing 11B3', 'e11b3-ing', 'test', 'g', 'g', 100, 10, 1
     );
+    insert into public.recipes (id, product_id, branch_id, portion_yield)
+    values ('${RECIPE_ID}', '${ITEM_ID}', '${BRANCH_A}', 1);
+    insert into public.recipe_items (recipe_id, inventory_item_id, quantity_required, base_unit)
+    values ('${RECIPE_ID}', '${INV_ID}', 60, 'g');
   `);
 }
 
@@ -338,18 +349,48 @@ describe("11B-3 operaciones staff pedidos (Supabase local)", () => {
     );
   });
 
-  it("delivered no se ejecuta en esta fase: status ready y stock intactos", async () => {
+  it("11B-4: delivered consume exactamente una vez y payment intacto", async () => {
+    psql(`update public.inventory_items set current_quantity = 100 where id = '${INV_ID}'`);
     const orderId = await createGuestOrder(BRANCH_A, crypto.randomUUID());
     const cashier = await clientAs(staff.cashierA.email, staff.cashierA.password);
-    await cashier.from("orders").update({ status: "confirmed" }).eq("id", orderId).eq("status", "pending");
+    const confirmed = await cashier.from("orders").update({ status: "confirmed" }).eq("id", orderId).eq("status", "pending").select("id").maybeSingle();
+    expect(confirmed.error).toBeNull();
+    expect(confirmed.data?.id).toBe(orderId);
     const kitchen = await clientAs(staff.kitchenA.email, staff.kitchenA.password);
-    await kitchen.from("orders").update({ status: "preparing" }).eq("id", orderId).eq("status", "confirmed");
-    await kitchen.from("orders").update({ status: "ready" }).eq("id", orderId).eq("status", "preparing");
-    const beforeStock = psql(`select current_quantity::text from public.inventory_items where id = '${INV_ID}'`);
-    const beforeMov = psql(`select count(*)::text from public.inventory_movements where inventory_item_id = '${INV_ID}'`);
-    // 11B-3: la app bloquea delivered antes del UPDATE; no invocamos la transición aquí.
-    expect(psql(`select status from public.orders where id = '${orderId}'`)).toBe("ready");
-    expect(psql(`select current_quantity::text from public.inventory_items where id = '${INV_ID}'`)).toBe(beforeStock);
-    expect(psql(`select count(*)::text from public.inventory_movements where inventory_item_id = '${INV_ID}'`)).toBe(beforeMov);
+    const preparing = await kitchen.from("orders").update({ status: "preparing" }).eq("id", orderId).eq("status", "confirmed").select("id").maybeSingle();
+    expect(preparing.error).toBeNull();
+    expect(preparing.data?.id).toBe(orderId);
+    const ready = await kitchen.from("orders").update({ status: "ready" }).eq("id", orderId).eq("status", "preparing").select("id").maybeSingle();
+    expect(ready.error).toBeNull();
+    expect(ready.data?.id).toBe(orderId);
+    const beforeStock = Number(psql(`select current_quantity::text from public.inventory_items where id = '${INV_ID}'`));
+
+    const delivered = await cashier
+      .from("orders")
+      .update({ status: "delivered" })
+      .eq("id", orderId)
+      .eq("status", "ready")
+      .select("id,status")
+      .maybeSingle();
+    expect(delivered.error).toBeNull();
+    expect(delivered.data?.status).toBe("delivered");
+    expect(psql(`select status from public.orders where id = '${orderId}'`)).toBe("delivered");
+    expect(psql(`select payment_status from public.orders where id = '${orderId}'`)).toBe("pending");
+    expect(Number(psql(`select current_quantity::text from public.inventory_items where id = '${INV_ID}'`))).toBe(
+      beforeStock - 60,
+    );
+    expect(
+      psql(
+        `select count(*)::text from public.inventory_movements where order_id = '${orderId}' and movement_type = 'consumption'`,
+      ),
+    ).toBe("1");
+
+    const retry = await cashier.from("orders").update({ status: "delivered" }).eq("id", orderId);
+    expect(retry.error).not.toBeNull();
+    expect(
+      psql(
+        `select count(*)::text from public.inventory_movements where order_id = '${orderId}' and movement_type = 'consumption'`,
+      ),
+    ).toBe("1");
   });
 });

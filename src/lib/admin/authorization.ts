@@ -88,8 +88,8 @@ export function canAccessAdminPath(role: AdminRole | null | undefined, pathname:
 
 export type OrderTransitionOptions = {
   /**
-   * En DATA_MODE=supabase, `delivered` dispara consume_order_inventory en DB.
-   * 11B-3 retiene esa transición hasta 11B-4; local demo puede seguir permitiendo.
+   * @deprecated 11B-4: `delivered` está habilitado; PostgreSQL consume inventario.
+   * Conservado solo por compatibilidad de firmas de tests legacy.
    */
   blockDelivered?: boolean;
 };

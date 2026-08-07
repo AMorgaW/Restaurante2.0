@@ -8,7 +8,9 @@ export type StaffOrderErrorCode =
   | "not-found"
   | "invalid-transition"
   | "stale-transition"
-  | "delivered-blocked"
+  | "insufficient-stock"
+  | "missing-recipe"
+  | "inventory-config"
   | "persist"
   | "unavailable";
 
@@ -48,7 +50,29 @@ export function mapOrderStatusDbError(error: unknown): StaffOrderError {
   if (/sucursal del pedido|permiso para la sucursal/i.test(raw)) {
     return new StaffOrderError("No tienes acceso a la sucursal de este pedido.", "forbidden");
   }
-  if (/Transicion de pedido no permitida|ya se encuentra en ese estado|estado terminal/i.test(raw) || db.code === "23514") {
+  if (/productos sin receta|receta activa completa/i.test(raw)) {
+    return new StaffOrderError(
+      "No se pudo entregar: faltan recetas activas para uno o más productos.",
+      "missing-recipe",
+    );
+  }
+  if (/stock es insuficiente/i.test(raw)) {
+    return new StaffOrderError(
+      "No se pudo completar la entrega: el inventario de la sucursal no alcanza.",
+      "insufficient-stock",
+    );
+  }
+  if (/insumo invalido|otra sucursal|no tiene productos para consumir/i.test(raw)) {
+    return new StaffOrderError(
+      "No se pudo entregar por un problema de configuración de inventario.",
+      "inventory-config",
+    );
+  }
+  if (
+    /Transicion de pedido no permitida|ya se encuentra en ese estado|estado terminal|debe estar listo antes de consumir/i.test(
+      raw,
+    )
+  ) {
     return new StaffOrderError("La transición de estado no está permitida.", "invalid-transition");
   }
   if (/solo puede modificar orders\.status/i.test(raw)) {
