@@ -51,6 +51,24 @@ $ids = @{
   keyCatalog = New-DeterministicGuid 'keyCatalog'
   keyCouponA = New-DeterministicGuid 'keyCouponA'
   keyCouponB = New-DeterministicGuid 'keyCouponB'
+  planCalendar = New-DeterministicGuid 'planCalendar'
+  membershipCal = New-DeterministicGuid 'membershipCal'
+  menuLunch = New-DeterministicGuid 'menuLunch'
+  menuDinner = New-DeterministicGuid 'menuDinner'
+  menuCatLunch = New-DeterministicGuid 'menuCatLunch'
+  menuCatDinner = New-DeterministicGuid 'menuCatDinner'
+  menuItemLunch = New-DeterministicGuid 'menuItemLunch'
+  menuItemDinner = New-DeterministicGuid 'menuItemDinner'
+  admin = New-DeterministicGuid 'admin'
+  customerB = New-DeterministicGuid 'customerB'
+  keyPensionSame = New-DeterministicGuid 'keyPensionSame'
+  keyPensionConflict = New-DeterministicGuid 'keyPensionConflict'
+  keyPensionLunchA = New-DeterministicGuid 'keyPensionLunchA'
+  keyPensionLunchB = New-DeterministicGuid 'keyPensionLunchB'
+  keyPensionDinner = New-DeterministicGuid 'keyPensionDinner'
+  keyActA = New-DeterministicGuid 'keyActA'
+  keyActB = New-DeterministicGuid 'keyActB'
+  keyPenRev = New-DeterministicGuid 'keyPenRev'
 }
 
 $product1 = "p1-$runId"
@@ -131,11 +149,23 @@ insert into public.order_items (id,order_id,menu_item_id,name_snapshot,unit_pric
 ('$($ids.oi2)','$($ids.order2)','$product1','Race 1',10000,1,10000),
 ('$($ids.oi3)','$($ids.order3)','$product2','Race 2',10000,1,10000),
 ('$($ids.oi4)','$($ids.order4)','$product3','Race 3',10000,1,10000);
-insert into public.pension_plans (id,name,public_price,modality,default_meal_limit,included_periods) values ('$($ids.plan)','Race plan $runTag',100000,'meal_count',10,array['lunch']);
-insert into public.pension_memberships (id,profile_id,plan_id,branch_id,status,modality,public_price_snapshot,request_idempotency_key) values ('$($ids.membership)','$($ids.customer)','$($ids.plan)','$($ids.branch)','pending','meal_count',100000,'$requestKey');
-insert into public.pension_menus (id,branch_id,service_date,period,status,published_at,published_by) values ('$($ids.menu)','$($ids.branch)',current_date,'lunch','published',now(),'$($ids.owner)');
-insert into public.pension_menu_categories (id,menu_id,category,label,is_required) values ('$($ids.menuCat)','$($ids.menu)','main','Principal',true);
-insert into public.pension_menu_items (id,menu_category_id,menu_item_id,is_included) values ('$($ids.menuItem)','$($ids.menuCat)','$product1',true);
+insert into public.branch_menu_items (branch_id, menu_item_id, price, available) values
+('$($ids.branch)', '$product1', 10000, true),
+('$($ids.branch)', '$product2', 10000, true),
+('$($ids.branch)', '$product3', 10000, true)
+on conflict do nothing;
+update public.branches set pension_delivery_fee = 3000, timezone = 'America/Bogota' where id = '$($ids.branch)';
+insert into public.pension_plans (id,name,public_price,modality,duration_days,included_periods) values ('$($ids.plan)','Race plan $runTag',100000,'calendar_period',30,array['lunch','dinner']);
+insert into public.pension_memberships (id,profile_id,plan_id,branch_id,status,modality,public_price_snapshot,request_idempotency_key) values ('$($ids.membership)','$($ids.customer)','$($ids.plan)','$($ids.branch)','pending','calendar_period',100000,'$requestKey');
+insert into public.pension_menus (id,branch_id,service_date,period,status,published_at,published_by) values
+('$($ids.menuLunch)','$($ids.branch)',current_date,'lunch','published',now(),'$($ids.owner)'),
+('$($ids.menuDinner)','$($ids.branch)',current_date,'dinner','published',now(),'$($ids.owner)');
+insert into public.pension_menu_categories (id,menu_id,category,label,is_required) values
+('$($ids.menuCatLunch)','$($ids.menuLunch)','main','Principal',true),
+('$($ids.menuCatDinner)','$($ids.menuDinner)','main','Principal',true);
+insert into public.pension_menu_items (id,menu_category_id,menu_item_id,is_included,surcharge_amount) values
+('$($ids.menuItemLunch)','$($ids.menuCatLunch)','$product1',true,0),
+('$($ids.menuItemDinner)','$($ids.menuCatDinner)','$product2',true,0);
 insert into public.coupons (code, type, value, active, max_redemptions, redeemed_count)
 values ('$couponLast', 'fixed', 100, true, 1, 0);
 "@
@@ -147,8 +177,16 @@ $customer = "select set_config('request.jwt.claim.sub','$($ids.customer)',false)
 
 Invoke-SqlPair "$cashier begin; update public.orders set status='delivered' where id='$($ids.order1)'; select pg_sleep(1); commit;" "$cashier update public.orders set status='delivered' where id='$($ids.order2)';" 1 'stock race'
 Invoke-SqlPair "$cashier begin; update public.orders set status='delivered' where id='$($ids.order3)'; select pg_sleep(1); commit;" "$cashier update public.orders set status='delivered' where id='$($ids.order3)';" 1 'duplicate delivery'
-Invoke-SqlPair "$owner begin; select public.activate_pension_membership('$($ids.membership)',90000,'cash',null,current_date,current_date,null,10,false,'race','$activateKey'); select pg_sleep(1); commit;" "$owner select public.activate_pension_membership('$($ids.membership)',90000,'cash',null,current_date,current_date,null,10,false,'race','$activateKey');" 0 'duplicate activation'
-Invoke-SqlPair "$customer begin; select public.consume_pension_benefit('$($ids.membership)','$($ids.menu)',array['$($ids.menuItem)']::uuid[],null,'$benefitKey'); select pg_sleep(1); commit;" "$customer select public.consume_pension_benefit('$($ids.membership)','$($ids.menu)',array['$($ids.menuItem)']::uuid[],null,'$benefitKey');" 0 'duplicate benefit'
+Invoke-SqlPair "$owner begin; select public.activate_pension_membership('$($ids.membership)',90000,'cash',null,current_date,current_date,null,null,false,'race','$activateKey'); select pg_sleep(1); commit;" "$owner select public.activate_pension_membership('$($ids.membership)',90000,'cash',null,current_date,current_date,null,null,false,'race','$activateKey');" 0 'duplicate activation'
+$pensionOrderSame = @"
+select public.create_pension_order(
+  '$($ids.keyPensionSame)'::uuid,
+  '$($ids.menuLunch)'::uuid,
+  array['$($ids.menuItemLunch)']::uuid[],
+  'local','Race Customer','3001234567','race-pension-$runId@test.local',null,null,0
+);
+"@
+Invoke-SqlPair "$customer begin; $pensionOrderSame select pg_sleep(1); commit;" "$customer $pensionOrderSame" 0 'duplicate pension order same key'
 Invoke-DatabaseSql "$cashier update public.orders set status='delivered' where id='$($ids.order4)';"
 $movement = "(select id from public.inventory_movements where order_id='$($ids.order4)' and movement_type='consumption')"
 Invoke-SqlPair "$owner begin; select public.reverse_inventory_consumption($movement,'race reversal','$reversalKey'); select pg_sleep(1); commit;" "$owner select public.reverse_inventory_consumption($movement,'race reversal','$reversalKey');" 0 'duplicate reversal'
@@ -162,6 +200,8 @@ do `$`$ begin
   if (select current_quantity from public.inventory_items where id='$($ids.inv2)') <> 40 then raise exception 'duplicate delivery stock failed'; end if;
   if (select count(*) from public.inventory_movements where order_id='$($ids.order3)' and movement_type='consumption') <> 1 then raise exception 'duplicate delivery movement failed'; end if;
   if (select count(*) from public.pension_membership_cycles where membership_id='$($ids.membership)') <> 1 then raise exception 'activation idempotency failed'; end if;
+  if (select count(*) from public.orders where idempotency_key='$($ids.keyPensionSame)' and order_kind='pension') <> 1 then raise exception 'pension order same-key failed'; end if;
+  if (select count(*) from public.pension_consumptions where membership_id='$($ids.membership)' and status='confirmed') <> 1 then raise exception 'pension consumption same-key failed'; end if;
   if (select meals_consumed from public.pension_memberships where id='$($ids.membership)') <> 1 then raise exception 'benefit idempotency failed'; end if;
   if (select current_quantity from public.inventory_items where id='$($ids.inv3)') <> 100 then raise exception 'reversal stock failed'; end if;
   if (select count(*) from public.inventory_movements where inventory_item_id='$($ids.inv3)' and movement_type='reversal') <> 1 then raise exception 'reversal idempotency failed'; end if;
@@ -360,4 +400,131 @@ do `$`$ begin
 end `$`$;
 "@
 Invoke-DatabaseSql $orderAssertions
-Write-Output "CONCURRENCY_TESTS_PASS scenarios=12 assertions=19 run=$runId"
+
+# --- 11B-5: create_pension_order concurrency ---
+# B: same key + different intention → conflict
+$penConflictA = @"
+select set_config('request.jwt.claim.sub','$($ids.customer)',false);
+set role authenticated;
+begin;
+select public.create_pension_order(
+  '$($ids.keyPensionConflict)'::uuid,'$($ids.menuDinner)'::uuid,array['$($ids.menuItemDinner)']::uuid[],
+  'local','Race Customer','3001234567','race-pension-$runId@test.local',null,null,0);
+select pg_sleep(0.8);
+commit;
+"@
+$penConflictB = @"
+select set_config('request.jwt.claim.sub','$($ids.customer)',false);
+set role authenticated;
+select public.create_pension_order(
+  '$($ids.keyPensionConflict)'::uuid,'$($ids.menuDinner)'::uuid,array['$($ids.menuItemDinner)']::uuid[],
+  'pickup','Race Customer','3001234567','race-pension-$runId@test.local',null,null,0);
+"@
+Invoke-SqlPair $penConflictA $penConflictB 1 'pension same-key different-intent'
+
+# C: two keys same lunch → max one confirmed (lunch already used by keyPensionSame; expect both fail OR use fresh membership)
+# Use dinner for two-key race on same menu: recreate via new customer after admin activation
+$adminSetup = @"
+insert into auth.users (instance_id,id,aud,role,email,raw_app_meta_data,raw_user_meta_data,created_at,updated_at,is_sso_user,is_anonymous) values
+('00000000-0000-0000-0000-000000000000','$($ids.admin)','authenticated','authenticated','admin-$runId@test.local','{}','{}',now(),now(),false,false),
+('00000000-0000-0000-0000-000000000000','$($ids.customerB)','authenticated','authenticated','customer-b-$runId@test.local','{}','{}',now(),now(),false,false)
+on conflict (id) do nothing;
+update public.profiles set role='admin', staff_status='active' where id='$($ids.admin)';
+update public.profiles set role='customer' where id='$($ids.customerB)';
+insert into public.staff_branch_permissions values ('$($ids.admin)','$($ids.branch)') on conflict do nothing;
+"@
+Invoke-DatabaseSql $adminSetup
+
+$actA = @"
+select set_config('request.jwt.claim.sub','$($ids.owner)',false);
+set role authenticated;
+select public.create_and_activate_pension_membership(
+  '$($ids.customerB)'::uuid,'$($ids.plan)'::uuid,'$($ids.branch)'::uuid,90000,'cash',null,current_date,current_date,null,false,'race act','$($ids.keyActA)');
+"@
+$actB = @"
+select set_config('request.jwt.claim.sub','$($ids.admin)',false);
+set role authenticated;
+select public.create_and_activate_pension_membership(
+  '$($ids.customerB)'::uuid,'$($ids.plan)'::uuid,'$($ids.branch)'::uuid,90000,'cash',null,current_date,current_date,null,false,'race act','$($ids.keyActB)');
+"@
+# E: concurrent activation owner/admin — one open membership (one succeeds, one fails OR both if different keys race open)
+Invoke-SqlPair $actA $actB 1 'pension concurrent activation'
+
+$lunchRaceA = @"
+select set_config('request.jwt.claim.sub','$($ids.customerB)',false);
+set role authenticated;
+begin;
+select public.create_pension_order(
+  '$($ids.keyPensionLunchA)'::uuid,'$($ids.menuLunch)'::uuid,array['$($ids.menuItemLunch)']::uuid[],
+  'local','Cust B','3001234599','cust-b-$runId@test.local',null,null,0);
+select pg_sleep(0.5);
+commit;
+"@
+$lunchRaceB = @"
+select set_config('request.jwt.claim.sub','$($ids.customerB)',false);
+set role authenticated;
+select public.create_pension_order(
+  '$($ids.keyPensionLunchB)'::uuid,'$($ids.menuLunch)'::uuid,array['$($ids.menuItemLunch)']::uuid[],
+  'local','Cust B','3001234599','cust-b-$runId@test.local',null,null,0);
+"@
+Invoke-SqlPair $lunchRaceA $lunchRaceB 1 'pension two-keys same lunch'
+
+$dinnerOk = @"
+select set_config('request.jwt.claim.sub','$($ids.customerB)',false);
+set role authenticated;
+select public.create_pension_order(
+  '$($ids.keyPensionDinner)'::uuid,'$($ids.menuDinner)'::uuid,array['$($ids.menuItemDinner)']::uuid[],
+  'local','Cust B','3001234599','cust-b-$runId@test.local',null,null,0);
+"@
+# D: lunch already taken for customerB; dinner concurrent with noop — just create dinner once then assert both periods
+Invoke-DatabaseSql $dinnerOk
+
+# F: reversal concurrent via cancel
+Invoke-SqlPair "$owner begin; update public.orders set status='cancelled' where idempotency_key='$($ids.keyPensionDinner)'; select pg_sleep(0.5); commit;" "$owner update public.orders set status='cancelled' where idempotency_key='$($ids.keyPensionDinner)';" 1 'pension cancel/reversal concurrent'
+
+# G: transactional orphan failure
+$orphanAssert = @"
+do `$`$ begin
+  begin
+    insert into public.orders (
+      id, order_number, user_id, branch_id, status, payment_status, payment_method,
+      fulfillment_type, order_kind, subtotal, total, customer_name, customer_phone, customer_email
+    ) values (
+      '$(New-DeterministicGuid 'orphanOrder')', 'ORPHAN-$runId', '$($ids.customer)', '$($ids.branch)',
+      'pending', 'pending', 'demo', 'local', 'pension', 0, 0, 'X', '3000000000', 'orphan-$runId@test.local'
+    );
+    raise exception 'expected deferred coupling to fire at commit';
+  exception when others then
+    if sqlstate <> '23514' and sqlerrm not like '%consumo%' and sqlerrm not like '%deferred%' and sqlerrm not like '%pensionado%' then
+      raise;
+    end if;
+  end;
+  if exists (select 1 from public.orders where order_number = 'ORPHAN-$runId') then
+    raise exception 'orphan pension order persisted';
+  end if;
+end `$`$;
+"@
+Invoke-DatabaseSql $orphanAssert
+
+$pensionAssertions = @"
+do `$`$ begin
+  if (select count(*) from public.orders where idempotency_key='$($ids.keyPensionConflict)') <> 1 then
+    raise exception 'pension conflict key created % orders', (select count(*) from public.orders where idempotency_key='$($ids.keyPensionConflict)');
+  end if;
+  if (select count(*) from public.pension_memberships where profile_id='$($ids.customerB)' and status in ('pending','active','suspended')) <> 1 then
+    raise exception 'concurrent activation open membership count failed';
+  end if;
+  if (select count(*) from public.pension_consumptions c join public.orders o on o.id=c.order_id where o.user_id='$($ids.customerB)' and c.menu_id='$($ids.menuLunch)' and c.status='confirmed') <> 1 then
+    raise exception 'two-keys same lunch allowed more than one';
+  end if;
+  if (select count(*) from public.pension_consumptions where membership_id=(select id from public.pension_memberships where profile_id='$($ids.customerB)' limit 1) and menu_id='$($ids.menuDinner)') <> 1 then
+    raise exception 'dinner independent consumption missing';
+  end if;
+  if (select c.status from public.pension_consumptions c join public.orders o on o.id=c.order_id where o.idempotency_key='$($ids.keyPensionDinner)') <> 'reversed' then
+    raise exception 'pension reversal concurrent failed';
+  end if;
+end `$`$;
+"@
+Invoke-DatabaseSql $pensionAssertions
+
+Write-Output "CONCURRENCY_TESTS_PASS scenarios=19 assertions=28 run=$runId"

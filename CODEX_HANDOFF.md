@@ -16,19 +16,29 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
 
 - Proyecto: Restaurante2.0 / Brisas del Sinú.
 - Rama: `master`.
-- Checkpoint **11B-4**: delivery + inventario real en `DATA_MODE=supabase`.
+- Checkpoint **11B-5 SQL**: `0012_pension_orders_and_management.sql` local.
+  Pedido pensionado atómico (`create_pension_order`) separado de
+  `create_customer_order` (standard). Coupling bidireccional order↔consumption;
+  calendar_period 30 días (`ends_at = starts_at + 29`); 1 lunch + 1 dinner/día;
+  surcharge y `pension_delivery_fee` autoritativos en DB; activación presencial
+  owner/admin sin request previo; menús draft→published→closed; legacy
+  `consume_pension_benefit` revocado para clientes; cancelación coordina reverse.
+  UI `/pensionado` y `/admin/pensionados` **aún no conectadas**. Notificaciones
+  de nuevo pedido: requisito registrado, no implementado.
+- Checkpoint previo **11B-4**: delivery + inventario real en `DATA_MODE=supabase`.
   `ready → delivered` vía Server Action → UPDATE status → trigger
   `private.enforce_order_status_transition` → `private.consume_order_inventory`
   (misma TX). Sin motor de inventario en Node/React; sin llamada manual a consume.
 - UI inventario (`/admin/inventario`, dashboard, quick inventory empleado): lectura
   PostgreSQL; recepción/ajuste/merma vía RPC `apply_inventory_movement` (owner/admin).
   Alta/edición/borrado de insumos y UI de reversión: no conectados (sin primitiva/UX).
-- Secuencia SQL: local `0001`–`0011` (sin 0012); remoto `0001`–`0009` (sin db push;
-  0010/0011 no desplegadas). Tests pgTAP `0012_delivery_inventory.test.sql` (solo tests).
+- Secuencia SQL: local `0001`–`0012`; remoto `0001`–`0009` (sin db push;
+  0010/0011/0012 no desplegadas). Tests: `0012_delivery_inventory.test.sql` (11B-4)
+  y `0013_pension_orders.test.sql` (11B-5).
 - `payment_status` read-only en delivery. Modifiers no afectan consumo (solo
   `menu_item_id × quantity / portion_yield`).
 - Compuerta B no iniciada.
-- `graphify-out/` regenerado en 11B-4: **2.049 nodos, 5.427 aristas, 156 comunidades**. Ignorado por Git.
+- `graphify-out/` regenerado en 11B-5 SQL: **2.084 nodos, 5.476 aristas, 150 comunidades**. Ignorado por Git.
 
 ## Pedidos — primitiva PostgreSQL (11B-2A)
 

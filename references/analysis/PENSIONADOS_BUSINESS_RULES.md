@@ -1,28 +1,47 @@
 # Reglas de negocio: clientes pensionados
 
-Estado: contrato local/demo implementado; activación, persistencia y autorización reales siguen fuera de alcance.
+Estado: contrato PostgreSQL 0012 listo; UI `/pensionado` y `/admin/pensionados` aún demo/local (no conectadas a Supabase).
 
-## Decisiones actuales
+## Identidad
 
-- Un pensionado sigue siendo un usuario con `role = customer`.
-- `pensionado` no es un rol de autorización y nunca concede acceso administrativo.
-- La condición comercial se representará posteriormente mediante un plan, contrato o suscripción activa.
-- El menú pensionado cambia por día y por periodo: almuerzo y cena pueden tener productos distintos.
-- Debe reutilizar productos del catálogo general; no se crearán copias de platos.
-- Las sopas habituales del almuerzo pueden incluir sopa de costilla, sopa de hueso y sopa de cerdo.
-- El catálogo actual contiene sopa de pollo y no sopa de cerdo. Esta discrepancia requiere una decisión comercial; no se sustituye una por otra silenciosamente.
-- Un cliente normal puede pedir cualquier producto disponible, para consumo en local o domicilio.
-- Un pensionado podrá usar una opción incluida, registrar el consumo, escoger fuera del menú y pagar el excedente correspondiente.
-- El excedente deberá calcularse en servidor o en la base de datos confiable, nunca únicamente en el navegador.
-- El demo tipado representa `pending`, `active`, `suspended`, `expired` y `cancelled`; todos continúan siendo `customer` y el pago/activación se muestran como presenciales con el jefe.
-- La selección, el saldo y el historial del demo viven en un store local determinista; no representan todavía consumos comerciales ni pagos reales.
+- Un pensionado sigue siendo `profiles.role = customer` + membresía comercial.
+- `pensionado` no es rol Auth/JWT y nunca concede acceso administrativo.
 
-## Fuera de alcance actual
+## Plan operativo inicial
 
-La Etapa 4 crea únicamente el contrato local tipado, fixtures, cálculo de excedentes, menús deterministas y panel demo `/pensionado`; no crea tablas, migraciones, Auth real, pagos ni activación desde el navegador.
+- Modalidad comercial: `calendar_period` con `duration_days = 30`.
+- Fechas inclusivas: `ends_at = starts_at + 29`.
+- Beneficio: 1 lunch + 1 dinner por día de vigencia (menús independientes).
+- El esquema conserva `meal_count` / `hybrid` técnicamente; no son el producto a cablear ahora.
 
-La siguiente fase deberá diseñar explícitamente la activación administrativa y sus controles antes de cualquier persistencia remota.
+## Pedidos
 
-## Pregunta comercial abierta
+- Intent **standard** (`/menu` → `create_customer_order`): no consume pensión.
+- Intent **pensionado** (`create_pension_order`): order + consumption atómicos;
+  `order_kind = 'pension'`; payment `pending` / método `demo`; sin Stripe.
+- Fulfillment: `local` | `pickup` | `delivery`.
+- Delivery pensionado usa `branches.pension_delivery_fee` (NULL = fail closed).
+  No hardcodear 3000; DB es autoridad.
+- Incluido: `surcharge_amount = 0`. Sustitución: surcharge configurado en
+  `pension_menu_items` (no es diferencia automática de precios; browser no decide).
 
-¿El plan cubre 30 días calendario con almuerzo y cena, o 30 comidas totales? No se asume una respuesta hasta que el negocio la confirme.
+## Activación y menús
+
+- Owner **y** admin activos (con branch access) activan presencialmente
+  (`create_and_activate_pension_membership`) sin exigir `request` previo.
+- Manager/editor/kitchen/cashier/support/customer no administran.
+- Menús: draft → published → closed; published inmutable; write path vía RPC.
+
+## Legacy
+
+- `consume_pension_benefit` público ya no es ejecutable por clientes; el consumo
+  solo ocurre dentro de `create_pension_order`.
+- Cancelar un pedido pensionado revierte el consumo (historial preservado).
+
+## Pendiente
+
+- Conectar UI real `/pensionado` y `/admin/pensionados`.
+- Notificación “nuevo pedido → empleado + dueño” (requisito registrado; no en 0012).
+- Discrepancia de sopa (costilla/hueso/cerdo vs catálogo): no hardcodear; menú
+  diario configurable por productos reales.
+- Pagos reales / Stripe / deploy / Compuerta B: fuera de alcance.

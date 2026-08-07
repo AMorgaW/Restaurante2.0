@@ -29,7 +29,18 @@ select ok(not exists (
 select ok(not exists (
   select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and p.prosecdef
-    and p.proname not in ('process_stripe_payment_event', 'create_customer_order')
+    and p.proname not in (
+      'process_stripe_payment_event',
+      'create_customer_order',
+      'create_pension_order',
+      'consume_pension_benefit',
+      'save_pension_menu_draft',
+      'upsert_pension_menu_item',
+      'publish_pension_menu',
+      'close_pension_menu',
+      'set_pension_delivery_fee',
+      'reverse_pension_order_consumption'
+    )
 ), 'no unexpected client-facing SECURITY DEFINER remains in public');
 
 insert into public.restaurants (id, name, slug)
@@ -201,19 +212,19 @@ select is((select pg_catalog.count(*) from public.pension_membership_cycles wher
 reset role;
 select set_config('request.jwt.claim.sub', '40000000-0000-0000-0000-000000000005', true);
 set local role authenticated;
-select lives_ok(
-  $$select public.consume_pension_benefit((select id from public.pension_memberships where profile_id='40000000-0000-0000-0000-000000000005'),'71000000-0000-0000-0000-000000000001',array['73000000-0000-0000-0000-000000000001']::uuid[],null,'benefit-1')$$,
-  'active customer consumes a benefit'
-);
-select lives_ok(
-  $$select public.consume_pension_benefit((select id from public.pension_memberships where profile_id='40000000-0000-0000-0000-000000000005'),'71000000-0000-0000-0000-000000000001',array['73000000-0000-0000-0000-000000000001']::uuid[],null,'benefit-1')$$,
-  'benefit retry is idempotent'
-);
-select is((select meals_consumed from public.pension_memberships where profile_id='40000000-0000-0000-0000-000000000005'), 1, 'benefit decrements exactly once');
 select throws_ok(
-  $$select public.consume_pension_benefit((select id from public.pension_memberships where profile_id='40000000-0000-0000-0000-000000000005'),'71000000-0000-0000-0000-000000000001',array['73000000-0000-0000-0000-000000000001']::uuid[],null,'benefit-2')$$,
-  '23505', null, 'same menu period cannot be consumed twice'
+  $$select public.consume_pension_benefit((select id from public.pension_memberships where profile_id='40000000-0000-0000-0000-000000000005'),'71000000-0000-0000-0000-000000000001',array['73000000-0000-0000-0000-000000000001']::uuid[],null,'benefit-1')$$,
+  '42501', null, 'legacy consume_pension_benefit is retired for customers'
 );
+select throws_ok(
+  $$select public.consume_pension_benefit((select id from public.pension_memberships where profile_id='40000000-0000-0000-0000-000000000005'),'71000000-0000-0000-0000-000000000001',array['73000000-0000-0000-0000-000000000001']::uuid[],null,'benefit-1')$$,
+  '42501', null, 'legacy consume_pension_benefit remains closed on retry'
+);
+select ok(
+  not has_function_privilege('authenticated', 'public.consume_pension_benefit(uuid,uuid,uuid[],uuid,text)', 'EXECUTE'),
+  'authenticated cannot execute consume_pension_benefit'
+);
+select is((select meals_consumed from public.pension_memberships where profile_id='40000000-0000-0000-0000-000000000005'), 0, 'retired consume leaves meals_consumed unchanged');
 
 reset role;
 select set_config('request.jwt.claim.sub', '40000000-0000-0000-0000-000000000004', true);

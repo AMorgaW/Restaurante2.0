@@ -530,9 +530,25 @@ Checkpoint base: `1dd2132`. Sin cambios SQL/migraciones. App cablea pedidos supa
 | Compuerta B | **no iniciada** |
 | Graphify | **1.952 nodos, 5.127 aristas, 141 comunidades** |
 
+## Etapa 11B-5 SQL — pedidos pensionados atómicos (2026-08-07)
+
+Migración `0012_pension_orders_and_management.sql`. UI pensionado **no** conectada aún.
+
+| Verificación | Resultado real |
+|---|---|
+| pgTAP 0001 / 0010 / 0011 / 0012 / 0013 | **90 + 76 + 16 + 52 + 68** / 0 failed |
+| Concurrency harness | **19 escenarios / 28 assertions**; run1+run2 PASS |
+| Migraciones | local **0001–0012**; remoto **0001–0009** |
+| Coupling order↔consumption | deferred constraints + UNIQUE `order_id` |
+| `create_pension_order` | atómico; surcharge/fee DB; payment pending/demo |
+| Legacy `consume_pension_benefit` | EXECUTE revocado a clientes |
+| Activación | owner/admin presencial; `ends_at = starts_at + 29` |
+| UI / payments / notifications / db push / git push / Compuerta B | **no** |
+| Graphify | **2.084 nodos, 5.476 aristas, 150 comunidades** |
+
 ## Etapa 11B-4 — delivery + inventario real (2026-08-07)
 
-Contrato DB 0004/0007 suficiente (sin migración 0012). App conecta `delivered` y UI inventario.
+Contrato DB 0004/0007 suficiente (sin migración 0012 de pensionados). App conecta `delivered` y UI inventario.
 
 | Verificación | Resultado real |
 |---|---|
