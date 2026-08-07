@@ -121,7 +121,9 @@ Con URL y clave publicable válidas, las páginas públicas (`/menu`, búsqueda,
 carrito/favoritos) y `POST /api/orders` leen el mismo repositorio remoto. No hay
 fallback a fixtures. El carrito solo guarda selecciones; precios y totales se
 recalculan en servidor. La persistencia remota de pedidos **aún no está habilitada**
-(503 `persistence-pending`). La administración real del catálogo es etapa 11B-1B.
+(503 `persistence-pending`). La administración del catálogo con Auth+DATA supabase
+persiste en PostgreSQL vía Server Actions + RLS (roles owner/admin/manager/editor);
+en demo local (`AUTH_MODE=disabled`) el panel sigue usando ajustes en el navegador.
 
 En **producción** (`NODE_ENV=production`) solo es válido `AUTH_MODE=supabase` con
 `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` válidas.

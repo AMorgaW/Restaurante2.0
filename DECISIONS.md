@@ -370,3 +370,13 @@ mezclar precios/disponibilidad/modificadores locales en modo remoto.
 94. **Checkout valida y no finge persistencia** — `placeOrder` recalcula contra el mismo
 `MenuRepository` que las páginas; `saveOrder` Supabase lanza
 `SupabaseApplicationWriteDisabledError` → API 503 `persistence-pending`.
+
+## 2026-08-07 (Etapa 11B-1B — administración de catálogo)
+
+95. **Escrituras admin por sesión + RLS** — Server Actions con allowlist Zod; cliente SSR
+autenticado; sin `service_role` ni fallback a Zustand en modo Supabase. Local demo
+conserva `rb-admin`.
+
+96. **Shell admin para manager/editor** — alineado con `can_manage_catalog` y capacidades
+de UI; kitchen/cashier/support/customer siguen fuera. Soft-disable vía `available`/`is_active`;
+sin DELETE físico en UI; grupos de modificadores sin soft-delete de esquema.

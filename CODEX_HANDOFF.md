@@ -16,11 +16,11 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
 
 - Proyecto: Restaurante2.0 / Brisas del Sinú.
 - Rama: `master`.
-- Checkpoint previo Etapa 11A: `d89a35b` (`test: endurece validacion read-only del bootstrap owner`).
-- Etapa **11B-1A** (catálogo Supabase + precios autoritativos): commit local
-  `feat: conecta catalogo supabase y precios autoritativos` (hash tras commit).
+- Checkpoint previo Etapa 11B-1A: `5b40d8c` (`feat: conecta catalogo supabase y precios autoritativos`).
+- Etapa **11B-1B** (administración real del catálogo): commit local
+  `feat: conecta administracion de catalogo a supabase`.
 - Secuencia SQL canónica: `0001`–`0009` (sin 0010; sin ediciones a migraciones).
-- `graphify-out/` regenerado en 11B-1A: **1.861 nodos, 4.769 aristas, 144 comunidades**. Ignorado por Git.
+- `graphify-out/` regenerado en 11B-1B: **1.926 nodos, 5.000 aristas, 149 comunidades**. Ignorado por Git.
 
 ## Catálogo autoritativo (11B-1A)
 
@@ -34,8 +34,17 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
 - Checkout: `placeOrder` usa el mismo repositorio; payload de precio del cliente no es autoridad.
 - Pedidos Supabase: tras validar → `SupabaseApplicationWriteDisabledError` → API **503**
   `persistence-pending` (11B-2). No hay ID falso ni guardado remoto.
-- Admin de catálogo y escrituras de productos: **11B-1B** (pendiente).
 - Compuerta B: **no iniciada**.
+
+## Administración de catálogo (11B-1B)
+
+- Server Actions (`src/app/admin/catalog-actions.ts`) → `admin-service` → cliente SSR con sesión → RLS.
+- Roles de escritura comprobados: owner, admin, editor (+ manager según `can_manage_catalog` / capacidades).
+- Shell `/admin` ampliado a manager/editor (destino de login de editor/manager sigue `/empleado`).
+- Tablas escritas: `menu_items`, `branch_menu_items`, `categories`, `modifier_groups`, `modifier_options`.
+- Soft-disable: `available` / `is_active`. Sin DELETE físico en UI. Grupos sin flag soft-delete.
+- Cero `service_role` en la app (solo fixture de prueba local para crear usuarios Auth).
+- Pedidos siguen `persistence-pending`; inventario/pensionados no conectados.
 
 ## Resultado funcional por etapa
 
@@ -115,9 +124,9 @@ npm.cmd run test
 npm.cmd run build
 ```
 
-Último ciclo local (11B-1A): Vitest **46 archivos / 403 pruebas**; typecheck/lint/build OK;
-E2E catálogo Supabase 5/5 × Chromium+WebKit; pedidos remotes siguen 503. Bootstrap remoto
-**no ejecutado**; Compuerta B **no ejecutada**. Ver `TEST_REPORT.md`.
+Último ciclo local (11B-1B): Vitest **49 archivos / 415 pruebas**; typecheck/lint/build OK;
+E2E admin catálogo local 2/2 × Chromium+WebKit; integración admin RLS 1/1; pedidos remotes
+siguen 503. Bootstrap remoto **no ejecutado**; Compuerta B **no ejecutada**. Ver `TEST_REPORT.md`.
 
 ## Archivos principales por área
 
@@ -145,6 +154,5 @@ E2E catálogo Supabase 5/5 × Chromium+WebKit; pedidos remotes siguen 503. Boots
 
 ## Siguiente etapa recomendada
 
-**11B-1B** — administración real del catálogo (escrituras). Luego **11B-2** persistencia de
-pedidos reutilizando la validación autoritativa. Compuerta B (Dashboard + bootstrap owner)
-sigue bloqueada hasta autorización expresa. No usar Graphify como sustituto del código exacto.
+**11B-2** — persistencia de pedidos reutilizando la validación autoritativa.
+Compuerta B (Dashboard + bootstrap owner) sigue bloqueada hasta autorización expresa.

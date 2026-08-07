@@ -2,22 +2,28 @@
 
 import { RotateCcw, Save } from "lucide-react";
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, useTransition } from "react";
+import {
+  createModifierOptionAction,
+  updateMenuItemAction,
+  updateModifierOptionAction,
+  upsertBranchCommerceAction,
+  type CatalogAdminActionResult,
+} from "@/app/admin/catalog-actions";
+import { useEffectiveAdminRole } from "@/components/admin/admin-role-context";
 import { SearchField } from "@/components/menu/search-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { filterMenuItems } from "@/features/menu/filtering";
-import { formatCurrency } from "@/lib/format/currency";
+import { formatCurrency, minorUnitsToMajor } from "@/lib/format/currency";
 import { getCategoryBySlug } from "@/lib/menu/categories";
-import { minorUnitsToMajor } from "@/lib/format/currency";
 import { cn } from "@/lib/utils";
 import { useMenuItemsWithAdminOverrides } from "@/hooks/use-menu-items";
 import { roleCan, useAdminStore } from "@/stores/admin";
-import { useEffectiveAdminRole } from "@/components/admin/admin-role-context";
-import type { CategoryInfo, MenuItem } from "@/types/menu";
+import type { CategoryInfo, MenuItem, ModifierGroup } from "@/types/menu";
 
-/** Interruptor accesible reutilizado en la tabla de platos. */
 function Toggle({
   checked,
   onChange,
@@ -53,9 +59,154 @@ function Toggle({
   );
 }
 
-/** Editor de un plato: disponibilidad, destacado, precio y descripción. */
-function DishEditor({ item }: { item: MenuItem }) {
+function reportResult(
+  result: CatalogAdminActionResult,
+  toast: ReturnType<typeof useToast>["toast"],
+  success: { title: string; description?: string },
+) {
+  if (result.ok) {
+    toast({ title: success.title, description: success.description, variant: "success" });
+    return true;
+  }
+  toast({ title: "No se pudo guardar", description: result.message, variant: "error" });
+  return false;
+}
+
+function CommercialModifiersEditor({
+  item,
+  canEditMenu,
+  canEditPrices,
+  busy,
+  onBusy,
+}: {
+  item: MenuItem;
+  canEditMenu: boolean;
+  canEditPrices: boolean;
+  busy: boolean;
+  onBusy: (fn: () => Promise<void>) => void;
+}) {
   const { toast } = useToast();
+  const router = useRouter();
+  const groups = item.modifierGroups.filter((group) => group.kind !== "includedLunchSoup");
+  if (groups.length === 0) {
+    return (
+      <p className="mt-3 text-[12px] text-faint">
+        Sin grupos de modificadores comerciales. La desactivación de un grupo no está soportada en el esquema
+        (solo DELETE físico para owner/admin/manager).
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-3 space-y-3 border-t border-border-soft pt-3">
+      <p className="text-[13px] font-bold">Modificadores</p>
+      {groups.map((group: ModifierGroup) => (
+        <div key={group.id} className="rounded-xl bg-white/4 px-3 py-2.5">
+          <p className="text-[13px] font-semibold">
+            {group.name}
+            {group.required ? <span className="ml-1 text-faint">(obligatorio)</span> : null}
+          </p>
+          <ul className="mt-2 space-y-2">
+            {group.options.map((option) => (
+              <li key={option.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span className="min-w-0 flex-1">{option.name}</span>
+                <span className="tabular-nums text-muted">+{formatCurrency(option.additionalPrice)}</span>
+                <Toggle
+                  checked={option.available}
+                  disabled={!canEditMenu || busy}
+                  label={`Disponibilidad de ${option.name}`}
+                  onChange={(next) => {
+                    onBusy(async () => {
+                      const result = await updateModifierOptionAction({
+                        id: option.id,
+                        groupId: group.id,
+                        available: next,
+                      });
+                      if (reportResult(result, toast, { title: next ? "Opción activada" : "Opción desactivada" })) {
+                        router.refresh();
+                      }
+                    });
+                  }}
+                />
+                {canEditPrices ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={busy}
+                    className="h-8 px-2 text-[12px]"
+                    onClick={() => {
+                      const raw = window.prompt(
+                        `Recargo COP para ${option.name}`,
+                        String(option.additionalPrice),
+                      );
+                      if (raw == null) return;
+                      const parsed = Number.parseInt(raw, 10);
+                      onBusy(async () => {
+                        const result = await updateModifierOptionAction({
+                          id: option.id,
+                          groupId: group.id,
+                          additionalPrice: parsed,
+                        });
+                        if (reportResult(result, toast, { title: "Recargo actualizado" })) {
+                          router.refresh();
+                        }
+                      });
+                    }}
+                  >
+                    Recargo
+                  </Button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          {canEditMenu ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={busy}
+              className="mt-2"
+              onClick={() => {
+                const name = window.prompt("Nombre de la nueva opción");
+                if (!name?.trim()) return;
+                const id = `${group.id}-${name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`.slice(0, 100);
+                onBusy(async () => {
+                  const result = await createModifierOptionAction({
+                    id,
+                    groupId: group.id,
+                    name: name.trim(),
+                    additionalPrice: 0,
+                    available: true,
+                    displayOrder: group.options.length + 1,
+                  });
+                  if (reportResult(result, toast, { title: "Opción creada" })) {
+                    router.refresh();
+                  }
+                });
+              }}
+            >
+              Añadir opción
+            </Button>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DishEditor({
+  item,
+  mode,
+  branchId,
+  categories,
+}: {
+  item: MenuItem;
+  mode: "local" | "supabase";
+  branchId: string;
+  categories: CategoryInfo[];
+}) {
+  const { toast } = useToast();
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
   const role = useEffectiveAdminRole(useAdminStore((state) => state.demoRole));
   const overrides = useAdminStore((state) => state.overrides);
   const setOverride = useAdminStore((state) => state.setOverride);
@@ -63,7 +214,7 @@ function DishEditor({ item }: { item: MenuItem }) {
 
   const canEditMenu = roleCan(role, "edit-menu");
   const canEditPrices = roleCan(role, "edit-prices");
-  const hasOverride = Boolean(overrides[item.slug]);
+  const hasOverride = mode === "local" && Boolean(overrides[item.slug]);
 
   const [priceInput, setPriceInput] = useState(() =>
     String(Math.round(minorUnitsToMajor(item.price))),
@@ -71,7 +222,15 @@ function DishEditor({ item }: { item: MenuItem }) {
   const [descriptionInput, setDescriptionInput] = useState(item.shortDescription);
   const [editing, setEditing] = useState(false);
 
-  const category = getCategoryBySlug(item.categorySlug);
+  const category =
+    categories.find((candidate) => candidate.slug === item.categorySlug) ??
+    getCategoryBySlug(item.categorySlug);
+
+  const runRemote = (fn: () => Promise<void>) => {
+    startTransition(() => {
+      void fn();
+    });
+  };
 
   const savePrice = () => {
     const parsed = Number.parseInt(priceInput, 10);
@@ -79,14 +238,38 @@ function DishEditor({ item }: { item: MenuItem }) {
       toast({ title: "Precio inválido", description: "Escribe un número mayor que 0.", variant: "error" });
       return;
     }
-    setOverride(item.slug, { price: parsed });
-    toast({ title: "Precio actualizado", description: item.fullName, variant: "success" });
+    if (mode === "local") {
+      setOverride(item.slug, { price: parsed });
+      toast({ title: "Precio actualizado", description: item.fullName, variant: "success" });
+      return;
+    }
+    runRemote(async () => {
+      const result = await upsertBranchCommerceAction({
+        menuItemId: item.id,
+        branchId,
+        price: parsed,
+      });
+      if (reportResult(result, toast, { title: "Precio guardado", description: item.fullName })) {
+        router.refresh();
+      }
+    });
   };
 
   const saveDescription = () => {
-    setOverride(item.slug, { shortDescription: descriptionInput.trim() });
-    setEditing(false);
-    toast({ title: "Descripción guardada", description: item.fullName, variant: "success" });
+    const next = descriptionInput.trim();
+    if (mode === "local") {
+      setOverride(item.slug, { shortDescription: next });
+      setEditing(false);
+      toast({ title: "Descripción guardada", description: item.fullName, variant: "success" });
+      return;
+    }
+    runRemote(async () => {
+      const result = await updateMenuItemAction({ id: item.id, shortDescription: next });
+      if (reportResult(result, toast, { title: "Descripción guardada", description: item.fullName })) {
+        setEditing(false);
+        router.refresh();
+      }
+    });
   };
 
   return (
@@ -97,10 +280,9 @@ function DishEditor({ item }: { item: MenuItem }) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="min-w-0 break-words text-[15px] font-bold leading-snug">
-              {item.fullName}
-            </p>
+            <p className="min-w-0 break-words text-[15px] font-bold leading-snug">{item.fullName}</p>
             {hasOverride ? <Badge variant="warning">Ajuste demo</Badge> : null}
+            {mode === "supabase" ? <Badge variant="success">Supabase</Badge> : null}
           </div>
           <p className="mt-0.5 text-[12px] font-semibold uppercase tracking-wide text-lime">
             {category.name}
@@ -114,13 +296,31 @@ function DishEditor({ item }: { item: MenuItem }) {
           <span className="text-[13px] font-semibold">Disponible</span>
           <Toggle
             checked={item.available}
-            disabled={!canEditMenu}
+            disabled={!canEditMenu || pending}
             label={`Disponibilidad de ${item.fullName}`}
             onChange={(next) => {
-              setOverride(item.slug, { available: next });
-              toast({
-                title: next ? "Plato activado" : "Plato marcado como agotado",
-                description: item.fullName,
+              if (mode === "local") {
+                setOverride(item.slug, { available: next });
+                toast({
+                  title: next ? "Plato activado" : "Plato marcado como agotado",
+                  description: item.fullName,
+                });
+                return;
+              }
+              runRemote(async () => {
+                const result = await upsertBranchCommerceAction({
+                  menuItemId: item.id,
+                  branchId,
+                  available: next,
+                });
+                if (
+                  reportResult(result, toast, {
+                    title: next ? "Plato activado en sucursal" : "Plato no disponible en sucursal",
+                    description: item.fullName,
+                  })
+                ) {
+                  router.refresh();
+                }
               });
             }}
           />
@@ -129,11 +329,24 @@ function DishEditor({ item }: { item: MenuItem }) {
           <span className="text-[13px] font-semibold">Destacado</span>
           <Toggle
             checked={item.featured}
-            disabled={!canEditMenu}
+            disabled={!canEditMenu || pending}
             label={`Destacar ${item.fullName}`}
             onChange={(next) => {
-              setOverride(item.slug, { featured: next });
-              toast({ title: next ? "Añadido a destacados" : "Quitado de destacados" });
+              if (mode === "local") {
+                setOverride(item.slug, { featured: next });
+                toast({ title: next ? "Añadido a destacados" : "Quitado de destacados" });
+                return;
+              }
+              runRemote(async () => {
+                const result = await updateMenuItemAction({ id: item.id, featured: next });
+                if (
+                  reportResult(result, toast, {
+                    title: next ? "Añadido a destacados" : "Quitado de destacados",
+                  })
+                ) {
+                  router.refresh();
+                }
+              });
             }}
           />
         </div>
@@ -142,11 +355,8 @@ function DishEditor({ item }: { item: MenuItem }) {
       {canEditPrices ? (
         <div className="mt-3 flex items-end gap-2">
           <div className="flex-1">
-            <label
-              htmlFor={`precio-${item.slug}`}
-              className="text-[13px] font-semibold text-muted"
-            >
-              Precio (COP)
+            <label htmlFor={`precio-${item.slug}`} className="text-[13px] font-semibold text-muted">
+              Precio (COP){mode === "supabase" ? " · sucursal" : ""}
             </label>
             <input
               id={`precio-${item.slug}`}
@@ -154,20 +364,19 @@ function DishEditor({ item }: { item: MenuItem }) {
               inputMode="numeric"
               min={500}
               step={500}
+              disabled={pending}
               value={priceInput}
               onChange={(event) => setPriceInput(event.target.value)}
               className="mt-1 h-11 w-full rounded-xl border border-border-soft bg-white/6 px-3 text-[15px] font-semibold tabular-nums text-foreground outline-none transition-colors focus:border-lime/60"
             />
           </div>
-          <Button size="sm" variant="secondary" onClick={savePrice} className="h-11">
+          <Button size="sm" variant="secondary" onClick={savePrice} disabled={pending} className="h-11">
             <Save aria-hidden className="size-4" />
             Guardar
           </Button>
         </div>
       ) : (
-        <p className="mt-3 text-[12px] text-faint">
-          Tu rol no permite modificar precios (requiere Gerente o superior).
-        </p>
+        <p className="mt-3 text-[12px] text-faint">Tu rol no permite modificar precios.</p>
       )}
 
       {canEditMenu ? (
@@ -181,15 +390,16 @@ function DishEditor({ item }: { item: MenuItem }) {
                 id={`desc-${item.slug}`}
                 rows={2}
                 maxLength={160}
+                disabled={pending}
                 value={descriptionInput}
                 onChange={(event) => setDescriptionInput(event.target.value)}
                 className="w-full resize-none rounded-xl border border-border-soft bg-white/6 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-lime/60"
               />
               <div className="flex gap-2 self-end">
-                <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
+                <Button size="sm" variant="ghost" disabled={pending} onClick={() => setEditing(false)}>
                   Cancelar
                 </Button>
-                <Button size="sm" variant="secondary" onClick={saveDescription}>
+                <Button size="sm" variant="secondary" disabled={pending} onClick={saveDescription}>
                   Guardar descripción
                 </Button>
               </div>
@@ -204,10 +414,20 @@ function DishEditor({ item }: { item: MenuItem }) {
               className="w-full rounded-xl bg-white/4 px-3 py-2.5 text-left text-[13px] text-muted transition-colors hover:bg-white/8"
             >
               <span className="font-semibold text-foreground">Descripción: </span>
-              {item.shortDescription}
+              {item.shortDescription || "Sin descripción"}
             </button>
           )}
         </div>
+      ) : null}
+
+      {mode === "supabase" ? (
+        <CommercialModifiersEditor
+          item={item}
+          canEditMenu={canEditMenu}
+          canEditPrices={canEditPrices}
+          busy={pending}
+          onBusy={runRemote}
+        />
       ) : null}
 
       {hasOverride ? (
@@ -229,15 +449,18 @@ function DishEditor({ item }: { item: MenuItem }) {
   );
 }
 
-/** Gestión de platos: búsqueda, filtro por categoría y edición demo real. */
 export function DishesScreen({
   items,
   categories,
+  mode = "local",
+  branchId,
 }: {
   items: MenuItem[];
   categories: CategoryInfo[];
+  mode?: "local" | "supabase";
+  branchId: string;
 }) {
-  const adjusted = useMenuItemsWithAdminOverrides(items);
+  const adjusted = useMenuItemsWithAdminOverrides(items, mode === "local");
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
 
@@ -251,8 +474,9 @@ export function DishesScreen({
       <header>
         <h1 className="text-2xl font-extrabold tracking-tight">Platos</h1>
         <p className="mt-1 text-sm text-muted">
-          Los cambios afectan la tienda de este navegador al instante (modo demo). En producción se
-          guardan en Supabase con permisos por rol.
+          {mode === "local"
+            ? "Los cambios afectan la tienda de este navegador (modo demo local)."
+            : "Los cambios se guardan en PostgreSQL con la sesión autenticada y RLS. Precio y disponibilidad aplican a la sucursal configurada."}
         </p>
       </header>
 
@@ -299,7 +523,13 @@ export function DishesScreen({
 
       <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {filtered.map((item) => (
-          <DishEditor key={item.slug} item={item} />
+          <DishEditor
+            key={item.slug}
+            item={item}
+            mode={mode}
+            branchId={branchId}
+            categories={categories}
+          />
         ))}
       </ul>
     </div>

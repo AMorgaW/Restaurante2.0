@@ -13,6 +13,8 @@ export default defineConfig({
       "tests/components/**/*.test.{ts,tsx}",
       "tests/integration/**/*.test.{ts,tsx}",
     ],
+    // Integración Supabase comparte la misma DB local: evitar carreras entre archivos.
+    fileParallelism: false,
     css: false,
     restoreMocks: true,
   },

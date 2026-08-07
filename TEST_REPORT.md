@@ -455,3 +455,23 @@ sin SQL remoto, sin admin de catálogo, sin Compuerta B.
 | Admin catálogo / Compuerta B | **no iniciados** |
 | Graphify | **1.861 nodos, 4.769 aristas, 144 comunidades** (`graphify-out/` ignorado) |
 | Remoto / `db push` / `git push` | **cero** |
+
+## Etapa 11B-1B — administración real del catálogo (2026-08-07)
+
+Checkpoint base: `5b40d8c`. Escrituras admin → Server Actions → sesión SSR → RLS.
+Sin migraciones, sin service_role en app, sin persistencia de pedidos, sin Compuerta B.
+
+| Verificación | Resultado real |
+|---|---|
+| Vitest completo | **49 archivos / 415 pruebas** (todas aprobadas; 0 fallidas) |
+| Unitarias admin catálogo | validation 8 + service 3 |
+| Integración admin RLS local | **1/1** (owner/editor OK; customer/kitchen denegados) |
+| Integración catálogo público 11B-1A | **1/1** |
+| typecheck / lint / build | correctos |
+| E2E admin catálogo local Chromium | **2/2** |
+| E2E admin catálogo local WebKit | **2/2** |
+| E2E UI Auth+DATA supabase del panel | cubierto por integración RLS (sin usuarios remotos) |
+| `git diff --check` | limpio |
+| Migraciones / SQL remoto | **sin cambios** |
+| Graphify | **1.926 nodos, 5.000 aristas, 149 comunidades** |
+| Pedidos / inventario / pensionados / Compuerta B | **sin cambios de alcance** |
