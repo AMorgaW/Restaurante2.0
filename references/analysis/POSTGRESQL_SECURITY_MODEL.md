@@ -116,3 +116,11 @@ tráfico; `payment_webhook_events` con RLS y cero policies (deny-by-default acep
 `current_role` / `process_stripe_payment_event` conforme al contrato. Cualquier migración
 posterior, `db push` o escritura remota requiere nueva autorización expresa. No se afirma que
 todos los advisors queden en cero.
+
+## Etapa 10 — Auth SSR (Compuerta A)
+
+Código Auth preparado; bootstrap remoto **no ejecutado**. Variables canónicas
+`NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Producción
+exige `AUTH_MODE=supabase` configurado (sin demo silencioso). Registro sin
+metadata privilegiada. Runbook: `references/runbooks/FIRST_OWNER_BOOTSTRAP.md`.
+URL productiva de la app pendiente. RLS sigue siendo la autorización final de datos.

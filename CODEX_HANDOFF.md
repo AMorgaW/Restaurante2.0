@@ -21,7 +21,7 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
 - Etapas 1–7 completadas y validadas localmente. No hubo `supabase link`, `db push`, push Git ni cambios remotos.
 - La secuencia SQL canónica es `0001`–`0009` en local y en el remoto de producción (`nasenphzywwufntvrzpc`, Brisas del sinu). No existen migraciones timestamp paralelas.
 - `0009` fue auditada de forma independiente, dry-run correcta, desplegada y verificada en producción (índices, grants y advisors post-despliegue). No hubo `git push` de este cierre documental.
-- `graphify-out/` se regeneró tras Etapa 9C con `graphify update .`: **1.781 nodos, 4.577 aristas, 142 comunidades** (incluye `0009` y pruebas pgTAP ampliadas). La salida queda ignorada por Git y sirve como mapa auxiliar, no como autoridad.
+- `graphify-out/` se regeneró tras Etapa 10 Compuerta A con `graphify update .`: **1.798 nodos, 4.597 aristas, 137 comunidades**. La salida queda ignorada por Git y sirve como mapa auxiliar, no como autoridad.
 
 ## Resultado funcional por etapa
 
@@ -101,7 +101,7 @@ npm.cmd run test
 npm.cmd run build
 ```
 
-Último ciclo local (Etapa 9C): secuencia serial reset → lint DB 0 → pgTAP **90/90** → reset → concurrencia 6 escenarios **10/10** → reset → pgTAP **90/90**; Vitest 40/330; typecheck, ESLint, build y `git diff --check` correctos; E2E dirigidas (session/auth/pension/employee/admin-management) **28/28** Chromium y **28/28** WebKit. pgTAP y concurrencia nunca en paralelo (misma base). Posterior: auditoría independiente, dry-run y despliegue remoto de `0009` en producción; verificación post-despliegue (índices, grants, advisors). Consulte `TEST_REPORT.md`.
+Último ciclo local (Etapa 10 Compuerta A): Vitest Auth **74/74**, Vitest total **335/335**, typecheck/lint/build OK; E2E auth+session-routing **10/10** Chromium y **10/10** WebKit. Runbook del owner listo; bootstrap remoto **no ejecutado**. URL productiva de la app **pendiente**. Consulte `TEST_REPORT.md`.
 
 ## Archivos principales por área
 
@@ -117,6 +117,7 @@ npm.cmd run build
 
 - Local y remoto alineados en `0001`–`0009`. Advisors post-despliegue: FKs sin índice 24→20; 7 avisos `multiple_permissive_policies` eliminados; `unused_index` diferidos hasta tráfico real; `payment_webhook_events` sin policies (deny-by-default aceptado). No se afirma advisors en cero.
 - FKs de auditoría/ON DELETE lógico no indexadas a propósito.
+- Auth real / Site URL / Redirect URLs / bootstrap del primer owner: Compuerta B pendiente (`references/runbooks/FIRST_OWNER_BOOTSTRAP.md`). URL productiva de la app aún no definida en el repositorio.
 - Auth real, secretos fuera de Git, conciliación de pagos y despliegue de aplicación siguen requiriendo aprobación expresa.
 - La definición comercial final de pensionados sigue abierta: cantidad de comidas, días calendario o modalidad híbrida.
 - Resolver comercialmente la discrepancia de sopas (cerdo/pollo) antes de publicar un menú pensionado definitivo.
@@ -126,4 +127,4 @@ npm.cmd run build
 
 ## Siguiente etapa recomendada
 
-`0009` ya está en producción. El siguiente trabajo debe partir del esquema `0001`–`0009` alineado, configurar secretos fuera de Git solo con autorización expresa y solicitar aprobación antes de cualquier `db push` o escritura remota adicional. No usar Graphify como sustituto de leer el código exacto que vaya a cambiar.
+`0009` ya está en producción. **Etapa 10 Compuerta A** deja Auth SSR listo en código (variables publicables, fail-closed en producción, runbook del primer owner). Compuerta B (Dashboard + bootstrap owner) requiere la frase exacta de autorización del operador. No usar Graphify como sustituto de leer el código exacto que vaya a cambiar.

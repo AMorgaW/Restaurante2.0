@@ -4,6 +4,7 @@ import Link from "next/link";
 import { type FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { safeNextPath } from "@/lib/auth/redirect";
+import { buildPublicSignupMetadata } from "@/lib/auth/signup-metadata";
 import { siteUrl } from "@/lib/env/client";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { PENSION_DEMO_PROFILES } from "@/lib/pension/fixtures";
@@ -93,7 +94,8 @@ export function AuthForm({
           email,
           password,
           options: {
-            data: { name },
+            // Solo metadata no privilegiada; el rol lo fija PostgreSQL (siempre customer).
+            data: buildPublicSignupMetadata({ name }),
             emailRedirectTo: `${siteUrl}/auth/callback?next=${encodeURIComponent(safeNextPath(nextPath))}`,
           },
         });

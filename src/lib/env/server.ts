@@ -41,6 +41,7 @@ export function getServerEnv(): ServerEnv {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    // Solo webhooks firmados / tareas internas. Nunca Auth SSR ni bootstrap de owner.
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     PAYMENT_PROVIDER: process.env.PAYMENT_PROVIDER ?? "demo",
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
@@ -61,7 +62,7 @@ export function getSupabasePublishableKey(env: ServerEnv = getServerEnv()): stri
 }
 
 export function getAuthModeStatus(): AuthModeStatus {
-  return getAuthModeStatusFromEnv(getServerEnv());
+  return getAuthModeStatusFromEnv({ ...getServerEnv(), NODE_ENV: process.env.NODE_ENV });
 }
 
 export function getDataModeStatus(): DataModeStatus {

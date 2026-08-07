@@ -36,6 +36,13 @@ export default defineConfig({
       command: "npm run start:e2e",
       url: "http://localhost:3100",
       timeout: 180_000,
+      // next start usa NODE_ENV=production: Auth ausente fallaría cerrado.
+      // Las E2E locales demuestran el modo demo con AUTH_MODE=disabled explícito.
+      env: {
+        ...process.env,
+        AUTH_MODE: process.env.AUTH_MODE ?? "disabled",
+        DATA_MODE: process.env.DATA_MODE ?? "local",
+      },
     // NUNCA reutilizar un servidor previo: un `next start` huérfano puede
     // servir un build desfasado tras reconstruir (.next regenerado bajo el
     // proceso) → chunks 404, hidración rota y fallos rotatorios espurios.
@@ -45,6 +52,11 @@ export default defineConfig({
       command: "npm run start:e2e:hydration",
       url: "http://localhost:3000",
       timeout: 180_000,
+      env: {
+        ...process.env,
+        AUTH_MODE: process.env.AUTH_MODE ?? "disabled",
+        DATA_MODE: process.env.DATA_MODE ?? "local",
+      },
       reuseExistingServer: false,
     },
   ],

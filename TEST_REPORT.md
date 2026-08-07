@@ -370,3 +370,19 @@ que otras suites puedan alterar.
 | Working tree en cierre de código (`5cfc9bd`) | limpio |
 
 No se afirma que todos los advisors queden en cero.
+
+## Etapa 10 Compuerta A (2026-08-06) — Auth SSR preparado
+
+Sin usuarios remotos ni Dashboard. Cambios: fail-closed si `AUTH_MODE` ausente en
+producción; metadata de registro; `.env.example`; Playwright con `AUTH_MODE=disabled`
+explícito; runbook `FIRST_OWNER_BOOTSTRAP.md`.
+
+| Verificación | Resultado real |
+|---|---|
+| Vitest (Auth dirigido) | **74/74** |
+| Vitest completo | **41 archivos / 335 pruebas** |
+| typecheck / lint / build | correctos |
+| E2E `auth`+`session-routing` Chromium | **10/10** |
+| E2E mismas specs WebKit | **10/10** |
+| Bootstrap remoto / owner | **no ejecutado** |
+| URL productiva app | **pendiente** |

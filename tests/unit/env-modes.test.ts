@@ -53,4 +53,31 @@ describe("modos independientes de Auth y datos", () => {
       invalid: ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"],
     });
   });
+
+  it("en producción no permite fallback demo silencioso", () => {
+    expect(getAuthModeStatusFromEnv({ NODE_ENV: "production" })).toEqual({
+      mode: "invalid", configured: false, missing: ["AUTH_MODE"], invalid: [],
+    });
+    expect(getAuthModeStatusFromEnv({ NODE_ENV: "production", AUTH_MODE: "disabled" })).toEqual({
+      mode: "disabled", configured: false, missing: [], invalid: [],
+    });
+    expect(getAuthModeStatusFromEnv({
+      NODE_ENV: "production",
+      AUTH_MODE: "supabase",
+      ...configured,
+    })).toEqual({ mode: "supabase", configured: true, missing: [], invalid: [] });
+  });
+
+  it("rechaza claves secretas en variables publicables", () => {
+    expect(getAuthModeStatusFromEnv({
+      AUTH_MODE: "supabase",
+      NEXT_PUBLIC_SUPABASE_URL: configured.NEXT_PUBLIC_SUPABASE_URL,
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_secret_should_never_be_public",
+    })).toEqual({
+      mode: "supabase",
+      configured: false,
+      missing: [],
+      invalid: ["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"],
+    });
+  });
 });

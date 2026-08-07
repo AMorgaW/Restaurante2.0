@@ -325,3 +325,24 @@ SECURITY DEFINER, `search_path` vacío; `process_stripe_payment_event` EXECUTE s
 `service_role`. Sin errores bloqueantes en registros. Working tree limpio en el commit de
 código `5cfc9bd` antes de este cierre documental. No se afirma que todos los advisors queden
 en cero.
+
+## 2026-08-06 (Etapa 10 Compuerta A — Auth SSR y runbook del owner)
+
+87. **Fail-closed de Auth en producción** — con `NODE_ENV=production` y `AUTH_MODE`
+ausente el estado es inválido (no hay demo silencioso). `AUTH_MODE=disabled`
+explícito sigue permitido para demos/E2E etiquetados. Playwright fija
+`AUTH_MODE=disabled` en sus webServers.
+
+88. **Clave publicable canónica** — `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+(`sb_publishable_…`). `NEXT_PUBLIC_SUPABASE_ANON_KEY` solo compatibilidad temporal
+para JWT anon de CLI local. Secretos nunca en `NEXT_PUBLIC_*`. `SUPABASE_SERVICE_ROLE_KEY`
+queda fuera del runtime Auth; opcional solo para webhooks firmados.
+
+89. **Metadata de registro no privilegiada** — `buildPublicSignupMetadata` envía
+solo nombre/teléfono sanitizados; ignora role/staff/membresía/permisos. El trigger
+`private.handle_new_user` sigue creando siempre `customer`.
+
+90. **Bootstrap del primer owner es manual** — runbook
+`references/runbooks/FIRST_OWNER_BOOTSTRAP.md` (Dashboard + SQL transaccional
+defensivo). No hay API, migración `0010` ni botón oculto. Compuerta B requiere
+autorización explícita del operador. URL productiva de la app: pendiente.

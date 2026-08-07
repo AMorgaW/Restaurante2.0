@@ -19,8 +19,10 @@ export type DataModeStatus = {
 export type ModeEnvironment = {
   AUTH_MODE?: string;
   DATA_MODE?: string;
+  NODE_ENV?: string;
   NEXT_PUBLIC_SUPABASE_URL?: string;
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?: string;
+  /** @deprecated Preferir NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; solo compatibilidad JWT anon local. */
   NEXT_PUBLIC_SUPABASE_ANON_KEY?: string;
 };
 
@@ -54,7 +56,14 @@ function getSupabaseConfiguration(env: ModeEnvironment) {
 }
 
 export function getAuthModeStatusFromEnv(env: ModeEnvironment): AuthModeStatus {
+  const isProduction = env.NODE_ENV === "production";
+
+  // Producción no cae en demo por omisión (AUTH_MODE ausente).
+  // AUTH_MODE=disabled explícito sigue permitido (p. ej. E2E / demos etiquetados).
   if (env.AUTH_MODE === undefined) {
+    if (isProduction) {
+      return { mode: "invalid", configured: false, missing: ["AUTH_MODE"], invalid: [] };
+    }
     return { mode: "disabled", configured: false, missing: [], invalid: [] };
   }
   if (env.AUTH_MODE !== "disabled" && env.AUTH_MODE !== "supabase") {

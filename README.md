@@ -102,15 +102,23 @@ Edita `src/data/menu-overrides.ts` usando el `slug` del plato (visible en `artif
 
 ## Modos independientes
 
-### Modo local (por defecto)
+### Modo local (por defecto en desarrollo)
 
-Sin variables de entorno (`AUTH_MODE=disabled` y `DATA_MODE=local`). El menú sale del manifiesto; los pedidos se **validan y calculan en el servidor** (`/api/orders`) y se persisten en el navegador (localStorage). El panel `/admin` usa un acceso demo por roles claramente etiquetado.
+Sin variables de entorno (`AUTH_MODE` ausente → `disabled` y `DATA_MODE=local`) **solo en desarrollo**. El menú sale del manifiesto; los pedidos se validan en el servidor y se persisten en el navegador. El panel `/admin` usa accesos demo etiquetados.
 
-`AUTH_MODE=supabase` habilita solo Auth, cookies SSR, cuenta y protección real de `/admin`. Puede combinarse con `DATA_MODE=local` para conservar carrito, checkout, domicilios y pedidos locales como invitado.
+En **producción** (`NODE_ENV=production`) no hay fallback demo silencioso: hace falta `AUTH_MODE=supabase` con `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (clave `sb_publishable_…`). Nunca coloques secretos en `NEXT_PUBLIC_*`.
 
-### Supabase local e integración posterior
+`AUTH_MODE=supabase` habilita Auth real, cookies SSR (`@supabase/ssr`), cuenta y protección de `/admin`, `/empleado`, `/pensionado` y `/cuenta`. Puede combinarse con `DATA_MODE=local` para conservar carrito/checkout locales.
 
-El backend `0001`–`0007` se valida primero en Docker/Supabase local:
+### Supabase Auth (Compuerta A — código listo)
+
+Migraciones remotas `0001`–`0009`. Bootstrap del primer **owner**: procedimiento manual en [`references/runbooks/FIRST_OWNER_BOOTSTRAP.md`](references/runbooks/FIRST_OWNER_BOOTSTRAP.md). **Aún no ejecutado** (cero usuarios Auth remotos en esta compuerta). No compartir credenciales en el chat.
+
+Rutas Auth: `/login`, `/registro`, `/recuperar-contrasena`, `/actualizar-contrasena`, `/auth/callback`, `/auth/resolve`, `/auth/signout`, `/auth/update-password`. El registro crea siempre `customer` (trigger PostgreSQL); no envía rol en metadata. URL productiva de la app: **pendiente** de dominio de despliegue; Site URL / Redirect URLs se configuran en Compuerta B.
+
+### Supabase local e integración
+
+El backend `0001`–`0009` se valida en Docker/Supabase local:
 
 ```powershell
 supabase start -x edge-runtime,logflare,vector
@@ -119,19 +127,21 @@ npm.cmd run test:db
 npm.cmd run test:db:concurrency
 ```
 
-`[db.seed].enabled` debe permanecer en `false`; `supabase/seed.sql` es exclusivamente demo y nunca debe aplicarse ni publicarse como datos de producción. `supabase link`, `db push` y cualquier operación `--linked` requieren revisión y autorización explícita para el proyecto correcto.
+`[db.seed].enabled` debe permanecer en `false`. `supabase link`, `db push` y `--linked` de escritura requieren autorización explícita.
 
-Para preparar un entorno autorizado, copia `.env.example` a `.env.local` sin versionarlo y completa:
-   ```
-   AUTH_MODE=supabase       # opcional: Auth real y sesiones SSR
-   DATA_MODE=local          # conserva operaciones comerciales locales
-   NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
-   SUPABASE_SERVICE_ROLE_KEY=...   # solo servidor
-   ```
-En una fase posterior autorizada se cargarán datos reales y se revisará Auth. El registro siempre crea `customer`; los roles de personal se asignan mediante una operación administrativa confiable. En la plantilla **Recovery**, usa `{{ .RedirectTo }}?token_hash={{ .TokenHash }}`; el servidor consume el token una vez y elimina la sesión temporal.
+Para desarrollo Auth, copia `.env.example` → `.env.local` (ignorado) y completa:
 
-Si se solicita `AUTH_MODE=supabase` o `DATA_MODE=supabase` y faltan variables, el estado se marca como no configurado y la operación se cierra de forma explícita; no se habilitan escrituras remotas inseguras.
+```
+AUTH_MODE=supabase
+DATA_MODE=local
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
+```
+
+`SUPABASE_SERVICE_ROLE_KEY` es opcional y **solo** para webhooks firmados (Stripe), nunca para Auth SSR ni para crear el owner. En Recovery usa `{{ .RedirectTo }}?token_hash={{ .TokenHash }}`.
+
+Si `AUTH_MODE=supabase` o `DATA_MODE=supabase` faltan variables, la operación falla cerrado; no hay escrituras remotas inseguras.
 
 ### Pagos (Stripe / Mercado Pago)
 
