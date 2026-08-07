@@ -104,3 +104,33 @@ test("workspace empleado funciona en móvil, reduced motion y sin errores de con
   expect(axe.violations.filter((violation) => violation.impact === "critical" || violation.impact === "serious")).toEqual([]);
   expect(errors).toEqual([]);
 });
+
+test("editor abre gestion de catalogo desde empleado", async ({ page }) => {
+  await seed(page, "editor");
+  await page.goto("/empleado");
+  await expect(page.getByRole("heading", { name: /Hola, Mateo/i })).toBeVisible();
+  const catalogLink = page.getByRole("navigation", { name: "Secciones de empleado" }).getByRole("link", { name: "Gestionar catálogo" });
+  await catalogLink.scrollIntoViewIfNeeded();
+  await expect(catalogLink).toBeVisible();
+  await catalogLink.click();
+  await expect(page).toHaveURL(/\/empleado\/catalogo/);
+  await expect(page.getByRole("heading", { name: "Platos" })).toBeVisible();
+});
+
+test("manager ve enlace de catalogo en empleado", async ({ page }) => {
+  await seed(page, "manager");
+  await page.goto("/empleado");
+  await expect(page.getByRole("heading", { name: /Hola, Laura/i })).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Secciones de empleado" }).getByRole("link", { name: "Gestionar catálogo" }),
+  ).toHaveAttribute("href", "/empleado/catalogo");
+});
+
+test("kitchen no recibe herramientas de catalogo en empleado", async ({ page }) => {
+  await seed(page, "kitchen");
+  await page.goto("/empleado");
+  await expect(page.getByRole("heading", { name: /Hola, Juan/i })).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Secciones de empleado" }).getByRole("link", { name: "Gestionar catálogo" }),
+  ).toHaveCount(0);
+});

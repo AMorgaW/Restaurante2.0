@@ -40,7 +40,7 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
 
 - Server Actions (`src/app/admin/catalog-actions.ts`) → `admin-service` → cliente SSR con sesión → RLS.
 - Roles de escritura comprobados: owner, admin, editor (+ manager según `can_manage_catalog` / capacidades).
-- Shell `/admin` ampliado a manager/editor (destino de login de editor/manager sigue `/empleado`).
+- Shell `/admin` exclusivo owner/admin. Manager/editor gestionan catálogo desde `/empleado/catalogo` (mismas Server Actions + RLS).
 - Tablas escritas: `menu_items`, `branch_menu_items`, `categories`, `modifier_groups`, `modifier_options`.
 - Soft-disable: `available` / `is_active`. Sin DELETE físico en UI. Grupos sin flag soft-delete.
 - Cero `service_role` en la app (solo fixture de prueba local para crear usuarios Auth).

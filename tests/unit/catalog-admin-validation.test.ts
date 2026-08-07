@@ -99,4 +99,13 @@ describe("roles admin catálogo", () => {
     expect(adminRoleCan("manager", "edit-catalog")).toBe(true);
     expect(adminRoleCan("manager", "edit-prices")).toBe(true);
   });
+
+  it("capacidad edit-catalog no implica shell /admin para manager/editor", () => {
+    // canAccessAdminPath filtra navegación dentro del shell; el layout y
+    // canSessionUsePath niegan el shell a cargos de empleado.
+    expect(adminRoleCan("manager", "edit-catalog")).toBe(true);
+    expect(adminRoleCan("editor", "edit-catalog")).toBe(true);
+    expect(canAccessAdminPath("manager", "/admin/platos")).toBe(true);
+    expect(canAccessAdminPath("editor", "/admin/platos")).toBe(true);
+  });
 });

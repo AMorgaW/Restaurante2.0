@@ -64,19 +64,54 @@ describe("menu-mapper", () => {
     });
   });
 
-  it("producto sin configuración de sucursal no se mapea", () => {
-    expect(mapCatalogMenuItem(baseItem, undefined, [], [])).toBeNull();
+  it("global available + branch available → comprable", () => {
+    const commerce = resolveBranchCommerce(baseItem, {
+      menu_item_id: baseItem.id,
+      price: 27000,
+      available: true,
+    });
+    expect(commerce).toEqual({ price: 27000, available: true, listed: true });
   });
 
-  it("producto no disponible en sucursal queda listed=false disponible", () => {
+  it("global disabled + branch available → NO comprable", () => {
+    const commerce = resolveBranchCommerce(
+      { ...baseItem, available: false },
+      { menu_item_id: baseItem.id, price: 27000, available: true },
+    );
+    expect(commerce).toEqual({ price: 27000, available: false, listed: true });
     const mapped = mapCatalogMenuItem(
-      baseItem,
-      { menu_item_id: baseItem.id, price: null, available: false },
+      { ...baseItem, available: false },
+      { menu_item_id: baseItem.id, price: 27000, available: true },
       [],
       [],
     );
     expect(mapped?.available).toBe(false);
-    expect(mapped?.price).toBe(25000);
+    expect(mapped?.globalAvailable).toBe(false);
+    expect(mapped?.branchAvailable).toBe(true);
+  });
+
+  it("global available + branch disabled → NO comprable", () => {
+    const commerce = resolveBranchCommerce(baseItem, {
+      menu_item_id: baseItem.id,
+      price: 27000,
+      available: false,
+    });
+    expect(commerce).toEqual({ price: 27000, available: false, listed: true });
+  });
+
+  it("ausencia de branch_menu_item → NO comprable ni listado", () => {
+    expect(resolveBranchCommerce(baseItem, undefined).listed).toBe(false);
+    expect(resolveBranchCommerce(baseItem, undefined).available).toBe(false);
+    expect(mapCatalogMenuItem(baseItem, undefined, [], [])).toBeNull();
+  });
+
+  it("precio siempre tomado de la sucursal cuando existe", () => {
+    expect(
+      resolveBranchCommerce(baseItem, { menu_item_id: baseItem.id, price: 31000, available: true }).price,
+    ).toBe(31000);
+    expect(
+      resolveBranchCommerce(baseItem, { menu_item_id: baseItem.id, price: null, available: true }).price,
+    ).toBe(25000);
   });
 
   it("rechaza precios no enteros", () => {

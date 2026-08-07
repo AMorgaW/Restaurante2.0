@@ -292,39 +292,72 @@ function DishEditor({
       </div>
 
       <div className="mt-3 grid grid-cols-1 gap-3 border-t border-border-soft pt-3 xs:grid-cols-2">
-        <div className="flex items-center justify-between gap-2 rounded-xl bg-white/4 px-3 py-2.5">
-          <span className="text-[13px] font-semibold">Disponible</span>
-          <Toggle
-            checked={item.available}
-            disabled={!canEditMenu || pending}
-            label={`Disponibilidad de ${item.fullName}`}
-            onChange={(next) => {
-              if (mode === "local") {
+        {mode === "local" ? (
+          <div className="flex items-center justify-between gap-2 rounded-xl bg-white/4 px-3 py-2.5">
+            <span className="text-[13px] font-semibold">Disponible</span>
+            <Toggle
+              checked={item.available}
+              disabled={!canEditMenu || pending}
+              label={`Disponibilidad de ${item.fullName}`}
+              onChange={(next) => {
                 setOverride(item.slug, { available: next });
                 toast({
                   title: next ? "Plato activado" : "Plato marcado como agotado",
                   description: item.fullName,
                 });
-                return;
-              }
-              runRemote(async () => {
-                const result = await upsertBranchCommerceAction({
-                  menuItemId: item.id,
-                  branchId,
-                  available: next,
-                });
-                if (
-                  reportResult(result, toast, {
-                    title: next ? "Plato activado en sucursal" : "Plato no disponible en sucursal",
-                    description: item.fullName,
-                  })
-                ) {
-                  router.refresh();
-                }
-              });
-            }}
-          />
-        </div>
+              }}
+            />
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between gap-2 rounded-xl bg-white/4 px-3 py-2.5">
+              <span className="text-[13px] font-semibold">Activo en catálogo</span>
+              <Toggle
+                checked={item.globalAvailable ?? item.available}
+                disabled={!canEditMenu || pending}
+                label={`Disponibilidad global de ${item.fullName}`}
+                onChange={(next) => {
+                  runRemote(async () => {
+                    const result = await updateMenuItemAction({ id: item.id, available: next });
+                    if (
+                      reportResult(result, toast, {
+                        title: next ? "Plato activo en catálogo" : "Plato desactivado globalmente",
+                        description: item.fullName,
+                      })
+                    ) {
+                      router.refresh();
+                    }
+                  });
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-2 rounded-xl bg-white/4 px-3 py-2.5">
+              <span className="text-[13px] font-semibold">Disponible en sucursal</span>
+              <Toggle
+                checked={item.branchAvailable ?? item.available}
+                disabled={!canEditMenu || pending}
+                label={`Disponibilidad en sucursal de ${item.fullName}`}
+                onChange={(next) => {
+                  runRemote(async () => {
+                    const result = await upsertBranchCommerceAction({
+                      menuItemId: item.id,
+                      branchId,
+                      available: next,
+                    });
+                    if (
+                      reportResult(result, toast, {
+                        title: next ? "Plato activado en sucursal" : "Plato no disponible en sucursal",
+                        description: item.fullName,
+                      })
+                    ) {
+                      router.refresh();
+                    }
+                  });
+                }}
+              />
+            </div>
+          </>
+        )}
         <div className="flex items-center justify-between gap-2 rounded-xl bg-white/4 px-3 py-2.5">
           <span className="text-[13px] font-semibold">Destacado</span>
           <Toggle
@@ -476,7 +509,7 @@ export function DishesScreen({
         <p className="mt-1 text-sm text-muted">
           {mode === "local"
             ? "Los cambios afectan la tienda de este navegador (modo demo local)."
-            : "Los cambios se guardan en PostgreSQL con la sesión autenticada y RLS. Precio y disponibilidad aplican a la sucursal configurada."}
+            : "Los cambios se guardan en PostgreSQL con la sesión autenticada y RLS. «Activo en catálogo» es global; precio y «Disponible en sucursal» aplican solo a la sucursal configurada."}
         </p>
       </header>
 

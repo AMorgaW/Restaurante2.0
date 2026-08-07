@@ -4,7 +4,7 @@ import { getCategoriesInUse, menuItems } from "@/data/menu";
 import { authorizeAdminSection } from "@/lib/admin/server-authorization";
 import { getResolvedDataMode } from "@/lib/env/server";
 import { getDefaultConfiguredBranch } from "@/server/catalog/branch-config";
-import { loadPublicCatalog } from "@/server/catalog/load-public-catalog";
+import { loadManageableCatalog } from "@/server/catalog/load-manageable-catalog";
 import { CatalogReadError } from "@/server/repositories/supabase";
 
 export const metadata = { title: "Platos" };
@@ -28,7 +28,7 @@ export default async function AdminDishesPage() {
       );
     }
 
-    const catalog = await loadPublicCatalog(branchId);
+    const catalog = await loadManageableCatalog(branchId);
     if (catalog.items.length === 0) {
       return (
         <EmptyState

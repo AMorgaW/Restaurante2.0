@@ -475,3 +475,16 @@ Sin migraciones, sin service_role en app, sin persistencia de pedidos, sin Compu
 | Migraciones / SQL remoto | **sin cambios** |
 | Graphify | **1.926 nodos, 5.000 aristas, 149 comunidades** |
 | Pedidos / inventario / pensionados / Compuerta B | **sin cambios de alcance** |
+
+## Verificación 11B-1B — rutas staff + disponibilidad (2026-08-07)
+
+Corrección post-11B-1B: shell `/admin` exclusivo owner/admin; catálogo manager/editor en
+`/empleado/catalogo`. Semántica `menu_items.available` (global) vs `branch_menu_items.available`
+(sucursal) explicitada en UI y tests del mapper.
+
+| Verificación | Resultado real |
+|---|---|
+| Vitest completo | **49 archivos / 420 pruebas** |
+| typecheck / lint / build | correctos |
+| E2E catálogo empleado (3) Chromium+WebKit | **6/6** |
+| Sin SQL/RLS/migraciones/remoto/push | **confirmado** |

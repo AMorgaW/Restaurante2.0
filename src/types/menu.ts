@@ -57,7 +57,15 @@ export interface MenuItem {
   description?: string;
   /** Precio base en unidades menores (COP no usa decimales). */
   price: number;
+  /**
+   * Comprable en la sucursal efectiva: `menu_items.available` AND
+   * `branch_menu_items.available` (y fila de sucursal presente).
+   */
   available: boolean;
+  /** Disponibilidad global (`menu_items.available`); solo en catálogo Supabase. */
+  globalAvailable?: boolean;
+  /** Disponibilidad de la sucursal (`branch_menu_items.available`); solo en catálogo Supabase. */
+  branchAvailable?: boolean;
   featured: boolean;
   tags: string[];
   ingredients?: string[];

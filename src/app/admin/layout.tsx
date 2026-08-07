@@ -52,14 +52,16 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const session = await resolveServerSession();
   if (session.kind === "anonymous") redirect(`/login?next=${encodeURIComponent("/admin")}`);
   if (session.kind === "suspended_staff") redirect("/cuenta?error=admin");
-  const role = session.profile?.role;
-  const shellRoles = new Set(["owner", "admin", "manager", "editor"]);
-  if (!session.profile || !isAdminRole(role) || !shellRoles.has(role)) {
+  if (
+    !session.profile ||
+    !isAdminRole(session.profile.role) ||
+    (session.kind !== "owner" && session.kind !== "admin")
+  ) {
     redirect("/cuenta?error=admin");
   }
 
   return (
-    <AdminShell mode="supabase" dataMode={dataMode} role={role}>
+    <AdminShell mode="supabase" dataMode={dataMode} role={session.profile.role}>
       {children}
     </AdminShell>
   );

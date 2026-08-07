@@ -4,7 +4,7 @@ import { getCategoriesInUse, getItemsByCategory } from "@/data/menu";
 import { authorizeAdminSection } from "@/lib/admin/server-authorization";
 import { getResolvedDataMode } from "@/lib/env/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { loadPublicCatalog } from "@/server/catalog/load-public-catalog";
+import { loadManageableCatalog } from "@/server/catalog/load-manageable-catalog";
 import { CatalogReadError } from "@/server/repositories/supabase";
 
 export const metadata = { title: "Categorías" };
@@ -26,7 +26,7 @@ export default async function AdminCategoriesPage() {
       );
     }
 
-    const catalog = await loadPublicCatalog();
+    const catalog = await loadManageableCatalog();
     const client = await createServerSupabaseClient();
     const { data: allCategories, error } = await client
       .from("categories")

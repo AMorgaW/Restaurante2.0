@@ -10,13 +10,14 @@ import type { OrderStatus } from "@/types/order";
 export const EMPLOYEE_ROLES = ["manager", "kitchen", "cashier", "editor", "support"] as const;
 export type EmployeeRole = (typeof EMPLOYEE_ROLES)[number];
 
-export type EmployeeSection = "home" | "orders" | "menu" | "inventory" | "history" | "incidents";
+export type EmployeeSection = "home" | "orders" | "menu" | "catalog" | "inventory" | "history" | "incidents";
 export type EmployeeAction =
   | "view-orders"
   | "prepare-order"
   | "confirm-order"
   | "deliver-order"
   | "view-menu"
+  | "edit-catalog"
   | "view-inventory"
   | "view-history"
   | "view-incidents"
@@ -25,6 +26,7 @@ export type EmployeeAction =
 const SECTION_CAPABILITY: Partial<Record<Exclude<EmployeeSection, "home">, AdminCapability>> = {
   orders: "read-orders",
   menu: "read-catalog",
+  catalog: "edit-catalog",
   inventory: "read-inventory",
   history: "read-history",
   incidents: "read-incidents",
@@ -33,6 +35,7 @@ const SECTION_CAPABILITY: Partial<Record<Exclude<EmployeeSection, "home">, Admin
 const ACTION_CAPABILITY: Record<Exclude<EmployeeAction, "prepare-order" | "confirm-order" | "deliver-order" | "record-incident">, AdminCapability> = {
   "view-orders": "read-orders",
   "view-menu": "read-catalog",
+  "edit-catalog": "edit-catalog",
   "view-inventory": "read-inventory",
   "view-history": "read-history",
   "view-incidents": "read-incidents",
@@ -63,11 +66,16 @@ export function canEmployeeAction(
   return adminRoleCan(role, ACTION_CAPABILITY[action]);
 }
 
-export function getEmployeeNavigation(role: AdminRole | null | undefined): Array<{ section: EmployeeSection; label: string }> {
-  const candidates: Array<{ section: EmployeeSection; label: string }> = [
+export function getEmployeeNavigation(role: AdminRole | null | undefined): Array<{
+  section: EmployeeSection;
+  label: string;
+  href?: string;
+}> {
+  const candidates: Array<{ section: EmployeeSection; label: string; href?: string }> = [
     { section: "home", label: "Inicio" },
     { section: "orders", label: "Pedidos" },
-    { section: "menu", label: isEmployeeRole(role) && role === "editor" ? "Catálogo" : "Menú" },
+    { section: "menu", label: isEmployeeRole(role) && role === "editor" ? "Menú del día" : "Menú" },
+    { section: "catalog", label: "Gestionar catálogo", href: "/empleado/catalogo" },
     { section: "inventory", label: "Inventario" },
     { section: "history", label: "Historial" },
     { section: "incidents", label: "Incidencias" },

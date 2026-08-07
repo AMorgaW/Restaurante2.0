@@ -6,8 +6,12 @@ describe("capacidades de empleado", () => {
     expect(isEmployeeRole("employee")).toBe(false);
     expect(getEmployeeNavigation("kitchen").map((item) => item.section)).toEqual(["home", "orders", "menu", "inventory", "history"]);
     expect(getEmployeeNavigation("cashier").map((item) => item.section)).toEqual(["home", "orders", "inventory", "history", "incidents"]);
-    expect(getEmployeeNavigation("editor").map((item) => item.section)).toEqual(["home", "menu"]);
+    expect(getEmployeeNavigation("editor").map((item) => item.section)).toEqual(["home", "menu", "catalog"]);
+    expect(getEmployeeNavigation("editor").find((item) => item.section === "catalog")?.href).toBe("/empleado/catalogo");
+    expect(getEmployeeNavigation("manager").map((item) => item.section)).toContain("catalog");
     expect(getEmployeeNavigation("support").map((item) => item.section)).toEqual(["home", "orders", "incidents"]);
+    expect(canAccessEmployeeSection("kitchen", "catalog")).toBe(false);
+    expect(canAccessEmployeeSection("editor", "catalog")).toBe(true);
   });
 
   it("mantiene acciones operativas alineadas con la máquina de estados", () => {

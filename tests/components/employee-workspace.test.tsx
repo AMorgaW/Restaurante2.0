@@ -36,4 +36,11 @@ describe("experiencia local de empleado", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "Acceso de empleado no disponible" })).toBeVisible());
     expect(screen.getByRole("link", { name: "Ir a administración" })).toHaveAttribute("href", "/admin");
   });
+
+  it("editor ve enlace a gestionar catálogo en /empleado", async () => {
+    useAdminStore.setState({ demoRole: "editor" });
+    render(<ToastProvider><EmployeeWorkspace initialSnapshot={DEFAULT_SERVICE_SNAPSHOT} mode="local" /></ToastProvider>);
+    await waitFor(() => expect(screen.getByRole("link", { name: "Gestionar catálogo" })).toBeVisible());
+    expect(screen.getByRole("link", { name: "Gestionar catálogo" })).toHaveAttribute("href", "/empleado/catalogo");
+  });
 });

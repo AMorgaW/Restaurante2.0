@@ -122,7 +122,7 @@ carrito/favoritos) y `POST /api/orders` leen el mismo repositorio remoto. No hay
 fallback a fixtures. El carrito solo guarda selecciones; precios y totales se
 recalculan en servidor. La persistencia remota de pedidos **aún no está habilitada**
 (503 `persistence-pending`). La administración del catálogo con Auth+DATA supabase
-persiste en PostgreSQL vía Server Actions + RLS (roles owner/admin/manager/editor);
+persiste en PostgreSQL vía Server Actions + RLS (roles owner/admin en `/admin`; manager/editor en `/empleado/catalogo`);
 en demo local (`AUTH_MODE=disabled`) el panel sigue usando ajustes en el navegador.
 
 En **producción** (`NODE_ENV=production`) solo es válido `AUTH_MODE=supabase` con

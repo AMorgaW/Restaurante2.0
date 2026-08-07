@@ -33,11 +33,20 @@ describe("destino posterior al login", () => {
   it("solo conserva next cuando el rol puede usarlo", () => {
     const owner = resolveSession({ source: "supabase", user: base, profile: { ...base, role: "owner" } });
     const customer = resolveSession({ source: "supabase", user: base, profile: { ...base, role: "customer" } });
+    const manager = resolveSession({ source: "supabase", user: base, profile: { ...base, role: "manager" } });
+    const editor = resolveSession({ source: "supabase", user: base, profile: { ...base, role: "editor" } });
     expect(resolvePostLoginDestination(owner, "/admin/pedidos")).toBe("/admin/pedidos");
     expect(resolvePostLoginDestination(customer, "/admin")).toBe("/cuenta");
     expect(resolvePostLoginDestination(owner, "//evil.example")).toBe("/admin");
     expect(canSessionUsePath(owner, "/admin/inventario")).toBe(true);
     expect(canSessionUsePath(customer, "/admin")).toBe(false);
+    expect(canSessionUsePath(manager, "/admin")).toBe(false);
+    expect(canSessionUsePath(manager, "/admin/platos")).toBe(false);
+    expect(canSessionUsePath(editor, "/admin")).toBe(false);
+    expect(canSessionUsePath(manager, "/empleado/catalogo")).toBe(true);
+    expect(canSessionUsePath(editor, "/empleado/catalogo")).toBe(true);
+    expect(resolvePostLoginDestination(manager, "/admin/platos")).toBe("/empleado");
+    expect(resolvePostLoginDestination(editor, "/empleado/catalogo")).toBe("/empleado/catalogo");
   });
 });
 

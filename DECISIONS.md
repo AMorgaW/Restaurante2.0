@@ -377,6 +377,8 @@ mezclar precios/disponibilidad/modificadores locales en modo remoto.
 autenticado; sin `service_role` ni fallback a Zustand en modo Supabase. Local demo
 conserva `rb-admin`.
 
-96. **Shell admin para manager/editor** — alineado con `can_manage_catalog` y capacidades
-de UI; kitchen/cashier/support/customer siguen fuera. Soft-disable vía `available`/`is_active`;
-sin DELETE físico en UI; grupos de modificadores sin soft-delete de esquema.
+96. **Shell `/admin` exclusivo owner/admin** — RLS/`can_manage_catalog` autoriza escrituras
+de catálogo a manager/editor, pero el shell `/admin` no se abre a esos cargos. Manager/editor
+operan catálogo desde `/empleado/catalogo` reutilizando las mismas Server Actions. Soft-disable
+vía `menu_items.available` (global) y `branch_menu_items.available` (sucursal); sin DELETE
+físico en UI; grupos de modificadores sin soft-delete de esquema.

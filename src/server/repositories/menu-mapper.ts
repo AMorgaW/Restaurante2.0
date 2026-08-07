@@ -180,7 +180,7 @@ export function mapCatalogMenuItem(
   options: CatalogModifierOptionRow[],
 ): MenuItem | null {
   const commerce = resolveBranchCommerce(row, branchRow);
-  if (!commerce.listed) return null;
+  if (!commerce.listed || !branchRow) return null;
 
   const itemGroups = groups.filter((group) => group.menu_item_id === row.id);
   const groupIds = new Set(itemGroups.map((group) => group.id));
@@ -196,6 +196,8 @@ export function mapCatalogMenuItem(
     ...(row.description ? { description: row.description } : {}),
     price: commerce.price,
     available: commerce.available,
+    globalAvailable: row.available,
+    branchAvailable: branchRow.available,
     featured: row.featured,
     tags: row.tags ?? [],
     ...(row.ingredients ? { ingredients: row.ingredients } : {}),
