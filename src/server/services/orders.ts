@@ -1,7 +1,7 @@
 import { branches, coupons, restaurantConfig } from "@/config/restaurant";
 import { calculateTotals, buildLineId, lineTotal } from "@/features/cart/calculations";
 import type { CheckoutInput } from "@/features/checkout/schema";
-import { getResolvedPaymentProvider } from "@/lib/env/server";
+import { getResolvedDataMode, getResolvedPaymentProvider } from "@/lib/env/server";
 import { stableHash } from "@/lib/demo/pricing";
 import { getMenuRepository, getOrderRepository } from "@/server/repositories";
 import type { CartItem, Order } from "@/types/order";
@@ -17,18 +17,19 @@ export class OrderValidationError extends Error {
   }
 }
 
-/** Número de pedido legible y estable por clave de idempotencia. */
+/** Número de pedido legible y estable por clave de idempotencia (solo demo local). */
 export function buildOrderNumber(idempotencyKey: string): string {
   const hash = stableHash(idempotencyKey).toString(36).toUpperCase().padStart(7, "0");
   return `${restaurantConfig.demo.orderPrefix}-${hash}`;
 }
 
 /**
- * Crea un pedido validando TODO en el servidor: existencia y
- * disponibilidad de platos, modificadores válidos, reglas de la sucursal
- * y recálculo completo de importes (nunca se confía en los del cliente).
+ * Crea un pedido validando estructura/catálogo en servidor.
+ * En DATA_MODE=local el pedido demo se confirma aquí.
+ * En DATA_MODE=supabase la RPC es autoridad final (totales, id, status, payment).
  */
 export async function placeOrder(input: CheckoutInput): Promise<Order> {
+  const dataMode = getResolvedDataMode();
   const branch = branches.find(
     (candidate) => candidate.id === input.branchId && candidate.status === "active",
   );
@@ -49,7 +50,6 @@ export async function placeOrder(input: CheckoutInput): Promise<Order> {
   const cartItems: CartItem[] = [];
 
   for (const line of input.items) {
-    // Catálogo autoritativo de la misma abstracción que las páginas públicas.
     const menuItem = await menuRepository.getMenuItemBySlug(line.slug, {
       branchId: input.branchId,
     });
@@ -67,7 +67,6 @@ export async function placeOrder(input: CheckoutInput): Promise<Order> {
     }
 
     const seenOptions = new Set<string>();
-    // Reconstrucción de modificadores con precios del SERVIDOR (nunca del cliente).
     const modifiers = line.modifiers.map((selection) => {
       const group = menuItem.modifierGroups.find((candidate) => candidate.id === selection.groupId);
       const option = group?.options.find((candidate) => candidate.id === selection.optionId);
@@ -94,7 +93,6 @@ export async function placeOrder(input: CheckoutInput): Promise<Order> {
       };
     });
 
-    // Grupos obligatorios completos.
     for (const group of menuItem.modifierGroups) {
       const selected = modifiers.filter((modifier) => modifier.groupId === group.id).length;
       if (group.required && selected < group.minSelections) {
@@ -127,7 +125,8 @@ export async function placeOrder(input: CheckoutInput): Promise<Order> {
   const coupon = input.couponCode
     ? (coupons.find((candidate) => candidate.code === input.couponCode && candidate.active) ?? null)
     : null;
-  if (input.couponCode && !coupon) {
+  // En local el catálogo de cupones es TS; en supabase la DB es autoridad.
+  if (input.couponCode && !coupon && dataMode === "local") {
     throw new OrderValidationError("El cupón ingresado no es válido o ya expiró.", "coupon-invalid");
   }
 
@@ -151,17 +150,17 @@ export async function placeOrder(input: CheckoutInput): Promise<Order> {
   }
 
   const paymentProvider = getResolvedPaymentProvider();
+  const isSupabase = dataMode === "supabase";
 
   const order: Order = {
-    // La clave de idempotencia ES el id: reintentos producen el mismo pedido.
+    // Hasta persistir: id = clave de intento. Local lo conserva; supabase lo
+    // reemplaza por el UUID real de la RPC.
     id: input.idempotencyKey,
     orderNumber: buildOrderNumber(input.idempotencyKey),
     branchId: branch.id,
-    status: "confirmed",
-    // El proveedor demo marca el pedido como pagado en un flujo de demostración,
-    // sin cobro real; Stripe/Mercado Pago lo dejan pendiente hasta el webhook.
-    paymentStatus: paymentProvider === "demo" ? "paid" : "pending",
-    paymentMethod: paymentProvider,
+    status: isSupabase ? "pending" : "confirmed",
+    paymentStatus: isSupabase ? "pending" : paymentProvider === "demo" ? "paid" : "pending",
+    paymentMethod: isSupabase ? "demo" : paymentProvider,
     fulfillmentType: input.fulfillmentType,
     items: cartItems.map((item) => ({
       itemId: item.itemId,
@@ -175,12 +174,12 @@ export async function placeOrder(input: CheckoutInput): Promise<Order> {
     })),
     totals,
     currency: restaurantConfig.currency.code,
-    ...(coupon ? { couponCode: coupon.code } : {}),
+    ...(input.couponCode ? { couponCode: input.couponCode } : {}),
     customer: input.customer,
     ...(input.address ? { address: input.address } : {}),
     notes: input.notes,
     createdAt: new Date().toISOString(),
   };
 
-  return getOrderRepository().saveOrder(order);
+  return getOrderRepository().saveOrder(order, { tipPercent: input.tipPercent });
 }

@@ -161,8 +161,9 @@ export function OrderConfirmationScreen({ orderId }: { orderId: string }) {
       </section>
 
       <p className="rounded-2xl border border-border-soft bg-white/4 px-4 py-3 text-center text-[13px] text-muted">
-        Este es un pedido de <strong className="text-foreground">demostración</strong>: no se realizó
-        ningún cobro real.
+        {order.paymentStatus === "paid"
+          ? "Este es un pedido de demostración: no se realizó ningún cobro real."
+          : "Tu pedido quedó registrado. El pago aún está pendiente; no se realizó un cobro real."}
       </p>
 
       <div className="flex flex-col gap-2">

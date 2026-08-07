@@ -1,5 +1,14 @@
 # DECISIONS — Registro de decisiones técnicas
 
+56. **Checkout conectado a RPC de pedidos (2026-08-07, etapa 11B-2B)** — En `DATA_MODE=supabase`,
+`SupabaseOrderRepository` llama exactamente una vez `public.create_customer_order` (sin INSERT
+directo, sin `service_role`, sin `user_id`/precios/status del cliente). Guest = anon;
+authenticated = cookies SSR → `auth.uid()`. Node prevalida catálogo/UX; la RPC es autoridad de
+id/número/total/status/payment. Idempotency key opaca por intento (reuso en retry/doble submit;
+nueva tras éxito). Carrito se limpia solo tras éxito/replay. 11B-2A cerrada; 0010 sin cambios ni
+db push; remoto `0001`–`0009`; staff/delivered/inventario/pagos reales → etapas siguientes;
+Compuerta B no iniciada.
+
 55. **Corrección 11B-2A: replay temprano + cupón atómico (2026-08-07)** — Tras auditoría
 Codex, `create_customer_order` resuelve idempotencia **antes** de catálogo/pricing/cupón/`nextval`
 serializando con `pg_advisory_xact_lock` derivado de `(scope, key)` (transaction-scoped; el UNIQUE
@@ -8,7 +17,7 @@ sin side-effects. `coupons.redeemed_count` se incrementa con `FOR UPDATE` exacta
 pedido nuevo (nunca en replay/conflicto; rollback restaura). Tests: rollback post-header vía
 trigger temporal, sequence sin consumo en replay/conflicto, replay con catálogo mutado, cupón
 concurrente al último redemption, harness con fixtures por GUID (run1+run2 sin reset). 0010 sigue
-solo local; app `persistence-pending`; sin db push / remoto / git push.
+solo local; sin db push / remoto / git push.
 
 54. **RPC transaccional de pedidos 0010 (2026-08-07, etapa 11B-2A)** — Se añade
 `public.create_customer_order` (SECURITY DEFINER, `search_path=''`) para crear
@@ -55,7 +64,7 @@ Formato: fecha · decisión · motivo.
 
 7. **Precios demo deterministas** por hash FNV-1a del slug dentro de rangos por categoría (COP, múltiplos de 500) — misma entrada → mismo precio, sin aleatoriedad entre builds. Documentados como contenido a validar.
 
-8. **Pedidos demo: validación en servidor, persistencia según DATA_MODE** — El API valida con Zod y **recalcula todos los importes en servidor**. En `DATA_MODE=local` el pedido validado se devuelve y el cliente lo persiste (localStorage). En `DATA_MODE=supabase` la validación usa el catálogo remoto, pero la **persistencia remota desde la app aún no está habilitada** (respuesta 503 `persistence-pending`; 11B-2B conectará `SupabaseOrderRepository` a `public.create_customer_order` de la migración local `0010`). La clave de idempotencia del cliente sigue siendo UUID de intento; en DB es distinta de `orders.id`.
+8. **Pedidos: validación en servidor, persistencia según DATA_MODE** — El API valida con Zod y **recalcula importes en servidor** (UX/detección anticipada). En `DATA_MODE=local` el pedido demo se confirma y el cliente lo persiste (localStorage). En `DATA_MODE=supabase` la escritura final es la RPC `create_customer_order` (PostgreSQL autoridad: id, order_number, total, status, payment). La clave de idempotencia del cliente es UUID de intento; en DB es distinta de `orders.id`.
 
 9. **Fail-closed de DATA_MODE (sin degradación silenciosa a local)** — `DATA_MODE=supabase` sin credenciales válidas falla cerrado; **no** hay caída automática a fixtures locales para el catálogo. Pagos (Stripe/Mercado Pago → demo) y correo (resend → noop) conservan degradación controlada documentada aparte.
 

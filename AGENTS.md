@@ -57,7 +57,7 @@ Mantener `[db.seed].enabled = false`. `supabase/seed.sql` contiene datos demo y 
 - Pensionado no es rol JWT: siempre es `customer` con membresía comercial.
 - Registro público siempre crea `customer`; nunca añadir selector público de rol, cargo, sucursal, membresía o permisos.
 - `AUTH_MODE` y `DATA_MODE` son independientes. Los stores demo nunca conceden identidad en modo Supabase.
-- Con `DATA_MODE=supabase` el catálogo público y la validación de checkout leen PostgreSQL (anon + RLS); no hay fallback a `src/data/menu`. La persistencia remota de pedidos desde la app sigue deshabilitada (`persistence-pending`) hasta 11B-2B; la RPC local `create_customer_order` (0010) ya existe pero no está cableada.
+- Con `DATA_MODE=supabase` el catálogo público y la validación de checkout leen PostgreSQL (anon + RLS); no hay fallback a `src/data/menu`. La persistencia remota de pedidos usa `public.create_customer_order` (migración local `0010`) vía `SupabaseOrderRepository`; local sigue demo. Operaciones staff de pedidos (11B-3), inventario al entregar y pagos reales siguen pendientes.
 - Administración de catálogo: owner/admin en `/admin/platos` y `/admin/categorias`; manager/editor activos en `/empleado/catalogo`. En `AUTH_MODE=disabled` + demo local usa Zustand; con Auth+DATA supabase escribe vía Server Actions + sesión + RLS (`can_manage_catalog`). Shell `/admin` exclusivo owner/admin. Sin `service_role` en la app.
 - En producción solo `AUTH_MODE=supabase` configurado es válido; `disabled`/ausente/`demo` → invalid.
 - Demo solo con `AUTH_MODE=disabled` explícito en `development` o `test` (E2E vía `next dev`, no `next start`).

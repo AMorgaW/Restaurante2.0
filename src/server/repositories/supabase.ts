@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getSupabaseAnonClient } from "@/lib/supabase/client";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
   mapCatalogCategories,
   mapCatalogMenuItem,
@@ -13,6 +14,8 @@ import {
 } from "@/server/repositories/menu-mapper";
 import { createIncludedLunchSoupGroup, getIncludedLunchSoups, isSoupItem } from "@/lib/menu/included-soups";
 import { requireConfiguredBranch } from "@/server/catalog/branch-config";
+import { mapCreateCustomerOrderError, OrderPersistenceError } from "@/server/orders/rpc-errors";
+import type { Database } from "@/types/database.generated";
 import type { CategoryInfo, MenuItem } from "@/types/menu";
 import type { MenuRepository } from "./types";
 import type { Order } from "@/types/order";
@@ -148,22 +151,122 @@ export class SupabaseMenuRepository implements MenuRepository {
 }
 
 /**
- * Persistencia remota de pedidos: deliberadamente deshabilitada (11B-2).
- * La validación autoritativa del catálogo ocurre antes de llegar aquí.
+ * Persistencia remota de pedidos vía RPC `create_customer_order` (11B-2B).
+ * Una sola llamada RPC por intento; sin INSERT directo ni service_role.
  */
-export class SupabaseApplicationWriteDisabledError extends Error {
-  constructor(resource: "pedido") {
-    super(`La persistencia remota de ${resource} aún no está habilitada.`);
-    this.name = "SupabaseApplicationWriteDisabledError";
-  }
-}
-
 export class SupabaseOrderRepository implements OrderRepository {
-  async saveOrder(_order: Order): Promise<Order> {
-    throw new SupabaseApplicationWriteDisabledError("pedido");
+  async saveOrder(order: Order, options?: { tipPercent?: number }): Promise<Order> {
+    const branchUuid = await resolveBranchUuid(order.branchId);
+    const client = await createServerSupabaseClient();
+
+    // La clave de intento viaja en order.id hasta que la RPC devuelve el id real.
+    const idempotencyKey = order.id;
+
+    const itemsPayload = order.items.map((item) => ({
+      menu_item_id: item.itemId,
+      quantity: item.quantity,
+      notes: item.notes ?? "",
+      modifier_option_ids: item.modifiers.map((modifier) => modifier.optionId),
+    }));
+
+    const rpcArgs: Database["public"]["Functions"]["create_customer_order"]["Args"] = {
+      p_idempotency_key: idempotencyKey,
+      p_branch_id: branchUuid,
+      p_fulfillment_type: order.fulfillmentType,
+      p_customer_name: order.customer.name,
+      p_customer_phone: order.customer.phone,
+      p_customer_email: order.customer.email,
+      p_items: itemsPayload,
+      p_address: order.address
+        ? {
+            street: order.address.street,
+            details: order.address.details,
+            neighborhood: order.address.neighborhood,
+          }
+        : null,
+      p_notes: order.notes || null,
+      p_tip_percent: options?.tipPercent ?? 0,
+      p_coupon_code: order.couponCode ?? null,
+    };
+
+    // createServerClient tipa Functions de forma incompleta frente a RETURNS TABLE;
+    // el contrato Args/Returns vive en Database y se valida aquí en tiempo de compilación.
+    type CreateOrderRpc = {
+      rpc: (
+        fn: "create_customer_order",
+        args: Database["public"]["Functions"]["create_customer_order"]["Args"],
+      ) => Promise<{
+        data:
+          | Database["public"]["Functions"]["create_customer_order"]["Returns"]
+          | Array<Database["public"]["Functions"]["create_customer_order"]["Returns"]>
+          | null;
+        error: { message?: string; code?: string; details?: string; hint?: string } | null;
+      }>;
+    };
+    const { data, error } = await (client as unknown as CreateOrderRpc).rpc(
+      "create_customer_order",
+      rpcArgs,
+    );
+
+    if (error) {
+      throw mapCreateCustomerOrderError(error);
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    if (
+      !row ||
+      typeof row !== "object" ||
+      typeof (row as { order_id?: unknown }).order_id !== "string" ||
+      typeof (row as { order_number?: unknown }).order_number !== "string" ||
+      typeof (row as { status?: unknown }).status !== "string" ||
+      typeof (row as { total?: unknown }).total !== "number" ||
+      typeof (row as { created_at?: unknown }).created_at !== "string" ||
+      typeof (row as { replay?: unknown }).replay !== "boolean"
+    ) {
+      throw new OrderPersistenceError(
+        "No pudimos confirmar el pedido con el servidor.",
+        "persistence-error",
+        503,
+      );
+    }
+
+    const result = row as {
+      order_id: string;
+      order_number: string;
+      status: string;
+      total: number;
+      created_at: string;
+      replay: boolean;
+    };
+
+    return {
+      ...order,
+      id: result.order_id,
+      orderNumber: result.order_number,
+      status: isOrderStatus(result.status) ? result.status : "pending",
+      paymentStatus: "pending",
+      paymentMethod: "demo",
+      totals: {
+        ...order.totals,
+        total: result.total,
+      },
+      createdAt: result.created_at,
+      replay: result.replay,
+    };
   }
 
   async getOrderById(_id: string): Promise<Order | null> {
     return null;
   }
+}
+
+function isOrderStatus(value: string): value is Order["status"] {
+  return (
+    value === "pending" ||
+    value === "confirmed" ||
+    value === "preparing" ||
+    value === "ready" ||
+    value === "delivered" ||
+    value === "cancelled"
+  );
 }

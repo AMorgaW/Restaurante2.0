@@ -61,7 +61,7 @@ export interface OrderAddress {
   neighborhood: string;
 }
 
-export interface Order {
+export type Order = {
   id: string;
   orderNumber: string;
   branchId: string;
@@ -86,4 +86,6 @@ export interface Order {
   address?: OrderAddress;
   notes: string;
   createdAt: string;
-}
+  /** Presente cuando la RPC devolvió un replay idempotente. */
+  replay?: boolean;
+};

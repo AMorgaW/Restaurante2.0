@@ -4,7 +4,7 @@ import { skipOnboarding } from "./helpers";
 
 /**
  * E2E dirigidos: catálogo + checkout con DATA_MODE=supabase (local).
- * Fixtures controladas; no seed global; no persistencia de pedidos.
+ * Fixtures controladas; pedidos reales vía RPC local (11B-2B).
  */
 
 const RESTAURANT_ID = "11111111-1111-4111-8111-111111111101";
@@ -51,13 +51,13 @@ function seedCatalog() {
     delete from public.branches where slug in ('centro', 'norte');
     delete from public.restaurants where id = '${RESTAURANT_ID}';
 
-    insert into public.restaurants (id, name, slug, status)
-    values ('${RESTAURANT_ID}', 'Test Catalogo E2E', 'e11b1a-rest', 'active');
+    insert into public.restaurants (id, name, slug, status, checkout_tax_rate, service_fee_rate, max_line_quantity, order_number_prefix)
+    values ('${RESTAURANT_ID}', 'Test Catalogo E2E', 'e11b1a-rest', 'active', 0.0800, 0, 20, 'CB');
 
-    insert into public.branches (id, restaurant_id, name, slug, status, pickup_enabled, delivery_enabled)
+    insert into public.branches (id, restaurant_id, name, slug, status, pickup_enabled, delivery_enabled, delivery_fee, delivery_minimum)
     values
-      ('${BRANCH_ID}', '${RESTAURANT_ID}', 'Centro test', 'centro', 'active', true, true),
-      ('${OTHER_BRANCH_ID}', '${RESTAURANT_ID}', 'Norte test', 'norte', 'active', true, false);
+      ('${BRANCH_ID}', '${RESTAURANT_ID}', 'Centro test', 'centro', 'active', true, true, 6000, 25000),
+      ('${OTHER_BRANCH_ID}', '${RESTAURANT_ID}', 'Norte test', 'norte', 'active', true, false, 6000, 25000);
 
     insert into public.categories (restaurant_id, name, slug, description, display_order, is_active)
     values ('${RESTAURANT_ID}', 'Carnes test', 'e11b1a-carnes', 'Cat', 1, true);
@@ -96,6 +96,8 @@ test.beforeAll(() => {
 test.afterAll(() => {
   try {
     psql(`
+      delete from public.order_items where order_id in (select id from public.orders where branch_id in ('${BRANCH_ID}', '${OTHER_BRANCH_ID}'));
+      delete from public.orders where branch_id in ('${BRANCH_ID}', '${OTHER_BRANCH_ID}');
       delete from public.modifier_options where id = '${OPTION_ID}';
       delete from public.modifier_groups where id = '${GROUP_ID}';
       delete from public.branch_menu_items where menu_item_id like 'e11b1a-%';
@@ -139,10 +141,11 @@ test.describe("Catálogo Supabase local", () => {
     await expect(page.getByRole("button", { name: "No disponible" })).toBeVisible();
   });
 
-  test("checkout valida y responde persistence-pending sin guardar pedido", async ({ request }) => {
+  test("checkout crea pedido real vía RPC (ya no persistence-pending)", async ({ request }) => {
+    const key = crypto.randomUUID();
     const response = await request.post("/api/orders", {
       data: {
-        idempotencyKey: "22222222-2222-4222-8222-222222222222",
+        idempotencyKey: key,
         branchId: "branch-centro",
         fulfillmentType: "pickup",
         customer: { name: "Ana Pérez", phone: "3001234567", email: "ana@example.com" },
@@ -158,10 +161,125 @@ test.describe("Catálogo Supabase local", () => {
         notes: "",
       },
     });
-    expect(response.status()).toBe(503);
-    const body = (await response.json()) as { code?: string; order?: unknown };
-    expect(body.code).toBe("persistence-pending");
-    expect(body.order).toBeUndefined();
+    expect(response.status()).toBe(201);
+    const body = (await response.json()) as {
+      code?: string;
+      order?: {
+        id: string;
+        orderNumber: string;
+        status: string;
+        paymentStatus: string;
+        totals: { total: number };
+        replay?: boolean;
+      };
+    };
+    expect(body.code).toBeUndefined();
+    expect(body.order?.orderNumber).toMatch(/^CB-[0-9]{7}$/);
+    expect(body.order?.status).toBe("pending");
+    expect(body.order?.paymentStatus).toBe("pending");
+    expect(body.order?.totals.total).toBe(25920);
+    expect(body.order?.id).not.toBe(key);
+
+    const replay = await request.post("/api/orders", {
+      data: {
+        idempotencyKey: key,
+        branchId: "branch-centro",
+        fulfillmentType: "pickup",
+        customer: { name: "Ana Pérez", phone: "3001234567", email: "ana@example.com" },
+        items: [
+          {
+            slug: ITEM_ACTIVE,
+            quantity: 1,
+            notes: "",
+            modifiers: [{ groupId: GROUP_ID, optionId: OPTION_ID }],
+          },
+        ],
+        tipPercent: 0,
+        notes: "",
+      },
+    });
+    expect(replay.status()).toBe(201);
+    const replayBody = (await replay.json()) as { order?: { id: string; replay?: boolean } };
+    expect(replayBody.order?.id).toBe(body.order?.id);
+    expect(replayBody.order?.replay).toBe(true);
+
+    const conflict = await request.post("/api/orders", {
+      data: {
+        idempotencyKey: key,
+        branchId: "branch-centro",
+        fulfillmentType: "pickup",
+        customer: { name: "Ana Pérez", phone: "3001234567", email: "ana@example.com" },
+        items: [
+          {
+            slug: ITEM_ACTIVE,
+            quantity: 2,
+            notes: "",
+            modifiers: [{ groupId: GROUP_ID, optionId: OPTION_ID }],
+          },
+        ],
+        tipPercent: 0,
+        notes: "",
+      },
+    });
+    expect(conflict.status()).toBe(409);
+    const conflictBody = (await conflict.json()) as { code?: string };
+    expect(conflictBody.code).toBe("idempotency-conflict");
+  });
+
+  test("guest checkout UI confirma order_number real y pago pendiente", async ({ page }) => {
+    await skipOnboarding(page);
+    await page.addInitScript(
+      ({ itemId, groupId, optionId }) => {
+        window.localStorage.setItem(
+          "rb-cart",
+          JSON.stringify({
+            state: {
+              items: [
+                {
+                  lineId: `${itemId}:${optionId}`,
+                  itemId,
+                  slug: itemId,
+                  nameSnapshot: "Plato activo E2E",
+                  unitPriceSnapshot: 22000,
+                  quantity: 1,
+                  notes: "",
+                  modifiers: [
+                    {
+                      groupId,
+                      groupName: "Extra",
+                      optionId,
+                      optionName: "Guacamole",
+                      priceSnapshot: 2000,
+                    },
+                  ],
+                  imagePath: "/icon.svg",
+                },
+              ],
+              branchId: "branch-centro",
+              fulfillmentType: "pickup",
+              couponCode: null,
+              tipPercent: 0,
+            },
+            version: 1,
+          }),
+        );
+      },
+      { itemId: ITEM_ACTIVE, groupId: GROUP_ID, optionId: OPTION_ID },
+    );
+    await page.clock.setFixedTime(new Date("2026-07-21T12:00:00-05:00"));
+    await page.goto("/checkout");
+    await page.getByRole("button", { name: "Continuar" }).click();
+    await page.getByLabel("Nombre completo").fill("Ana Pérez");
+    await page.getByLabel("Teléfono").fill("3001234567");
+    await page.getByLabel("Correo electrónico").fill("ana-ui@example.com");
+    await page.getByRole("button", { name: "Continuar" }).click();
+    await page.getByRole("button", { name: /Confirmar pedido/ }).click();
+    await expect(page.getByRole("heading", { name: "¡Pedido confirmado!" })).toBeVisible();
+    await expect(page.locator("#contenido").getByText(/CB-[0-9]{7}/).first()).toBeVisible();
+    await expect(page.getByText("Pago pendiente")).toBeVisible();
+    await expect(page.getByText(/^Pagado/i)).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "¡Pedido confirmado!" })).toBeVisible();
   });
 
   test("payload manipulado de precio no altera validación; opción inválida falla", async ({ request }) => {

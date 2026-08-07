@@ -15,7 +15,7 @@ export interface MenuRepository {
 }
 
 export interface OrderRepository {
-  /** Persiste (o construye, en local) un pedido ya validado y calculado. */
-  saveOrder(order: Order): Promise<Order>;
+  /** Persiste un pedido ya validado. En supabase llama la RPC (tipPercent de la intención). */
+  saveOrder(order: Order, options?: { tipPercent?: number }): Promise<Order>;
   getOrderById(id: string): Promise<Order | null>;
 }

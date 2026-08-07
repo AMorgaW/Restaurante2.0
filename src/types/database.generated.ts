@@ -2129,6 +2129,29 @@ export type Database = {
         }
         Returns: string
       }
+      create_customer_order: {
+        Args: {
+          p_address: Json | null
+          p_branch_id: string
+          p_coupon_code: string | null
+          p_customer_email: string
+          p_customer_name: string
+          p_customer_phone: string
+          p_fulfillment_type: string
+          p_idempotency_key: string
+          p_items: Json
+          p_notes: string | null
+          p_tip_percent: number
+        }
+        Returns: {
+          created_at: string
+          order_id: string
+          order_number: string
+          replay: boolean
+          status: string
+          total: number
+        }
+      }
       manage_staff_profile: {
         Args: {
           target_branch_ids: string[]

@@ -62,7 +62,9 @@ export function CheckoutScreen() {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  /** Una clave opaca por intento lógico; se reutiliza en retries del mismo intento. */
   const idempotencyKey = useRef<string>(crypto.randomUUID());
+  const inFlightRequest = useRef<ReturnType<typeof placeOrderRequest> | null>(null);
 
   const {
     register,
@@ -130,12 +132,16 @@ export function CheckoutScreen() {
   };
 
   const submitOrder = async () => {
-    if (submitting) return; // evita doble envío
+    if (submitting && inFlightRequest.current) {
+      await inFlightRequest.current;
+      return;
+    }
+    if (submitting) return;
     setSubmitting(true);
     setServerError(null);
 
     const values = getValues();
-    const result = await placeOrderRequest({
+    const payload = {
       idempotencyKey: idempotencyKey.current,
       branchId: branch?.id ?? "",
       fulfillmentType,
@@ -165,7 +171,12 @@ export function CheckoutScreen() {
       ...(activeCoupon ? { couponCode: activeCoupon.code } : {}),
       tipPercent,
       notes: values.notes?.trim() ?? "",
-    });
+    };
+
+    const request = placeOrderRequest(payload);
+    inFlightRequest.current = request;
+    const result = await request;
+    inFlightRequest.current = null;
 
     if (!result.ok) {
       setSubmitting(false);
@@ -181,6 +192,8 @@ export function CheckoutScreen() {
       items: result.order.items.length,
     });
     clearCart();
+    // Nuevo intento lógico a partir de aquí (por si el usuario vuelve a pedir).
+    idempotencyKey.current = crypto.randomUUID();
     toast({ title: "¡Pedido confirmado!", description: result.order.orderNumber, variant: "success" });
     router.replace(`/pedido/${result.order.id}`);
   };

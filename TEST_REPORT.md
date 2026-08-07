@@ -513,6 +513,23 @@ Checkpoint base: `fc9c543`. Solo 0010 + tests + harness + docs. Sin app / 0001�
 | App | sigue **persistence-pending** |
 | Graphify | **1.939 nodos, 5.092 aristas, 147 comunidades** |
 
+## Etapa 11B-2B — checkout conectado a RPC (2026-08-07)
+
+Checkpoint base: `1dd2132`. Sin cambios SQL/migraciones. App cablea pedidos supabase.
+
+| Verificación | Resultado real |
+|---|---|
+| Vitest | **53 archivos / 436 pruebas** |
+| Integración orders RPC | **5/5** |
+| typecheck / lint / build | correctos |
+| E2E catálogo+pedidos supabase | **6/6 Chromium**, **6/6 WebKit** |
+| Migraciones | local **0001–0010**; remoto **0001–0009** |
+| persistence-pending (supabase) | **eliminado del camino** |
+| Inventario en create | **intacto** |
+| Pagos reales | **no** |
+| Compuerta B | **no iniciada** |
+| Graphify | **1.952 nodos, 5.127 aristas, 141 comunidades** |
+
 ## Verificación 11B-1B — rutas staff + disponibilidad (2026-08-07)
 
 Corrección post-11B-1B: shell `/admin` exclusivo owner/admin; catálogo manager/editor en

@@ -16,12 +16,11 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
 
 - Proyecto: Restaurante2.0 / Brisas del Sinú.
 - Rama: `master`.
-- Checkpoint previo Etapa 11B-1B: `1944cce` (`fix: respeta rutas de staff y disponibilidad de catalogo`).
-- Etapa **11B-2A** (primitiva DB de pedidos): migración local `0010_create_customer_order.sql`
-  + RPC `public.create_customer_order`. App aún **no** conectada (sigue `persistence-pending`).
-- Corrección post-auditoría Codex (replay temprano + cupón atómico + tests): ver decisión 55.
-- Secuencia SQL: local `0001`–`0010`; remoto de producción `0001`–`0009` (divergencia esperada; sin db push).
-- `graphify-out/` regenerado tras corrección 11B-2A: **1.939 nodos, 5.092 aristas, 147 comunidades**. Ignorado por Git.
+- Checkpoint previo Etapa 11B-2A cerrada: `1dd2132` (`fix: corrige replay idempotente y consumo de cupon`).
+- Etapa **11B-2B**: app conecta checkout → `SupabaseOrderRepository` → RPC `create_customer_order`.
+  `persistence-pending` eliminado del camino supabase. Local sigue demo.
+- Secuencia SQL: local `0001`–`0010`; remoto de producción `0001`–`0009` (sin db push; 0010 no desplegada).
+- `graphify-out/` regenerado en 11B-2B: **1.952 nodos, 5.127 aristas, 141 comunidades**. Ignorado por Git.
 
 ## Pedidos — primitiva PostgreSQL (11B-2A)
 
@@ -41,7 +40,10 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
 - Config comercial DB: `restaurants.checkout_tax_rate|service_fee_rate|max_line_quantity|order_number_prefix`,
   `branches.delivery_minimum` (valores alineados con `restaurantConfig`).
 - Harness concurrencia: fixtures únicas por run (repetible sin reset).
-- Siguiente: **11B-2B** cablea la app a la RPC; no declarar 11B-2 completa.
+- **11B-2B (app):** `DATA_MODE=supabase` llama la RPC (anon/session SSR); local demo intacto.
+  Idempotency key = un intento lógico (reuso en retry; nueva tras éxito). Carrito se limpia solo
+  tras 2xx. Total/status/payment autoritativos de la RPC (`pending`/`pending`/`demo`).
+  Inventario intacto. Staff kitchen/cashier y delivered → **11B-3**. Compuerta B no iniciada.
 
 ## Catálogo autoritativo (11B-1A)
 
@@ -53,8 +55,8 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
   contra `public.branches`. Precio/disponibilidad exigen fila en `branch_menu_items`.
 - Imágenes: `image_path` remoto o placeholder `/icon.svg`; no se sustituye identidad por otro plato local.
 - Checkout: `placeOrder` usa el mismo repositorio; payload de precio del cliente no es autoridad.
-- Pedidos Supabase: tras validar → `SupabaseApplicationWriteDisabledError` → API **503**
-  `persistence-pending` (11B-2B pendiente; RPC 0010 ya existe solo en DB local).
+- Pedidos Supabase: `placeOrder` → `SupabaseOrderRepository` → RPC `create_customer_order`
+  (ya no `persistence-pending`).
 - Compuerta B: **no iniciada**.
 
 ## Administración de catálogo (11B-1B)

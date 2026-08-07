@@ -2,15 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { checkoutInputSchema } from "@/features/checkout/schema";
 import { getDataModeStatus } from "@/lib/env/server";
 import { OrderValidationError, placeOrder } from "@/server/services/orders";
-import { SupabaseApplicationWriteDisabledError } from "@/server/repositories/supabase";
+import { OrderPersistenceError } from "@/server/orders/rpc-errors";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Valida y recalcula un pedido con el catálogo autoritativo.
- * - DATA_MODE=local: devuelve el pedido demo (persistencia en el navegador).
- * - DATA_MODE=supabase: valida contra Supabase y responde 503 porque la
- *   persistencia remota aún no está habilitada (11B-2).
+ * Valida y crea un pedido.
+ * - DATA_MODE=local: pedido demo (persistencia en el navegador).
+ * - DATA_MODE=supabase: RPC `create_customer_order` (PostgreSQL autoridad).
  */
 export async function POST(request: NextRequest) {
   const dataMode = getDataModeStatus();
@@ -49,14 +48,10 @@ export async function POST(request: NextRequest) {
     if (error instanceof OrderValidationError) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: 409 });
     }
-    if (error instanceof SupabaseApplicationWriteDisabledError) {
+    if (error instanceof OrderPersistenceError) {
       return NextResponse.json(
-        {
-          error:
-            "El catálogo se validó correctamente, pero la persistencia remota de pedidos aún no está habilitada.",
-          code: "persistence-pending",
-        },
-        { status: 503 },
+        { error: error.message, code: error.code },
+        { status: error.httpStatus },
       );
     }
     console.error("[api/orders] Error inesperado creando pedido");
