@@ -27,6 +27,27 @@ describe("resolvedor central de sesión", () => {
     expect(resolveSession({ source: "supabase", user: base, profile: { ...base, role: "root" } }).kind).toBe("unknown_role");
     expect(resolveSession({ source: "supabase", user: base, profile: { ...base, role: "kitchen", status: "suspended" } }).kind).toBe("suspended_staff");
   });
+
+  it("distingue active → espacio staff y suspended/inactive → /cuenta", () => {
+    const active = resolveSession({
+      source: "supabase",
+      user: base,
+      profile: { ...base, role: "manager", status: "active" },
+    });
+    const suspended = resolveSession({
+      source: "supabase",
+      user: base,
+      profile: { ...base, role: "manager", status: "suspended" },
+    });
+    const inactive = resolveSession({
+      source: "supabase",
+      user: base,
+      profile: { ...base, role: "cashier", status: "inactive" },
+    });
+    expect(active).toMatchObject({ kind: "manager", destination: "/empleado" });
+    expect(suspended).toMatchObject({ kind: "suspended_staff", destination: "/cuenta" });
+    expect(inactive).toMatchObject({ kind: "suspended_staff", destination: "/cuenta" });
+  });
 });
 
 describe("destino posterior al login", () => {
