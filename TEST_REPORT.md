@@ -371,18 +371,16 @@ que otras suites puedan alterar.
 
 No se afirma que todos los advisors queden en cero.
 
-## Etapa 10 Compuerta A (2026-08-06) — Auth SSR preparado
-
-Sin usuarios remotos ni Dashboard. Cambios: fail-closed si `AUTH_MODE` ausente en
-producción; metadata de registro; `.env.example`; Playwright con `AUTH_MODE=disabled`
-explícito; runbook `FIRST_OWNER_BOOTSTRAP.md`.
+## Etapa 10 — corrección bloqueadores Compuerta A (2026-08-06)
 
 | Verificación | Resultado real |
 |---|---|
-| Vitest (Auth dirigido) | **74/74** |
-| Vitest completo | **41 archivos / 335 pruebas** |
+| Matriz AUTH_MODE (unit) | cubierta; `production+disabled` → **invalid** |
+| Runbook text tests | **3/3** |
+| Auth dirigido | **101** tests en 8 archivos |
+| Vitest completo | **43 archivos / 362 pruebas** |
 | typecheck / lint / build | correctos |
-| E2E `auth`+`session-routing` Chromium | **10/10** |
-| E2E mismas specs WebKit | **10/10** |
-| Bootstrap remoto / owner | **no ejecutado** |
-| URL productiva app | **pendiente** |
+| E2E auth+session Chromium (`next dev`) | **10/10** |
+| E2E auth+session WebKit (`next dev`) | **10/10** |
+| Bootstrap remoto | **no ejecutado** |
+| Compuerta B | **bloqueada** (requiere nueva auditoría) |

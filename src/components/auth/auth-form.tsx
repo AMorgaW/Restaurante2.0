@@ -208,7 +208,7 @@ export function AuthForm({
       {!enabled && !unavailableMessage && mode === "login" ? (
         <div className="mt-6 border-t border-border-soft pt-5" aria-label="Accesos de demostración local">
           <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-lime">Explorar demo local</p>
-          <p className="mt-1 text-xs text-muted">Estos accesos no crean cuentas ni representan seguridad real.</p>
+          <p className="mt-1 text-xs text-muted">Solo disponibles con AUTH_MODE=disabled en development o test. No son seguridad real.</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-3">
             <button type="button" onClick={() => enterDemo("owner")} className="min-h-11 rounded-xl border border-border-soft px-3 text-sm font-bold">Administrador</button>
             <button type="button" onClick={() => enterDemo("kitchen")} className="min-h-11 rounded-xl border border-border-soft px-3 text-sm font-bold">Empleado</button>

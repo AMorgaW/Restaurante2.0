@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default function RecoverPasswordPage() {
   const status = getAuthModeStatus();
   const enabled = status.mode === "supabase" && status.configured;
-  const unavailableMessage = status.mode === "invalid" || (status.mode === "supabase" && !status.configured)
+  const unavailableMessage = status.mode === "invalid"
     ? "La configuracion de Auth es invalida o incompleta. La recuperacion permanece cerrada."
     : undefined;
   return <AuthPageShell><AuthForm mode="recover" enabled={enabled} unavailableMessage={unavailableMessage} /></AuthPageShell>;

@@ -19,6 +19,7 @@ export type DataModeStatus = {
 export type ModeEnvironment = {
   AUTH_MODE?: string;
   DATA_MODE?: string;
+  /** Solo valores de proceso Node (`production` | `development` | `test`); no proviene del navegador. */
   NODE_ENV?: string;
   NEXT_PUBLIC_SUPABASE_URL?: string;
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?: string;
@@ -55,29 +56,40 @@ function getSupabaseConfiguration(env: ModeEnvironment) {
   return { missing, invalid };
 }
 
-export function getAuthModeStatusFromEnv(env: ModeEnvironment): AuthModeStatus {
-  const isProduction = env.NODE_ENV === "production";
+/** Demo solo cuando el modo canónico resuelto es exactamente `disabled`. */
+export function isDemoAuthMode(status: AuthModeStatus): boolean {
+  return status.mode === "disabled";
+}
 
-  // Producción no cae en demo por omisión (AUTH_MODE ausente).
-  // AUTH_MODE=disabled explícito sigue permitido (p. ej. E2E / demos etiquetados).
+/**
+ * Resolución canónica de AUTH_MODE.
+ * - production: solo `supabase` con config válida; ausente/disabled/demo/otro → invalid.
+ * - development|test: `supabase` (config válida) o `disabled` explícito; ausente/demo/otro → invalid.
+ * Sin coincidencia parcial ni fallback implícito a demo.
+ */
+export function getAuthModeStatusFromEnv(env: ModeEnvironment): AuthModeStatus {
+  const allowsDisabled = env.NODE_ENV === "development" || env.NODE_ENV === "test";
+
   if (env.AUTH_MODE === undefined) {
-    if (isProduction) {
-      return { mode: "invalid", configured: false, missing: ["AUTH_MODE"], invalid: [] };
+    return { mode: "invalid", configured: false, missing: ["AUTH_MODE"], invalid: [] };
+  }
+
+  if (env.AUTH_MODE === "disabled") {
+    if (!allowsDisabled) {
+      return { mode: "invalid", configured: false, missing: [], invalid: ["AUTH_MODE"] };
     }
     return { mode: "disabled", configured: false, missing: [], invalid: [] };
   }
-  if (env.AUTH_MODE !== "disabled" && env.AUTH_MODE !== "supabase") {
-    return { mode: "invalid", configured: false, missing: [], invalid: ["AUTH_MODE"] };
+
+  if (env.AUTH_MODE === "supabase") {
+    const config = getSupabaseConfiguration(env);
+    if (config.missing.length > 0 || config.invalid.length > 0) {
+      return { mode: "invalid", configured: false, ...config };
+    }
+    return { mode: "supabase", configured: true, missing: [], invalid: [] };
   }
-  if (env.AUTH_MODE === "disabled") {
-    return { mode: "disabled", configured: false, missing: [], invalid: [] };
-  }
-  const config = getSupabaseConfiguration(env);
-  return {
-    mode: "supabase",
-    configured: config.missing.length === 0 && config.invalid.length === 0,
-    ...config,
-  };
+
+  return { mode: "invalid", configured: false, missing: [], invalid: ["AUTH_MODE"] };
 }
 
 export function getDataModeStatusFromEnv(env: ModeEnvironment): DataModeStatus {

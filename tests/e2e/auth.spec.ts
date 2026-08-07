@@ -1,4 +1,18 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+/** Navegación a sección denegada; WebKit+next dev puede interrumpir el primer goto. */
+async function expectAdminDenied(page: Page, path: string) {
+  await expect
+    .poll(
+      async () => {
+        await page.goto(path, { waitUntil: "commit" }).catch(() => undefined);
+        return page.url().includes(path);
+      },
+      { timeout: 20_000, intervals: [200, 500, 1000] },
+    )
+    .toBe(true);
+  await expect(page.getByRole("heading", { name: "Acceso denegado" })).toBeVisible();
+}
 
 test.describe("Auth opcional en modo local", () => {
   test("permite continuar como invitado y no simula una sesion", async ({ page }) => {
@@ -30,8 +44,7 @@ test.describe("Auth opcional en modo local", () => {
     await expect(page.getByRole("link", { name: "Sucursales", exact: true })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Promociones", exact: true })).toHaveCount(0);
     await expect(page.getByRole("link", { name: /Configur/ })).toHaveCount(0);
-    await page.goto("/admin/pedidos");
-    await expect(page.getByRole("heading", { name: "Acceso denegado" })).toBeVisible();
+    await expectAdminDenied(page, "/admin/pedidos");
   });
 
   test("cocina y support no reciben acciones fuera de su matriz", async ({ page }) => {
@@ -39,8 +52,7 @@ test.describe("Auth opcional en modo local", () => {
     await page.getByRole("button", { name: "Cocina" }).click();
     await expect(page.getByRole("link", { name: "Pedidos", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: /Configur/ })).toHaveCount(0);
-    await page.goto("/admin/configuracion");
-    await expect(page.getByRole("heading", { name: "Acceso denegado" })).toBeVisible();
+    await expectAdminDenied(page, "/admin/configuracion");
 
     await page.evaluate(() => window.localStorage.removeItem("rb-admin"));
     await page.goto("/admin");

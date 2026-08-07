@@ -328,21 +328,16 @@ en cero.
 
 ## 2026-08-06 (Etapa 10 Compuerta A — Auth SSR y runbook del owner)
 
-87. **Fail-closed de Auth en producción** — con `NODE_ENV=production` y `AUTH_MODE`
-ausente el estado es inválido (no hay demo silencioso). `AUTH_MODE=disabled`
-explícito sigue permitido para demos/E2E etiquetados. Playwright fija
-`AUTH_MODE=disabled` en sus webServers.
+87. **Fail-closed total de AUTH_MODE** — matriz canónica:
+- `production`: solo `supabase` con URL+publishable válidas; ausente/`disabled`/`demo`/otro → `invalid`.
+- `development`|`test`: `supabase` (config válida) o `disabled` explícito; ausente/`demo`/otro → `invalid`.
+Sin fallback implícito a demo. `production+disabled` es siempre `invalid`.
 
-88. **Clave publicable canónica** — `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-(`sb_publishable_…`). `NEXT_PUBLIC_SUPABASE_ANON_KEY` solo compatibilidad temporal
-para JWT anon de CLI local. Secretos nunca en `NEXT_PUBLIC_*`. `SUPABASE_SERVICE_ROLE_KEY`
-queda fuera del runtime Auth; opcional solo para webhooks firmados.
+88. **E2E demo en `next dev`** — Playwright usa `dev:e2e` / `dev:e2e:hydration` con
+`AUTH_MODE=disabled` y **sin** heredar `NODE_ENV=production`. El build productivo se
+valida aparte. No se usa `next start` para harness demo.
 
-89. **Metadata de registro no privilegiada** — `buildPublicSignupMetadata` envía
-solo nombre/teléfono sanitizados; ignora role/staff/membresía/permisos. El trigger
-`private.handle_new_user` sigue creando siempre `customer`.
-
-90. **Bootstrap del primer owner es manual** — runbook
-`references/runbooks/FIRST_OWNER_BOOTSTRAP.md` (Dashboard + SQL transaccional
-defensivo). No hay API, migración `0010` ni botón oculto. Compuerta B requiere
-autorización explícita del operador. URL productiva de la app: pendiente.
+89. **Runbook del owner endurecido** — placeholders `OWNER_EMAIL_HERE` /
+`OWNER_USER_ID_HERE` / `BOOTSTRAP_AUDIT_KEY_HERE`; promoción con un solo email
+editable, `ROW_COUNT=1` y `audit_log` `first_owner_bootstrap`; reversión por UUID +
+clave de auditoría (no por correo); aborta si hay transiciones posteriores.

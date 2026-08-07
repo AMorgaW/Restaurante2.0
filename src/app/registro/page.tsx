@@ -10,7 +10,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
   const value = (await searchParams).next;
   const nextPath = safeNextPath(Array.isArray(value) ? value[0] : value);
   const enabled = status.mode === "supabase" && status.configured;
-  const unavailableMessage = status.mode === "invalid" || (status.mode === "supabase" && !status.configured)
+  const unavailableMessage = status.mode === "invalid"
     ? "La configuracion de Auth es invalida o incompleta. El registro permanece cerrado."
     : undefined;
   return <AuthPageShell><AuthForm mode="register" enabled={enabled} nextPath={nextPath} unavailableMessage={unavailableMessage} /></AuthPageShell>;

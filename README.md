@@ -102,11 +102,19 @@ Edita `src/data/menu-overrides.ts` usando el `slug` del plato (visible en `artif
 
 ## Modos independientes
 
-### Modo local (por defecto en desarrollo)
+### Modo local (desarrollo explícito)
 
-Sin variables de entorno (`AUTH_MODE` ausente → `disabled` y `DATA_MODE=local`) **solo en desarrollo**. El menú sale del manifiesto; los pedidos se validan en el servidor y se persisten en el navegador. El panel `/admin` usa accesos demo etiquetados.
+Requiere `AUTH_MODE=disabled` y `DATA_MODE=local` **explícitos** (p. ej. vía
+`.env.local`). Sin `AUTH_MODE` el estado es inválido en todos los entornos.
+El menú sale del manifiesto; los pedidos se validan en el servidor y se
+persisten en el navegador. El panel `/admin` usa accesos demo etiquetados.
 
-En **producción** (`NODE_ENV=production`) no hay fallback demo silencioso: hace falta `AUTH_MODE=supabase` con `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (clave `sb_publishable_…`). Nunca coloques secretos en `NEXT_PUBLIC_*`.
+En **producción** (`NODE_ENV=production`) solo es válido `AUTH_MODE=supabase` con
+`NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` válidas.
+`AUTH_MODE` ausente, `disabled`, `demo` u otros valores → inválido (sin demo).
+En **development/test**, el harness demo exige `AUTH_MODE=disabled` **explícito**
+(ausente también es inválido). Las E2E demo usan `next dev` + `AUTH_MODE=disabled`,
+nunca `next start` con demo.
 
 `AUTH_MODE=supabase` habilita Auth real, cookies SSR (`@supabase/ssr`), cuenta y protección de `/admin`, `/empleado`, `/pensionado` y `/cuenta`. Puede combinarse con `DATA_MODE=local` para conservar carrito/checkout locales.
 

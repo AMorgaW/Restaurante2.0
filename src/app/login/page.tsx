@@ -13,7 +13,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const nextValue = (await searchParams).next;
   const nextPath = safeNextPath(Array.isArray(nextValue) ? nextValue[0] : nextValue);
   const enabled = status.mode === "supabase" && status.configured;
-  const unavailableMessage = status.mode === "invalid" || (status.mode === "supabase" && !status.configured)
+  const unavailableMessage = status.mode === "invalid"
     ? "La configuracion de Auth es invalida o incompleta. El acceso permanece cerrado."
     : undefined;
   if (enabled) {

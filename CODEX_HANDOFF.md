@@ -21,7 +21,7 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
 - Etapas 1–7 completadas y validadas localmente. No hubo `supabase link`, `db push`, push Git ni cambios remotos.
 - La secuencia SQL canónica es `0001`–`0009` en local y en el remoto de producción (`nasenphzywwufntvrzpc`, Brisas del sinu). No existen migraciones timestamp paralelas.
 - `0009` fue auditada de forma independiente, dry-run correcta, desplegada y verificada en producción (índices, grants y advisors post-despliegue). No hubo `git push` de este cierre documental.
-- `graphify-out/` se regeneró tras Etapa 10 Compuerta A con `graphify update .`: **1.798 nodos, 4.597 aristas, 137 comunidades**. La salida queda ignorada por Git y sirve como mapa auxiliar, no como autoridad.
+- `graphify-out/` se regeneró tras la corrección de bloqueadores Compuerta A: **1.805 nodos, 4.608 aristas, 137 comunidades**. La salida queda ignorada por Git.
 
 ## Resultado funcional por etapa
 
@@ -101,7 +101,10 @@ npm.cmd run test
 npm.cmd run build
 ```
 
-Último ciclo local (Etapa 10 Compuerta A): Vitest Auth **74/74**, Vitest total **335/335**, typecheck/lint/build OK; E2E auth+session-routing **10/10** Chromium y **10/10** WebKit. Runbook del owner listo; bootstrap remoto **no ejecutado**. URL productiva de la app **pendiente**. Consulte `TEST_REPORT.md`.
+Último ciclo local (corrección bloqueadores Compuerta A): `production+disabled` → invalid;
+E2E demo solo vía `next dev`; runbook owner con UUID+audit. Vitest **362/362**; E2E
+auth+session **10/10** Chromium y **10/10** WebKit. Bootstrap remoto **no ejecutado**.
+Compuerta B sigue bloqueada hasta nueva auditoría. Consulte `TEST_REPORT.md`.
 
 ## Archivos principales por área
 

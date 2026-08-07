@@ -1,8 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Las pruebas E2E corren contra el build de producción (`next start -p 3100`).
- * `npm run test:e2e` construye primero y luego ejecuta Playwright.
+ * Las pruebas E2E de demo/Auth corren contra `next dev` (NODE_ENV=development)
+ * con AUTH_MODE=disabled explícito. No usan `next start` ni debilitan producción.
+ * El build productivo se valida por separado con `npm run build`.
  */
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -33,30 +34,25 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "npm run start:e2e",
+      command: "npm run dev:e2e",
       url: "http://localhost:3100",
       timeout: 180_000,
-      // next start usa NODE_ENV=production: Auth ausente fallaría cerrado.
-      // Las E2E locales demuestran el modo demo con AUTH_MODE=disabled explícito.
-      env: {
-        ...process.env,
-        AUTH_MODE: process.env.AUTH_MODE ?? "disabled",
-        DATA_MODE: process.env.DATA_MODE ?? "local",
-      },
-    // NUNCA reutilizar un servidor previo: un `next start` huérfano puede
-    // servir un build desfasado tras reconstruir (.next regenerado bajo el
-    // proceso) → chunks 404, hidración rota y fallos rotatorios espurios.
+      // No forzar NODE_ENV=production (p. ej. heredado del shell tras un build).
+      // next dev fija development; AUTH_MODE=disabled solo es válido ahí/test.
+      env: (() => {
+        const { NODE_ENV: _nodeEnv, ...rest } = process.env;
+        return { ...rest, AUTH_MODE: "disabled", DATA_MODE: "local" };
+      })(),
       reuseExistingServer: false,
     },
     {
-      command: "npm run start:e2e:hydration",
+      command: "npm run dev:e2e:hydration",
       url: "http://localhost:3000",
       timeout: 180_000,
-      env: {
-        ...process.env,
-        AUTH_MODE: process.env.AUTH_MODE ?? "disabled",
-        DATA_MODE: process.env.DATA_MODE ?? "local",
-      },
+      env: (() => {
+        const { NODE_ENV: _nodeEnv, ...rest } = process.env;
+        return { ...rest, AUTH_MODE: "disabled", DATA_MODE: "local" };
+      })(),
       reuseExistingServer: false,
     },
   ],
