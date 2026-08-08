@@ -2,7 +2,7 @@
   "name": "restaurante-2-0",
   "version": "0.1.0",
   "private": true,
-  "description": "Sistema web responsive para restaurante (Next.js): menú desde imágenes locales, carrito, pedidos locales/domicilios, pensionados y panel admin; modo demo sin credenciales y adaptadores Supabase.",
+  "description": "Sistema web responsive para restaurante (Next.js): menú desde imágenes locales, carrito, pedidos locales/domicilios, pensionados y panel admin; modo demo sin credenciales y adaptadores Supabase. No es una app instalable.",
   "engines": {
     "node": ">=18.18.0"
   },
@@ -26,6 +26,7 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:dining-tables-supabase": "playwright test -c playwright.dining-tables-supabase.config.ts",
     "test:e2e:staff-orders-supabase": "playwright test -c playwright.staff-orders-supabase.config.ts",
+    "test:e2e:order-alerts-supabase": "playwright test -c playwright.order-alerts-supabase.config.ts",
     "test:e2e:pension-supabase": "playwright test -c playwright.pension-supabase.config.ts",
     "generate:menu": "tsx scripts/generate-menu-manifest.ts",
     "validate:images": "tsx scripts/validate-images.ts",

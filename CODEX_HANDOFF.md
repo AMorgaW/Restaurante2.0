@@ -18,10 +18,14 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
 - **Producto:** sistema **web responsive** (URL en navegador). No es aplicación móvil
   descargable, ni requisito de Play Store / App Store / PWA instalable.
 - Rama: `master`.
-- Checkpoint **11B-6 WEB**: UI mesas/cobros conectada a 0013+0014
+- Checkpoint **11B-7**: avisos web in-web (polling ~15 s + toast + pending
+  persistente + sonido opcional). Owner supervisión en shell `/admin`;
+  manager/cashier operativos en `/empleado`. Sin Realtime/SQL nuevo, sin
+  Notification API/Web Push, sin PWA instalable. **11B-7 CERRADA.** Siguiente: 11C.
+- Checkpoint previo **11B-6 WEB**: UI mesas/cobros conectada a 0013+0014
   (`/admin/mesas`, `/empleado/mesas`, `/mesa/[token]`, cobro manual en pedidos).
   QR permanente hash-only; raw solo en create/rotate; ledger append-only;
-  pago no toca `orders.status`. **11B-6 CERRADA.** Notificaciones → **11B-7**.
+  pago no toca `orders.status`. **11B-6 CERRADA.**
 - Checkpoint previo **11B-6 read model**: `0014_payment_read_models.sql` local
   (RPCs staff read-only; deny-by-default en tablas sensibles).
 - Checkpoint previo **11B-6 SQL write**: `0013_manual_payments_and_dining_tables.sql`
@@ -31,7 +35,7 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
   0010–0014 no desplegadas). Tests SQL: `0014_manual_payments_dining_tables.test.sql`
   (pgTAP 83 de 0013) + `0015_payment_read_models.test.sql` (pgTAP 69 de 0014).
 - Compuerta B no iniciada.
-- `graphify-out/` regenerado en 11B-6 WEB: **2.570 nodos, 6.848 aristas, 182 comunidades**. Ignorado por Git.
+- `graphify-out/` regenerado en 11B-7: **2.621 nodos, 6.975 aristas, 187 comunidades**. Ignorado por Git.
 
 ## Pedidos — primitiva PostgreSQL (11B-2A)
 
@@ -189,6 +193,6 @@ siguen 503. Bootstrap remoto **no ejecutado**; Compuerta B **no ejecutada**. Ver
 
 ## Siguiente etapa recomendada
 
-**11B-7 — Notificaciones web** (nuevo pedido → empleado operativo + aviso paralelo
-al dueño de supervisión). Sin db push. Compuerta B sigue bloqueada hasta
-autorización expresa.
+**11C — Regresión integral** (no iniciar sin autorización). Compuerta B sigue
+bloqueada. 11B-7 cerró avisos in-web; fuera de MVP: Realtime, Notification API,
+Web Push, PWA instalable.

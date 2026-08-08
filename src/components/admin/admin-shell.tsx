@@ -20,10 +20,12 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { BrandMark } from "@/components/layout/brand-mark";
 import { AdminRoleProvider } from "@/components/admin/admin-role-context";
+import { OperationalOrderAlerts } from "@/components/orders/operational-order-alerts";
 import { Badge } from "@/components/ui/badge";
 import { SkipLink } from "@/components/ui/skip-link";
 import { useMounted } from "@/hooks/use-mounted";
 import { canAccessAdminPath, isAdminRole } from "@/lib/admin/authorization";
+import { canPollOperationalOrders } from "@/lib/orders/operational-order-monitor";
 import { cn } from "@/lib/utils";
 import { useAdminStore, type AdminRole } from "@/stores/admin";
 import { resetStaffDemo } from "@/stores/staff";
@@ -225,6 +227,13 @@ export function AdminShell({
               ? "Auth verificada con Supabase; los datos operativos de este panel siguen siendo demo locales."
               : "Auth verificada con Supabase; las mutaciones remotas no habilitadas fallan de forma cerrada."}
           </p>
+        ) : null}
+        {mode === "supabase" && dataMode === "supabase" && canPollOperationalOrders(activeRole) ? (
+          <OperationalOrderAlerts
+            role={activeRole}
+            enabled
+            ordersHref="/admin/pedidos"
+          />
         ) : null}
         {children}
       </main>

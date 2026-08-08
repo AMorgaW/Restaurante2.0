@@ -8,6 +8,7 @@ import { EmployeeMenuDay } from "@/components/employee/employee-menu-day";
 import { EmployeeOrderQueue } from "@/components/employee/employee-order-queue";
 import { EmployeeQuickInventory } from "@/components/employee/employee-quick-inventory";
 import { EmployeeShiftPanels } from "@/components/employee/employee-shift-panels";
+import { OperationalOrderAlerts } from "@/components/orders/operational-order-alerts";
 import { Badge } from "@/components/ui/badge";
 import { SkipLink } from "@/components/ui/skip-link";
 import { useMounted } from "@/hooks/use-mounted";
@@ -17,6 +18,7 @@ import { menuItems } from "@/data/menu";
 import { canAccessEmployeeSection, isEmployeeRole, getEmployeeNavigation, type EmployeeRole } from "@/lib/employee/authorization";
 import { DEMO_EMPLOYEE_ACTIVITIES, DEMO_EMPLOYEE_INCIDENTS, DEMO_EMPLOYEE_PROFILES, DEMO_EMPLOYEE_SHIFTS } from "@/lib/employee/fixtures";
 import { getEmployeeMenuItems, getEmployeeMetrics, getQuickInventoryItems, servicePeriodLabel } from "@/lib/employee/selectors";
+import { canPollOperationalOrders } from "@/lib/orders/operational-order-monitor";
 import { toEmployeeDemoProfile } from "@/lib/staff/selectors";
 import type { ServiceSnapshot } from "@/lib/menu/service-period";
 import { getOpeningStatus } from "@/lib/menu/opening-hours";
@@ -133,6 +135,9 @@ export function EmployeeWorkspace({
       </header>
 
       <main id="contenido" className="mx-auto w-full max-w-6xl px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:px-8 md:pb-10">
+        {mode === "supabase" && canPollOperationalOrders(role) ? (
+          <OperationalOrderAlerts role={role} enabled ordersHref="#pedidos" />
+        ) : null}
         <section aria-labelledby="empleado-resumen" className="rounded-card border border-border-soft bg-surface p-4 md:p-5"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-extrabold uppercase tracking-[0.16em] text-lime">Operación rápida</p><h1 id="empleado-resumen" className="mt-1 text-2xl font-extrabold">Hola, {profile.name.split(" ")[0]}</h1><p className="mt-1 text-sm text-muted">{shift.summary}</p></div><Badge variant="lime">{mode === "supabase" ? "Pedidos Supabase" : "Datos locales"}</Badge></div><div className="mt-5 grid grid-cols-2 gap-2 md:grid-cols-6">{[["Nuevos", metrics.newOrders], ["Preparando", metrics.preparing], ["Listos", metrics.ready], ["Entregados", metrics.delivered], ["Domicilios", metrics.deliveries], ["Locales", metrics.localOrders]].map(([label, value]) => <div key={String(label)} className="rounded-2xl border border-border-soft bg-background-secondary/50 p-3"><p className="text-2xl font-extrabold tabular-nums">{value}</p><p className="mt-1 text-xs font-semibold text-muted">{label}</p></div>)}</div></section>
 
         <nav aria-label="Secciones de empleado" className="sticky top-0 z-20 -mx-4 mt-5 border-y border-border-soft bg-background/95 px-4 py-2 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:px-0 md:py-0"><ul className="no-scrollbar flex gap-2 overflow-x-auto pb-1 md:flex-wrap">{navigation.map((item) => { const Icon = NAV_ICONS[item.section]; const href = item.href ?? (item.section === "home" ? "#contenido" : `#${item.section}`); const className = "inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-full border border-border-soft bg-surface px-3 text-sm font-semibold text-muted hover:border-lime/50 hover:text-foreground focus-visible:outline-2 focus-visible:outline-lime"; return <li key={item.section}>{item.href ? <Link href={href} className={className}><Icon aria-hidden className="size-4" />{item.label}</Link> : <a href={href} className={className}><Icon aria-hidden className="size-4" />{item.label}</a>}</li>; })}</ul></nav>

@@ -5,6 +5,10 @@ vi.mock("@/app/admin/order-actions", () => ({
   transitionOrderStatusAction: vi.fn(async () => ({ ok: true })),
 }));
 
+vi.mock("@/app/admin/order-poll-actions", () => ({
+  pollOperationalOrdersAction: vi.fn(async () => ({ ok: true, orders: [] })),
+}));
+
 vi.mock("@/app/admin/dining-table-actions", () => ({
   confirmManualOrderPaymentAction: vi.fn(async () => ({ ok: true, data: {} })),
   confirmManualTableSessionPaymentAction: vi.fn(async () => ({ ok: true, data: {} })),

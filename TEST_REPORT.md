@@ -660,3 +660,20 @@ UI web sobre 0013+0014 sin cambiar migraciones. 11B-6 **cerrada**.
 | Migraciones | local **0001–0014** intactas; remoto **0001–0009**; sin db push |
 | Graphify | **2.570 nodos, 6.848 aristas, 182 comunidades** (ignorado por Git) |
 | Notificaciones (11B-7) / Stripe real / Compuerta B / git push | **no** |
+
+## Etapa 11B-7 — avisos web + experiencia (2026-08-08)
+
+Polling in-web ~15 s (`listOperationalOrders` + RLS), toast, pending persistente,
+sonido opcional, owner supervisión en shell `/admin`, manager/cashier en `/empleado`.
+Sin migration/Realtime/Notification API/Web Push. `InstallPwaPrompt` retirado de UI.
+11B-7 **cerrada**.
+
+| Verificación | Resultado real |
+|---|---|
+| Vitest completo | **68 archivos / 552 pruebas / 0 failed** |
+| Integración `order-alerts-supabase` | **3/3** |
+| typecheck / lint / build | ✓ (lint: 2 warnings preexistentes dashboard) |
+| E2E `test:e2e:order-alerts-supabase` | **8/8** — Chromium 4/4 + WebKit 4/4 |
+| Migraciones | local **0001–0014** intactas; remoto **0001–0009**; sin db push |
+| Graphify | **2.621 nodos, 6.975 aristas, 187 comunidades** (ignorado por Git) |
+| Realtime publication / SQL nuevo / PWA instalable / Stripe / Compuerta B / git push | **no** |

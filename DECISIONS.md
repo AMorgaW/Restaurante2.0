@@ -1,5 +1,15 @@
 # DECISIONS — Registro de decisiones técnicas
 
+62. **Avisos web de pedidos (2026-08-08, etapa 11B-7)** — MVP in-web sin migration:
+polling ~15 s de `listOperationalOrders` (RLS), refetch en focus/visibility/online,
+dedup por `order.id`, baseline sin toast storm, pending = no atendido (sin read
+receipts). Toast + señal persistente; sonido opcional tras gesto. Receptores
+operativos: manager/cashier; supervisión paralela: owner (shell `/admin` completo);
+admin hereda si el shell lo monta; kitchen poll sin toast de pending;
+support/editor/customer no. Sin Realtime/publication, Notification API, Web Push
+ni PWA instalable (`InstallPwaPrompt` retirado de UI). Multi-tab toast duplicado
+aceptable. Local `0001`–`0014`; remoto `0001`–`0009`; sin db push.
+
 61. **UI web mesas/cobros (2026-08-07, etapa 11B-6 WEB)** — Conecta 0013+0014 sin
 cambiar migraciones: Server Actions + `src/server/dining-tables` (repo/service),
 `/admin/mesas` (owner/admin), `/empleado/mesas` (ops + cuenta), landing

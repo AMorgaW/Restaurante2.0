@@ -75,6 +75,10 @@ vi.mock("next-view-transitions", () => ({
     createElement("a", { href, ...rest }, children),
 }));
 
+vi.mock("@/app/admin/order-poll-actions", () => ({
+  pollOperationalOrdersAction: vi.fn(async () => ({ ok: true, orders: [] })),
+}));
+
 vi.mock("next/image", () => ({
   __esModule: true,
   default: (props: Record<string, unknown>) => {
