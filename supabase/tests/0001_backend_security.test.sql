@@ -46,7 +46,10 @@ select ok(not exists (
       'resolve_table_qr',
       'confirm_manual_order_payment',
       'confirm_manual_table_session_payment',
-      'void_manual_payment_confirmation'
+      'void_manual_payment_confirmation',
+      'list_dining_tables_for_staff',
+      'get_table_session_account',
+      'get_manual_payment_history'
     )
 ), 'no unexpected client-facing SECURITY DEFINER remains in public');
 

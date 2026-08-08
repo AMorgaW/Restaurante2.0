@@ -1,5 +1,14 @@
 # DECISIONS — Registro de decisiones técnicas
 
+60. **Read models staff mesas/cobros (2026-08-07, etapa 11B-6 / 0014)** — 0013 deja
+tablas sensibles deny-by-default (sin SELECT authenticated) a propósito. Sin abrir
+SELECT table-wide: RPCs read-only SECURITY DEFINER
+(`list_dining_tables_for_staff`, `get_table_session_account`,
+`get_manual_payment_history`) con `auth.uid()`, roles owner/admin/manager/cashier
+activos, `has_branch_access`, sin QR hash/raw ni fingerprints/idempotency keys.
+Owner/admin pueden incluir inactivas; manager/cashier no. Write RPCs 0013 intactas.
+UI web pendiente. Local `0001`–`0014`; remoto `0001`–`0009`; sin db push.
+
 59. **Delivery + inventario real (2026-08-07, etapa 11B-4)** — Contrato DB existente
 (0004/0007) basta: consumo en `BEFORE UPDATE` de `orders.status` vía
 `private.consume_order_inventory` en la misma TX. Exactly-once =

@@ -628,3 +628,19 @@ Migración `0013_manual_payments_and_dining_tables.sql`. UI web de cobros/mesas 
 | Migraciones | local **0001–0013**; remoto **0001–0009**; sin db push |
 | UI pagos / QR visual / Stripe / banco / arqueo / notifications | **no** |
 | Graphify | **2.338 nodos, 6.168 aristas, 165 comunidades** |
+
+## Etapa 11B-6 read model — lecturas seguras mesas/cobros (2026-08-07)
+
+Migración aditiva `0014_payment_read_models.sql`. Sin UI. 0001–0013 intactas.
+
+| Verificación | Resultado real |
+|---|---|
+| `supabase db reset --local --no-seed` | aplica **0001–0014** |
+| pgTAP baseline (0001+0010+0011+0012+0013+0014 suites) | **90+76+16+52+70+83 = 387** / 0 failed |
+| pgTAP `0015_payment_read_models` | **69/69** |
+| pgTAP total | **456/456** / 0 failed |
+| Concurrencia | **scenarios=28 assertions=36** / PASS |
+| SELECT table-wide authenticated (mesas/ledger) | **sigue revocado** |
+| Migraciones | local **0001–0014**; remoto **0001–0009**; sin db push |
+| UI / Stripe / banco / notifications / remoto | **no** |
+| Graphify | **2.342 nodos, 6.170 aristas, 172 comunidades** |
