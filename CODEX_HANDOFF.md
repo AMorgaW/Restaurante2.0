@@ -18,21 +18,21 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
 - **Producto:** sistema **web responsive** (URL en navegador). No es aplicación móvil
   descargable, ni requisito de Play Store / App Store / PWA instalable.
 - Rama: `master`.
-- Checkpoint **11B-5 WEB**: UI `/pensionado` y `/admin/pensionados` conectadas a
-  PostgreSQL en `DATA_MODE=supabase` (RPC 0012: `create_pension_order`,
-  `create_and_activate_pension_membership`, menús, `pension_delivery_fee`).
-  Local demo Zustand se conserva con `DATA_MODE=local`. Owner/admin activos gestionan;
-  surcharge/delivery/totales autoritativos en DB; payment `pending`; sin Stripe.
-  Notificaciones web de nuevo pedido: requisito registrado, **no implementado**.
-- Checkpoint **11B-5 SQL**: `0012_pension_orders_and_management.sql` local (cerrada).
-  Pedido pensionado atómico; coupling order↔consumption; calendar_period 30 días
-  (`ends_at = starts_at + 29`); 1 lunch + 1 dinner/día.
-- Checkpoint previo **11B-4**: delivery + inventario real en `DATA_MODE=supabase`.
-- Secuencia SQL: local `0001`–`0012`; remoto `0001`–`0009` (sin db push;
-  0010/0011/0012 no desplegadas). Tests SQL: `0012_delivery_inventory.test.sql` y
-  `0013_pension_orders.test.sql` (suite pgTAP, **no** migration).
+- Checkpoint **11B-6 SQL**: `0013_manual_payments_and_dining_tables.sql` local.
+  Mesas físicas con QR permanente (DB guarda solo hash; raw solo en create/rotate);
+  `table_sessions` históricas (máx. una `open` por mesa); cobro manual
+  cash/`bank_transfer` (QR bancario ≠ QR de mesa); ledger append-only
+  (confirmations/allocations/voids); RPCs confirm order/session + void owner/admin;
+  `local` requiere token QR → sesión; pickup/delivery sin sesión; Stripe dormido
+  no sobrescribe manual; inventario/pensión independientes del pago.
+  **UI web de cobros/mesas y generación visual de QR: pendientes** (misma 11B-6).
+  Notificaciones web: pendientes.
+- Checkpoint previo **11B-5 WEB**: UI `/pensionado` y `/admin/pensionados` conectadas.
+- Secuencia SQL: local `0001`–`0013`; remoto `0001`–`0009` (sin db push;
+  0010–0013 no desplegadas). Tests SQL: `0014_manual_payments_dining_tables.test.sql`
+  (pgTAP; **no** migration) + harness concurrencia ampliado.
 - Compuerta B no iniciada.
-- `graphify-out/` regenerado en 11B-5 WEB: **2.300 nodos, 6.112 aristas, 165 comunidades**. Ignorado por Git.
+- `graphify-out/` regenerado en 11B-6 SQL: **2.338 nodos, 6.168 aristas, 165 comunidades**. Ignorado por Git.
 
 ## Pedidos — primitiva PostgreSQL (11B-2A)
 
@@ -191,5 +191,5 @@ siguen 503. Bootstrap remoto **no ejecutado**; Compuerta B **no ejecutada**. Ver
 ## Siguiente etapa recomendada
 
 **Notificaciones web** (nuevo pedido → empleado operativo + aviso paralelo al dueño
-de supervisión) y/o pagos reales quedan fuera de 11B-5. Compuerta B sigue bloqueada
-hasta autorización expresa. No iniciar 11B-6 sin prompt.
+de supervisión) quedan fuera del SQL 0013. Siguiente dentro de 11B-6: conectar UI web
+de cobros/mesas (sin db push). Compuerta B sigue bloqueada hasta autorización expresa.

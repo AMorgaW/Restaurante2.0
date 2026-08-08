@@ -452,3 +452,19 @@ sin fallback a fixtures; `local` → Zustand demo. Owner/admin activos gestionan
 `create_pension_order`; `/menu` sigue `create_customer_order` sin consumir pensión.
 Surcharge, delivery fee y totales son autoridad PostgreSQL; payment permanece `pending`.
 Notificaciones web de nuevo pedido quedan diferidas.
+
+## 2026-08-07 (Etapa 11B-6 SQL — cobros manuales y mesas)
+
+99. **Cobro MVP = verificación manual** — efectivo y transferencia por QR bancario del
+restaurante (empleado confirma en web). Sin banco, sin Stripe activo. `bank_transfer` =
+transferencia verificada; referencia texto opcional normalizada.
+
+100. **QR de mesa ≠ QR bancario** — cada mesa tiene token aleatorio permanente; DB guarda
+solo SHA-256; raw solo en create/rotate. `resolve_table_qr` abre/reutiliza `table_sessions`
+(máx. una open). Rotación invalida el token anterior sin borrar historial.
+
+101. **Ledger append-only de cobro manual** — `manual_payment_confirmations` +
+`allocations` + `voids`. Totales desde `orders.total`. Confirm:
+owner/admin/manager/cashier activos + branch. Void: solo owner/admin. `zero_balance` para
+total 0 (p. ej. pensión incluida). Pago no toca `orders.status`, inventario ni pensión.
+Stripe dormido no sobrescribe confirmación manual activa. UI web aún pendiente.

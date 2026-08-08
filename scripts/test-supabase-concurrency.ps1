@@ -61,6 +61,7 @@ $ids = @{
   menuItemDinner = New-DeterministicGuid 'menuItemDinner'
   admin = New-DeterministicGuid 'admin'
   customerB = New-DeterministicGuid 'customerB'
+  manager = New-DeterministicGuid 'manager'
   keyPensionSame = New-DeterministicGuid 'keyPensionSame'
   keyPensionConflict = New-DeterministicGuid 'keyPensionConflict'
   keyPensionLunchA = New-DeterministicGuid 'keyPensionLunchA'
@@ -69,6 +70,20 @@ $ids = @{
   keyActA = New-DeterministicGuid 'keyActA'
   keyActB = New-DeterministicGuid 'keyActB'
   keyPenRev = New-DeterministicGuid 'keyPenRev'
+  keyPaySame = New-DeterministicGuid 'keyPaySame'
+  keyPayDiff = New-DeterministicGuid 'keyPayDiff'
+  keyPayOwner = New-DeterministicGuid 'keyPayOwner'
+  keyPayCashier = New-DeterministicGuid 'keyPayCashier'
+  keyPaySessionA = New-DeterministicGuid 'keyPaySessionA'
+  keyPaySessionB = New-DeterministicGuid 'keyPaySessionB'
+  keyPayVoidA = New-DeterministicGuid 'keyPayVoidA'
+  keyPayVoidB = New-DeterministicGuid 'keyPayVoidB'
+  keyLocalRace = New-DeterministicGuid 'keyLocalRace'
+  orderPay = New-DeterministicGuid 'orderPay'
+  orderPayCancel = New-DeterministicGuid 'orderPayCancel'
+  orderPayStripe = New-DeterministicGuid 'orderPayStripe'
+  oiPay = New-DeterministicGuid 'oiPay'
+  diningTable = New-DeterministicGuid 'diningTable'
 }
 
 $product1 = "p1-$runId"
@@ -80,6 +95,12 @@ $activateKey = "activate-$runId"
 $benefitKey = "benefit-$runId"
 $reversalKey = "reversal-$runId"
 $requestKey = "request-$runId"
+$qrSha = [System.Security.Cryptography.SHA256]::Create()
+try {
+  $qrToken = ([System.BitConverter]::ToString($qrSha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes("qr:$runId")))).Replace('-', '').ToLowerInvariant()
+} finally {
+  $qrSha.Dispose()
+}
 
 function Invoke-DatabaseSql([string]$sql) {
   $prev = $ErrorActionPreference
@@ -123,10 +144,22 @@ insert into public.menu_items (id,restaurant_id,category_slug,slug,name,base_pri
 insert into auth.users (instance_id,id,aud,role,email,raw_app_meta_data,raw_user_meta_data,created_at,updated_at,is_sso_user,is_anonymous) values
 ('00000000-0000-0000-0000-000000000000','$($ids.owner)','authenticated','authenticated','owner-$runId@test.local','{}','{}',now(),now(),false,false),
 ('00000000-0000-0000-0000-000000000000','$($ids.cashier)','authenticated','authenticated','cashier-$runId@test.local','{}','{}',now(),now(),false,false),
-('00000000-0000-0000-0000-000000000000','$($ids.customer)','authenticated','authenticated','customer-$runId@test.local','{}','{}',now(),now(),false,false);
+('00000000-0000-0000-0000-000000000000','$($ids.customer)','authenticated','authenticated','customer-$runId@test.local','{}','{}',now(),now(),false,false),
+('00000000-0000-0000-0000-000000000000','$($ids.manager)','authenticated','authenticated','manager-$runId@test.local','{}','{}',now(),now(),false,false);
 update public.profiles set role='owner',staff_status='active' where id='$($ids.owner)';
 update public.profiles set role='cashier',staff_status='active' where id='$($ids.cashier)';
+update public.profiles set role='manager',staff_status='active' where id='$($ids.manager)';
 insert into public.staff_branch_permissions values ('$($ids.cashier)','$($ids.branch)');
+insert into public.staff_branch_permissions values ('$($ids.manager)','$($ids.branch)');
+insert into public.dining_tables (id, branch_id, code, name, is_active, qr_token_hash)
+values (
+  '$($ids.diningTable)',
+  '$($ids.branch)',
+  'RACE-T1',
+  'Race Table',
+  true,
+  extensions.digest(convert_to('$qrToken', 'UTF8'), 'sha256')
+);
 insert into public.inventory_items (id,branch_id,name,slug,category,base_unit,display_unit,current_quantity,minimum_quantity,cost_per_base_unit) values
 ('$($ids.inv1)','$($ids.branch)','Race ingredient 1','$runTag-ing-1','race','g','g',100,10,1),
 ('$($ids.inv2)','$($ids.branch)','Race ingredient 2','$runTag-ing-2','race','g','g',100,10,1),
@@ -158,8 +191,8 @@ update public.branches set pension_delivery_fee = 3000, timezone = 'America/Bogo
 insert into public.pension_plans (id,name,public_price,modality,duration_days,included_periods) values ('$($ids.plan)','Race plan $runTag',100000,'calendar_period',30,array['lunch','dinner']);
 insert into public.pension_memberships (id,profile_id,plan_id,branch_id,status,modality,public_price_snapshot,request_idempotency_key) values ('$($ids.membership)','$($ids.customer)','$($ids.plan)','$($ids.branch)','pending','calendar_period',100000,'$requestKey');
 insert into public.pension_menus (id,branch_id,service_date,period,status,published_at,published_by) values
-('$($ids.menuLunch)','$($ids.branch)',current_date,'lunch','published',now(),'$($ids.owner)'),
-('$($ids.menuDinner)','$($ids.branch)',current_date,'dinner','published',now(),'$($ids.owner)');
+('$($ids.menuLunch)','$($ids.branch)',(now() at time zone 'America/Bogota')::date,'lunch','published',now(),'$($ids.owner)'),
+('$($ids.menuDinner)','$($ids.branch)',(now() at time zone 'America/Bogota')::date,'dinner','published',now(),'$($ids.owner)');
 insert into public.pension_menu_categories (id,menu_id,category,label,is_required) values
 ('$($ids.menuCatLunch)','$($ids.menuLunch)','main','Principal',true),
 ('$($ids.menuCatDinner)','$($ids.menuDinner)','main','Principal',true);
@@ -174,16 +207,17 @@ Invoke-DatabaseSql $setup
 $cashier = "select set_config('request.jwt.claim.sub','$($ids.cashier)',false); set role authenticated;"
 $owner = "select set_config('request.jwt.claim.sub','$($ids.owner)',false); set role authenticated;"
 $customer = "select set_config('request.jwt.claim.sub','$($ids.customer)',false); set role authenticated;"
+$commercialDate = "(now() at time zone 'America/Bogota')::date"
 
 Invoke-SqlPair "$cashier begin; update public.orders set status='delivered' where id='$($ids.order1)'; select pg_sleep(1); commit;" "$cashier update public.orders set status='delivered' where id='$($ids.order2)';" 1 'stock race'
 Invoke-SqlPair "$cashier begin; update public.orders set status='delivered' where id='$($ids.order3)'; select pg_sleep(1); commit;" "$cashier update public.orders set status='delivered' where id='$($ids.order3)';" 1 'duplicate delivery'
-Invoke-SqlPair "$owner begin; select public.activate_pension_membership('$($ids.membership)',90000,'cash',null,current_date,current_date,null,null,false,'race','$activateKey'); select pg_sleep(1); commit;" "$owner select public.activate_pension_membership('$($ids.membership)',90000,'cash',null,current_date,current_date,null,null,false,'race','$activateKey');" 0 'duplicate activation'
+Invoke-SqlPair "$owner begin; select public.activate_pension_membership('$($ids.membership)',90000,'cash',null,$commercialDate,$commercialDate,null,null,false,'race','$activateKey'); select pg_sleep(1); commit;" "$owner select public.activate_pension_membership('$($ids.membership)',90000,'cash',null,$commercialDate,$commercialDate,null,null,false,'race','$activateKey');" 0 'duplicate activation'
 $pensionOrderSame = @"
 select public.create_pension_order(
   '$($ids.keyPensionSame)'::uuid,
   '$($ids.menuLunch)'::uuid,
   array['$($ids.menuItemLunch)']::uuid[],
-  'local','Race Customer','3001234567','race-pension-$runId@test.local',null,null,0
+  'local','Race Customer','3001234567','race-pension-$runId@test.local',null,null,0,'$qrToken'
 );
 "@
 Invoke-SqlPair "$customer begin; $pensionOrderSame select pg_sleep(1); commit;" "$customer $pensionOrderSame" 0 'duplicate pension order same key'
@@ -409,7 +443,7 @@ set role authenticated;
 begin;
 select public.create_pension_order(
   '$($ids.keyPensionConflict)'::uuid,'$($ids.menuDinner)'::uuid,array['$($ids.menuItemDinner)']::uuid[],
-  'local','Race Customer','3001234567','race-pension-$runId@test.local',null,null,0);
+  'local','Race Customer','3001234567','race-pension-$runId@test.local',null,null,0,'$qrToken');
 select pg_sleep(0.8);
 commit;
 "@
@@ -418,7 +452,7 @@ select set_config('request.jwt.claim.sub','$($ids.customer)',false);
 set role authenticated;
 select public.create_pension_order(
   '$($ids.keyPensionConflict)'::uuid,'$($ids.menuDinner)'::uuid,array['$($ids.menuItemDinner)']::uuid[],
-  'pickup','Race Customer','3001234567','race-pension-$runId@test.local',null,null,0);
+  'pickup','Race Customer','3001234567','race-pension-$runId@test.local',null,null,0,null);
 "@
 Invoke-SqlPair $penConflictA $penConflictB 1 'pension same-key different-intent'
 
@@ -439,13 +473,13 @@ $actA = @"
 select set_config('request.jwt.claim.sub','$($ids.owner)',false);
 set role authenticated;
 select public.create_and_activate_pension_membership(
-  '$($ids.customerB)'::uuid,'$($ids.plan)'::uuid,'$($ids.branch)'::uuid,90000,'cash',null,current_date,current_date,null,false,'race act','$($ids.keyActA)');
+  '$($ids.customerB)'::uuid,'$($ids.plan)'::uuid,'$($ids.branch)'::uuid,90000,'cash',null,$commercialDate,$commercialDate,null,false,'race act','$($ids.keyActA)');
 "@
 $actB = @"
 select set_config('request.jwt.claim.sub','$($ids.admin)',false);
 set role authenticated;
 select public.create_and_activate_pension_membership(
-  '$($ids.customerB)'::uuid,'$($ids.plan)'::uuid,'$($ids.branch)'::uuid,90000,'cash',null,current_date,current_date,null,false,'race act','$($ids.keyActB)');
+  '$($ids.customerB)'::uuid,'$($ids.plan)'::uuid,'$($ids.branch)'::uuid,90000,'cash',null,$commercialDate,$commercialDate,null,false,'race act','$($ids.keyActB)');
 "@
 # E: concurrent activation owner/admin — one open membership (one succeeds, one fails OR both if different keys race open)
 Invoke-SqlPair $actA $actB 1 'pension concurrent activation'
@@ -456,7 +490,7 @@ set role authenticated;
 begin;
 select public.create_pension_order(
   '$($ids.keyPensionLunchA)'::uuid,'$($ids.menuLunch)'::uuid,array['$($ids.menuItemLunch)']::uuid[],
-  'local','Cust B','3001234599','cust-b-$runId@test.local',null,null,0);
+  'local','Cust B','3001234599','cust-b-$runId@test.local',null,null,0,'$qrToken');
 select pg_sleep(0.5);
 commit;
 "@
@@ -465,7 +499,7 @@ select set_config('request.jwt.claim.sub','$($ids.customerB)',false);
 set role authenticated;
 select public.create_pension_order(
   '$($ids.keyPensionLunchB)'::uuid,'$($ids.menuLunch)'::uuid,array['$($ids.menuItemLunch)']::uuid[],
-  'local','Cust B','3001234599','cust-b-$runId@test.local',null,null,0);
+  'local','Cust B','3001234599','cust-b-$runId@test.local',null,null,0,'$qrToken');
 "@
 Invoke-SqlPair $lunchRaceA $lunchRaceB 1 'pension two-keys same lunch'
 
@@ -474,7 +508,7 @@ select set_config('request.jwt.claim.sub','$($ids.customerB)',false);
 set role authenticated;
 select public.create_pension_order(
   '$($ids.keyPensionDinner)'::uuid,'$($ids.menuDinner)'::uuid,array['$($ids.menuItemDinner)']::uuid[],
-  'local','Cust B','3001234599','cust-b-$runId@test.local',null,null,0);
+  'local','Cust B','3001234599','cust-b-$runId@test.local',null,null,0,'$qrToken');
 "@
 # D: lunch already taken for customerB; dinner concurrent with noop — just create dinner once then assert both periods
 Invoke-DatabaseSql $dinnerOk
@@ -491,7 +525,7 @@ do `$`$ begin
       fulfillment_type, order_kind, subtotal, total, customer_name, customer_phone, customer_email
     ) values (
       '$(New-DeterministicGuid 'orphanOrder')', 'ORPHAN-$runId', '$($ids.customer)', '$($ids.branch)',
-      'pending', 'pending', 'demo', 'local', 'pension', 0, 0, 'X', '3000000000', 'orphan-$runId@test.local'
+      'pending', 'pending', 'demo', 'pickup', 'pension', 0, 0, 'X', '3000000000', 'orphan-$runId@test.local'
     );
     raise exception 'expected deferred coupling to fire at commit';
   exception when others then
@@ -527,4 +561,297 @@ end `$`$;
 "@
 Invoke-DatabaseSql $pensionAssertions
 
-Write-Output "CONCURRENCY_TESTS_PASS scenarios=19 assertions=28 run=$runId"
+# --- 0013: manual payments + dining table races ---
+$manager = "select set_config('request.jwt.claim.sub','$($ids.manager)',false); set role authenticated;"
+
+$paySetup = @"
+insert into public.orders (id,order_number,user_id,branch_id,status,payment_method,payment_status,fulfillment_type,subtotal,total,customer_name,customer_phone,customer_email) values
+('$($ids.orderPay)','RACE-PAY-$runId','$($ids.customer)','$($ids.branch)','pending','demo','pending','pickup',10000,10000,'Pay','3000000000','pay-$runId@test.local'),
+('$($ids.orderPayCancel)','RACE-PAY-C-$runId','$($ids.customer)','$($ids.branch)','pending','demo','pending','pickup',10000,10000,'Pay','3000000000','payc-$runId@test.local'),
+('$($ids.orderPayStripe)','RACE-PAY-S-$runId','$($ids.customer)','$($ids.branch)','pending','demo','pending','pickup',10000,10000,'Pay','3000000000','pays-$runId@test.local');
+insert into public.order_items (id,order_id,menu_item_id,name_snapshot,unit_price,quantity,total) values
+('$($ids.oiPay)','$($ids.orderPay)','$product1','Race 1',10000,1,10000);
+"@
+Invoke-DatabaseSql $paySetup
+
+# A: same confirmation key/same intent → one confirmation + replay (0 failures)
+$paySameA = @"
+select set_config('request.jwt.claim.sub','$($ids.cashier)',false);
+set role authenticated;
+begin;
+select public.confirm_manual_order_payment('$($ids.orderPay)'::uuid,'cash',null,'$($ids.keyPaySame)'::uuid);
+select pg_sleep(0.5);
+commit;
+"@
+$paySameB = @"
+select set_config('request.jwt.claim.sub','$($ids.cashier)',false);
+set role authenticated;
+select public.confirm_manual_order_payment('$($ids.orderPay)'::uuid,'cash',null,'$($ids.keyPaySame)'::uuid);
+"@
+Invoke-SqlPair $paySameA $paySameB 0 'manual pay same-key same-intent'
+
+# B: same key/different intent → 1 failure
+# Use a fresh unpaid order clone
+$payDiffSetup = @"
+update public.orders set payment_status='pending', payment_method='demo', active_manual_payment_confirmation_id=null
+where id='$($ids.orderPayCancel)';
+"@
+Invoke-DatabaseSql $payDiffSetup
+$payDiffA = @"
+select set_config('request.jwt.claim.sub','$($ids.cashier)',false);
+set role authenticated;
+begin;
+select public.confirm_manual_order_payment('$($ids.orderPayCancel)'::uuid,'cash',null,'$($ids.keyPayDiff)'::uuid);
+select pg_sleep(0.5);
+commit;
+"@
+$payDiffB = @"
+select set_config('request.jwt.claim.sub','$($ids.cashier)',false);
+set role authenticated;
+select public.confirm_manual_order_payment('$($ids.orderPayCancel)'::uuid,'bank_transfer',null,'$($ids.keyPayDiff)'::uuid);
+"@
+Invoke-SqlPair $payDiffA $payDiffB 1 'manual pay same-key different-intent'
+
+# C: owner + cashier different keys same order → one active confirmation (1 failure)
+# Reset orderPay by voiding first confirmation if needed — create fresh order
+$orderPayRace = New-DeterministicGuid 'orderPayRace'
+$payRaceSetup = @"
+insert into public.orders (id,order_number,user_id,branch_id,status,payment_method,payment_status,fulfillment_type,subtotal,total,customer_name,customer_phone,customer_email) values
+('$orderPayRace','RACE-PAY-R-$runId','$($ids.customer)','$($ids.branch)','pending','demo','pending','pickup',10000,10000,'Pay','3000000000','payr-$runId@test.local');
+"@
+Invoke-DatabaseSql $payRaceSetup
+$payRaceOwner = @"
+select set_config('request.jwt.claim.sub','$($ids.owner)',false);
+set role authenticated;
+begin;
+select public.confirm_manual_order_payment('$orderPayRace'::uuid,'cash',null,'$($ids.keyPayOwner)'::uuid);
+select pg_sleep(0.5);
+commit;
+"@
+$payRaceCashier = @"
+select set_config('request.jwt.claim.sub','$($ids.cashier)',false);
+set role authenticated;
+select public.confirm_manual_order_payment('$orderPayRace'::uuid,'cash',null,'$($ids.keyPayCashier)'::uuid);
+"@
+Invoke-SqlPair $payRaceOwner $payRaceCashier 1 'manual pay owner+cashier different keys'
+
+# D: cashier + manager same table session → one confirmation
+$sessionSetup = @"
+select set_config('request.jwt.claim.sub','$($ids.customer)',false);
+set role authenticated;
+select public.resolve_table_qr('$qrToken');
+select public.create_customer_order(
+  '$(New-DeterministicGuid 'sessOrdA')'::uuid,'$($ids.branch)'::uuid,'local','Race','3001234567','sess-a-$runId@test.local',
+  '[{"menu_item_id":"$product2","quantity":1,"notes":"","modifier_option_ids":[]}]'::jsonb,
+  null,null,0,null,'$qrToken');
+select public.create_customer_order(
+  '$(New-DeterministicGuid 'sessOrdB')'::uuid,'$($ids.branch)'::uuid,'local','Race','3001234567','sess-b-$runId@test.local',
+  '[{"menu_item_id":"$product2","quantity":1,"notes":"","modifier_option_ids":[]}]'::jsonb,
+  null,null,0,null,'$qrToken');
+"@
+Invoke-DatabaseSql $sessionSetup
+$sessionId = (
+  "select id from public.table_sessions where table_id='$($ids.diningTable)' and status='open' order by opened_at desc limit 1;" |
+    & $docker exec -i $container sh -lc 'PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U postgres -d postgres -X -q -t -A -v ON_ERROR_STOP=1'
+).Trim()
+if (-not $sessionId) { throw 'No open table session for payment race D' }
+$sessPayA = @"
+select set_config('request.jwt.claim.sub','$($ids.cashier)',false);
+set role authenticated;
+begin;
+select public.confirm_manual_table_session_payment('$sessionId'::uuid,'cash',null,'$($ids.keyPaySessionA)'::uuid);
+select pg_sleep(0.5);
+commit;
+"@
+$sessPayB = @"
+select set_config('request.jwt.claim.sub','$($ids.manager)',false);
+set role authenticated;
+select public.confirm_manual_table_session_payment('$sessionId'::uuid,'cash',null,'$($ids.keyPaySessionB)'::uuid);
+"@
+Invoke-SqlPair $sessPayA $sessPayB 1 'manual session pay cashier+manager'
+
+# E: add local order vs close/pay session → coherent (order included OR create fails)
+$session2Setup = @"
+select set_config('request.jwt.claim.sub','$($ids.customer)',false);
+set role authenticated;
+select public.resolve_table_qr('$qrToken');
+select public.create_customer_order(
+  '$(New-DeterministicGuid 'sess2base')'::uuid,'$($ids.branch)'::uuid,'local','Race','3001234567','sess2-$runId@test.local',
+  '[{"menu_item_id":"$product2","quantity":1,"notes":"","modifier_option_ids":[]}]'::jsonb,
+  null,null,0,null,'$qrToken');
+"@
+Invoke-DatabaseSql $session2Setup
+$session2Id = (
+  "select id from public.table_sessions where table_id='$($ids.diningTable)' and status='open' order by opened_at desc limit 1;" |
+    & $docker exec -i $container sh -lc 'PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U postgres -d postgres -X -q -t -A -v ON_ERROR_STOP=1'
+).Trim()
+if (-not $session2Id) { throw 'No open table session for payment race E' }
+$keySess2Pay = New-DeterministicGuid 'keySess2Pay'
+$raceCreate = @"
+select set_config('request.jwt.claim.sub','$($ids.customer)',false);
+set role authenticated;
+begin;
+select public.create_customer_order(
+  '$($ids.keyLocalRace)'::uuid,'$($ids.branch)'::uuid,'local','Race','3001234567','race-local-$runId@test.local',
+  '[{"menu_item_id":"$product2","quantity":1,"notes":"","modifier_option_ids":[]}]'::jsonb,
+  null,null,0,null,'$qrToken');
+select pg_sleep(0.5);
+commit;
+"@
+$racePay = @"
+select set_config('request.jwt.claim.sub','$($ids.cashier)',false);
+set role authenticated;
+select public.confirm_manual_table_session_payment('$session2Id'::uuid,'cash',null,'$keySess2Pay'::uuid);
+"@
+# Either 0 failures (order included before close) or 1 failure (create hits closed) — both coherent.
+# Assert after: no order on closed session unpaid without being in confirmation.
+$runner = {
+  param($dockerPath, $containerName, $statement)
+  $ErrorActionPreference = 'Continue'
+  $output = $statement | & $dockerPath exec -i $containerName sh -lc 'PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U postgres -d postgres -X -q -v ON_ERROR_STOP=1' 2>&1
+  [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = ($output -join "`n") }
+}
+$jobA = Start-Job -ScriptBlock $runner -ArgumentList $docker, $container, $raceCreate
+$jobB = Start-Job -ScriptBlock $runner -ArgumentList $docker, $container, $racePay
+$raceResults = @($jobA, $jobB | Wait-Job | Receive-Job)
+Remove-Job -Job $jobA, $jobB -Force
+$raceFailures = @($raceResults | Where-Object ExitCode -ne 0).Count
+if ($raceFailures -gt 1) {
+  throw "local vs session-pay esperaba 0 o 1 fallos y obtuvo $raceFailures"
+}
+
+# F: two simultaneous QR scans → one open session (0 failures, assert count=1)
+# Close any open first then race resolve
+Invoke-DatabaseSql "update public.table_sessions set status='closed', closed_at=now() where table_id='$($ids.diningTable)' and status='open';"
+$qrA = "set role anon; begin; select public.resolve_table_qr('$qrToken'); select pg_sleep(0.4); commit;"
+$qrB = "set role anon; select public.resolve_table_qr('$qrToken');"
+Invoke-SqlPair $qrA $qrB 0 'dual QR resolve one session'
+
+# G: two void attempts → one effective void
+$voidConfirmationId = (
+  "select active_manual_payment_confirmation_id from public.orders where id='$orderPayRace';" |
+    & $docker exec -i $container sh -lc 'PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U postgres -d postgres -X -q -t -A -v ON_ERROR_STOP=1'
+).Trim()
+if (-not $voidConfirmationId) { throw 'No active confirmation for void race G' }
+$voidA = @"
+select set_config('request.jwt.claim.sub','$($ids.owner)',false);
+set role authenticated;
+begin;
+select public.void_manual_payment_confirmation('$voidConfirmationId'::uuid,'void race a','$($ids.keyPayVoidA)'::uuid);
+select pg_sleep(0.4);
+commit;
+"@
+$voidB = @"
+select set_config('request.jwt.claim.sub','$($ids.admin)',false);
+set role authenticated;
+select public.void_manual_payment_confirmation('$voidConfirmationId'::uuid,'void race b','$($ids.keyPayVoidB)'::uuid);
+"@
+# admin may not exist in staff for branch yet from earlier adminSetup — ensure admin branch access
+Invoke-DatabaseSql "update public.profiles set role='admin', staff_status='active' where id='$($ids.admin)'; insert into public.staff_branch_permissions values ('$($ids.admin)','$($ids.branch)') on conflict do nothing;"
+Invoke-SqlPair $voidA $voidB 1 'manual void concurrent'
+
+# H: cancel vs confirm payment → coherent
+$cancelConfirmA = @"
+select set_config('request.jwt.claim.sub','$($ids.owner)',false);
+set role authenticated;
+begin;
+update public.orders set status='cancelled' where id='$($ids.orderPayStripe)';
+select pg_sleep(0.4);
+commit;
+"@
+$cancelConfirmB = @"
+select set_config('request.jwt.claim.sub','$($ids.cashier)',false);
+set role authenticated;
+select public.confirm_manual_order_payment('$($ids.orderPayStripe)'::uuid,'cash',null,'$(New-DeterministicGuid 'keyPayCancel')'::uuid);
+"@
+# Expect 1 failure (confirm on cancelled) OR 0 if confirm won first then cancel may still succeed on status
+$jobC = Start-Job -ScriptBlock $runner -ArgumentList $docker, $container, $cancelConfirmA
+$jobD = Start-Job -ScriptBlock $runner -ArgumentList $docker, $container, $cancelConfirmB
+$cancelResults = @($jobC, $jobD | Wait-Job | Receive-Job)
+Remove-Job -Job $jobC, $jobD -Force
+$cancelFailures = @($cancelResults | Where-Object ExitCode -ne 0).Count
+if ($cancelFailures -gt 1) {
+  throw "cancel vs confirm esperaba 0 o 1 fallos y obtuvo $cancelFailures"
+}
+
+# I: stripe vs manual → no double overwrite
+$stripeManualOrder = New-DeterministicGuid 'stripeManualOrder'
+Invoke-DatabaseSql @"
+insert into public.orders (id,order_number,user_id,branch_id,status,payment_method,payment_status,fulfillment_type,subtotal,total,customer_name,customer_phone,customer_email) values
+('$stripeManualOrder','RACE-SM-$runId','$($ids.customer)','$($ids.branch)','pending','demo','pending','pickup',10000,10000,'Pay','3000000000','sm-$runId@test.local');
+"@
+$keyStripeManual = New-DeterministicGuid 'keyStripeManual'
+$stripeEvt = "evt_sm_$runId"
+$stripeRace = @"
+set role service_role;
+begin;
+select public.process_stripe_payment_event('$stripeEvt','payment_intent.succeeded','$stripeManualOrder','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+select pg_sleep(0.4);
+commit;
+"@
+$manualRace = @"
+select set_config('request.jwt.claim.sub','$($ids.cashier)',false);
+set role authenticated;
+select public.confirm_manual_order_payment('$stripeManualOrder'::uuid,'cash',null,'$keyStripeManual'::uuid);
+"@
+$jobE = Start-Job -ScriptBlock $runner -ArgumentList $docker, $container, $stripeRace
+$jobF = Start-Job -ScriptBlock $runner -ArgumentList $docker, $container, $manualRace
+$smResults = @($jobE, $jobF | Wait-Job | Receive-Job)
+Remove-Job -Job $jobE, $jobF -Force
+# Both may succeed (stripe ignores manual / manual may win first); failures 0 or 1 ok if projection coherent
+$smFailures = @($smResults | Where-Object ExitCode -ne 0).Count
+if ($smFailures -gt 1) {
+  throw "stripe vs manual esperaba 0 o 1 fallos y obtuvo $smFailures"
+}
+
+$payAssertions = @"
+do `$`$ begin
+  if (select count(*) from public.manual_payment_confirmations where idempotency_key='$($ids.keyPaySame)') <> 1 then
+    raise exception 'pay same-key created % confirmations', (select count(*) from public.manual_payment_confirmations where idempotency_key='$($ids.keyPaySame)');
+  end if;
+  if (select count(*) from public.manual_payment_confirmations where idempotency_key='$($ids.keyPayDiff)') <> 1 then
+    raise exception 'pay diff-intent created more than one confirmation';
+  end if;
+  if (select count(*) from public.orders where id='$orderPayRace' and active_manual_payment_confirmation_id is not null) <> 0 then
+    -- voided in G; if void failed ensure at most one confirmation ever allocated
+    null;
+  end if;
+  if (select count(*) from public.manual_payment_confirmations c
+      join public.manual_payment_allocations a on a.confirmation_id=c.id
+      where a.order_id='$orderPayRace') <> 1 then
+    raise exception 'owner+cashier race did not settle to one confirmation';
+  end if;
+  if (select count(*) from public.manual_payment_voids v
+      join public.manual_payment_confirmations c on c.id=v.confirmation_id
+      join public.manual_payment_allocations a on a.confirmation_id=c.id
+      where a.order_id='$orderPayRace') <> 1 then
+    raise exception 'void race did not produce exactly one void';
+  end if;
+  if (select count(*) from public.table_sessions where table_id='$($ids.diningTable)' and status='open') <> 1 then
+    raise exception 'dual QR resolve open session count=%', (select count(*) from public.table_sessions where table_id='$($ids.diningTable)' and status='open');
+  end if;
+  -- local vs pay coherence: unpaid local orders must not sit on a closed session
+  if exists (
+    select 1 from public.orders o
+    join public.table_sessions ts on ts.id=o.table_session_id
+    where o.branch_id='$($ids.branch)'
+      and o.fulfillment_type='local'
+      and o.status <> 'cancelled'
+      and o.payment_status='pending'
+      and ts.status='closed'
+  ) then
+    raise exception 'orphan pending local order on closed session';
+  end if;
+  -- stripe vs manual: payment_status paid exactly once projection
+  if (select payment_status from public.orders where id='$stripeManualOrder') is distinct from 'paid' then
+    raise exception 'stripe vs manual left unpaid';
+  end if;
+  if (select payment_method from public.orders where id='$stripeManualOrder') = 'cash'
+     and (select active_manual_payment_confirmation_id from public.orders where id='$stripeManualOrder') is null then
+    raise exception 'manual cash without active confirmation';
+  end if;
+end `$`$;
+"@
+Invoke-DatabaseSql $payAssertions
+
+Write-Output "CONCURRENCY_TESTS_PASS scenarios=28 assertions=36 run=$runId"

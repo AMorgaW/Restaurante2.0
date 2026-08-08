@@ -39,7 +39,14 @@ select ok(not exists (
       'publish_pension_menu',
       'close_pension_menu',
       'set_pension_delivery_fee',
-      'reverse_pension_order_consumption'
+      'reverse_pension_order_consumption',
+      'create_dining_table',
+      'set_dining_table_active',
+      'rotate_dining_table_qr',
+      'resolve_table_qr',
+      'confirm_manual_order_payment',
+      'confirm_manual_table_session_payment',
+      'void_manual_payment_confirmation'
     )
 ), 'no unexpected client-facing SECURITY DEFINER remains in public');
 

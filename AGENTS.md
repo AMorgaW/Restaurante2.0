@@ -57,7 +57,7 @@ Mantener `[db.seed].enabled = false`. `supabase/seed.sql` contiene datos demo y 
 - Pensionado no es rol JWT: siempre es `customer` con membresía comercial.
 - Registro público siempre crea `customer`; nunca añadir selector público de rol, cargo, sucursal, membresía o permisos.
 - `AUTH_MODE` y `DATA_MODE` son independientes. Los stores demo nunca conceden identidad en modo Supabase.
-- Con `DATA_MODE=supabase` el catálogo público y la validación de checkout leen PostgreSQL (anon + RLS); no hay fallback a `src/data/menu`. La persistencia remota de pedidos usa `public.create_customer_order` (migración local `0010`) vía `SupabaseOrderRepository`; local sigue demo. Operaciones staff de pedidos (11B-3) leen/actualizan `orders.status` vía RLS + Server Actions (`expectedStatus` optimista). Delivery (11B-4): `ready→delivered` dispara `consume_order_inventory` en la misma TX del trigger; inventario UI lee PostgreSQL y escribe solo vía `apply_inventory_movement`. Pagos reales siguen pendientes.
+- Con `DATA_MODE=supabase` el catálogo público y la validación de checkout leen PostgreSQL (anon + RLS); no hay fallback a `src/data/menu`. La persistencia remota de pedidos usa `public.create_customer_order` (migración local `0010`) vía `SupabaseOrderRepository`; local sigue demo. Operaciones staff de pedidos (11B-3) leen/actualizan `orders.status` vía RLS + Server Actions (`expectedStatus` optimista). Delivery (11B-4): `ready→delivered` dispara `consume_order_inventory` en la misma TX del trigger; inventario UI lee PostgreSQL y escribe solo vía `apply_inventory_movement`. Cobros manuales SQL (11B-6 0013): efectivo/`bank_transfer` (QR bancario externo verificado por staff), ledger append-only, mesas QR permanentes (solo hash en DB) y `table_sessions`; UI web de cobros/mesas y Stripe real todavía pendientes.
 - Administración de catálogo: owner/admin en `/admin/platos` y `/admin/categorias`; manager/editor activos en `/empleado/catalogo`. En `AUTH_MODE=disabled` + demo local usa Zustand; con Auth+DATA supabase escribe vía Server Actions + sesión + RLS (`can_manage_catalog`). Shell `/admin` exclusivo owner/admin. Sin `service_role` en la app.
 - En producción solo `AUTH_MODE=supabase` configurado es válido; `disabled`/ausente/`demo` → invalid.
 - Demo solo con `AUTH_MODE=disabled` explícito en `development` o `test` (E2E vía `next dev`, no `next start`).
@@ -81,12 +81,16 @@ Mantener `[db.seed].enabled = false`. `supabase/seed.sql` contiene datos demo y 
 La secuencia canónica desplegada en remoto es `0001`–`0009`. Localmente existen además
 `0010_create_customer_order.sql` (RPC de pedidos standard, conectada en app),
 `0011_profiles_staff_status_select_grant.sql` (`GRANT SELECT (staff_status)` a
-`authenticated`, sin SELECT de tabla ni cambio de RLS; desbloquea el resolvedor de sesión)
-y `0012_pension_orders_and_management.sql` (pedidos pensionados atómicos, activación
+`authenticated`, sin SELECT de tabla ni cambio de RLS; desbloquea el resolvedor de sesión),
+`0012_pension_orders_and_management.sql` (pedidos pensionados atómicos, activación
 presencial owner/admin, menús, fee domicilio pensionado, coupling order↔consumption;
 UI `/pensionado` y `/admin/pensionados` conectadas en `DATA_MODE=supabase`; local demo
-intacta).
-Ninguna de `0010`–`0012` está desplegada en remoto (sin db push). La RPC 0010 resuelve
+intacta)
+y `0013_manual_payments_and_dining_tables.sql` (mesas físicas + QR permanente hash-only,
+`table_sessions`, cobro manual cash/`bank_transfer` con ledger append-only,
+confirm/void RPCs, `local` ligado a sesión vía token QR; Stripe dormido coexistente;
+UI web de cobros/mesas todavía no conectada).
+Ninguna de `0010`–`0013` está desplegada en remoto (sin db push). La RPC 0010 resuelve
 replay/conflicto de idempotencia antes del catálogo (serialización por
 `pg_advisory_xact_lock` + UNIQUE) e incrementa `coupons.redeemed_count` atómicamente solo
 en creación nueva. Añadir nuevas migraciones numeradas y append-only, sin editar

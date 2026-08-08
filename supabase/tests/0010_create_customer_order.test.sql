@@ -8,22 +8,22 @@ select plan(76);
 select has_function(
   'public',
   'create_customer_order',
-  array['uuid','uuid','text','text','text','text','jsonb','jsonb','text','numeric','text'],
+  array['uuid','uuid','text','text','text','text','jsonb','jsonb','text','numeric','text','text'],
   'create_customer_order exists'
 );
 select ok(
-  (select prosecdef from pg_proc where oid = 'public.create_customer_order(uuid,uuid,text,text,text,text,jsonb,jsonb,text,numeric,text)'::regprocedure),
+  (select prosecdef from pg_proc where oid = 'public.create_customer_order(uuid,uuid,text,text,text,text,jsonb,jsonb,text,numeric,text,text)'::regprocedure),
   'create_customer_order is SECURITY DEFINER'
 );
 select ok(
   (select 'search_path=""' = any(coalesce(proconfig, '{}'::text[]))
-   from pg_proc where oid = 'public.create_customer_order(uuid,uuid,text,text,text,text,jsonb,jsonb,text,numeric,text)'::regprocedure),
+   from pg_proc where oid = 'public.create_customer_order(uuid,uuid,text,text,text,text,jsonb,jsonb,text,numeric,text,text)'::regprocedure),
   'create_customer_order has empty search_path'
 );
-select ok(not has_function_privilege('public', 'public.create_customer_order(uuid,uuid,text,text,text,text,jsonb,jsonb,text,numeric,text)', 'EXECUTE'), 'PUBLIC cannot execute create_customer_order');
-select ok(not has_function_privilege('service_role', 'public.create_customer_order(uuid,uuid,text,text,text,text,jsonb,jsonb,text,numeric,text)', 'EXECUTE'), 'service_role cannot execute create_customer_order');
-select ok(has_function_privilege('anon', 'public.create_customer_order(uuid,uuid,text,text,text,text,jsonb,jsonb,text,numeric,text)', 'EXECUTE'), 'anon can execute create_customer_order');
-select ok(has_function_privilege('authenticated', 'public.create_customer_order(uuid,uuid,text,text,text,text,jsonb,jsonb,text,numeric,text)', 'EXECUTE'), 'authenticated can execute create_customer_order');
+select ok(not has_function_privilege('public', 'public.create_customer_order(uuid,uuid,text,text,text,text,jsonb,jsonb,text,numeric,text,text)', 'EXECUTE'), 'PUBLIC cannot execute create_customer_order');
+select ok(not has_function_privilege('service_role', 'public.create_customer_order(uuid,uuid,text,text,text,text,jsonb,jsonb,text,numeric,text,text)', 'EXECUTE'), 'service_role cannot execute create_customer_order');
+select ok(has_function_privilege('anon', 'public.create_customer_order(uuid,uuid,text,text,text,text,jsonb,jsonb,text,numeric,text,text)', 'EXECUTE'), 'anon can execute create_customer_order');
+select ok(has_function_privilege('authenticated', 'public.create_customer_order(uuid,uuid,text,text,text,text,jsonb,jsonb,text,numeric,text,text)', 'EXECUTE'), 'authenticated can execute create_customer_order');
 select ok(not has_table_privilege('anon', 'public.orders', 'INSERT'), 'anon cannot INSERT orders directly');
 select ok(not has_table_privilege('authenticated', 'public.orders', 'INSERT'), 'authenticated cannot INSERT orders directly');
 select ok(not has_table_privilege('anon', 'public.order_items', 'INSERT'), 'anon cannot INSERT order_items directly');

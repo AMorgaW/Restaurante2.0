@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(68);
+select plan(70);
 
 -- SCHEMA
 select has_column('public', 'orders', 'order_kind', 'orders.order_kind exists');
@@ -34,11 +34,11 @@ select ok(exists(
 ), 'deferred coupling trigger on consumptions exists');
 
 -- ACL
-select has_function('public', 'create_pension_order', array['uuid','uuid','uuid[]','text','text','text','text','jsonb','text','numeric'], 'create_pension_order exists');
-select ok((select prosecdef from pg_proc where oid = 'public.create_pension_order(uuid,uuid,uuid[],text,text,text,text,jsonb,text,numeric)'::regprocedure), 'create_pension_order is SECURITY DEFINER');
-select ok((select 'search_path=""' = any(coalesce(proconfig, '{}'::text[])) from pg_proc where oid = 'public.create_pension_order(uuid,uuid,uuid[],text,text,text,text,jsonb,text,numeric)'::regprocedure), 'create_pension_order has empty search_path');
-select ok(not has_function_privilege('anon', 'public.create_pension_order(uuid,uuid,uuid[],text,text,text,text,jsonb,text,numeric)', 'EXECUTE'), 'anon cannot execute create_pension_order');
-select ok(has_function_privilege('authenticated', 'public.create_pension_order(uuid,uuid,uuid[],text,text,text,text,jsonb,text,numeric)', 'EXECUTE'), 'authenticated can execute create_pension_order');
+select has_function('public', 'create_pension_order', array['uuid','uuid','uuid[]','text','text','text','text','jsonb','text','numeric','text'], 'create_pension_order exists');
+select ok((select prosecdef from pg_proc where oid = 'public.create_pension_order(uuid,uuid,uuid[],text,text,text,text,jsonb,text,numeric,text)'::regprocedure), 'create_pension_order is SECURITY DEFINER');
+select ok((select 'search_path=""' = any(coalesce(proconfig, '{}'::text[])) from pg_proc where oid = 'public.create_pension_order(uuid,uuid,uuid[],text,text,text,text,jsonb,text,numeric,text)'::regprocedure), 'create_pension_order has empty search_path');
+select ok(not has_function_privilege('anon', 'public.create_pension_order(uuid,uuid,uuid[],text,text,text,text,jsonb,text,numeric,text)', 'EXECUTE'), 'anon cannot execute create_pension_order');
+select ok(has_function_privilege('authenticated', 'public.create_pension_order(uuid,uuid,uuid[],text,text,text,text,jsonb,text,numeric,text)', 'EXECUTE'), 'authenticated can execute create_pension_order');
 select ok(not has_function_privilege('anon', 'public.create_and_activate_pension_membership(uuid,uuid,uuid,integer,text,text,date,date,integer,boolean,text,text)', 'EXECUTE'), 'anon cannot execute create_and_activate_pension_membership');
 select ok(not has_function_privilege('anon', 'public.save_pension_menu_draft(uuid,date,text,text,text)', 'EXECUTE'), 'anon cannot execute save_pension_menu_draft');
 select ok(not has_function_privilege('authenticated', 'public.consume_pension_benefit(uuid,uuid,uuid[],uuid,text)', 'EXECUTE'), 'authenticated cannot execute legacy consume_pension_benefit');
@@ -91,10 +91,21 @@ create temporary table pen_ctx (
   dinner_menu uuid,
   pmi_lunch_included uuid,
   pmi_lunch_sub uuid,
-  pmi_dinner_included uuid
+  pmi_dinner_included uuid,
+  table_id uuid,
+  table_qr text
 ) on commit drop;
 insert into pen_ctx (commercial_date) select private.branch_commercial_date('b2000000-0000-0000-0000-000000000001');
 grant all on table pen_ctx to authenticated;
+
+-- Dining table for local fulfillment QR
+select set_config('request.jwt.claim.sub', 'b4000000-0000-0000-0000-000000000001', true);
+set local role authenticated;
+update pen_ctx set table_id = r.table_id, table_qr = r.qr_token
+from public.create_dining_table(
+  'b2000000-0000-0000-0000-000000000001'::uuid, 'PEN-T1', 'Mesa pension'
+) r;
+reset role;
 
 -- ACTIVATION ACL + owner/admin
 select set_config('request.jwt.claim.sub', 'b4000000-0000-0000-0000-000000000003', true);
@@ -243,6 +254,24 @@ select throws_ok(
     (select membership_main from pen_ctx), (select lunch_menu from pen_ctx),
     array[(select pmi_lunch_included from pen_ctx)]::uuid[], null, 'legacy-1') $$,
   '42501', null, 'legacy consume_pension_benefit blocked'
+);
+
+select throws_ok(
+  $$ select public.create_pension_order(
+    'c1000000-0000-0000-0000-000000000110'::uuid,
+    (select lunch_menu from pen_ctx),
+    array[(select pmi_lunch_included from pen_ctx)]::uuid[],
+    'local', 'Pen Customer', '3001234567', 'pen-customer@test.local', null, null, 0, null) $$,
+  '22023', 'El pedido local requiere token QR de mesa', 'local pension order without QR fails'
+);
+select throws_ok(
+  $$ select public.create_pension_order(
+    'c1000000-0000-0000-0000-000000000111'::uuid,
+    (select lunch_menu from pen_ctx),
+    array[(select pmi_lunch_included from pen_ctx)]::uuid[],
+    'pickup', 'Pen Customer', '3001234567', 'pen-customer@test.local', null, null, 0,
+    (select table_qr from pen_ctx)) $$,
+  '22023', 'El token QR solo aplica a pedidos locales', 'pickup pension order rejects QR token'
 );
 
 create temporary table pen_order_result (

@@ -613,3 +613,18 @@ Checkpoint SQL previo `e15842f`. WEB conectada sin cambiar migraciones.
 | Producto | sistema **web responsive** (no app móvil / stores / PWA requisito) |
 | Notifications / Stripe / db push / git push / Compuerta B | **no** |
 | Graphify | **2.300 nodos, 6.112 aristas, 165 comunidades** |
+
+## Etapa 11B-6 SQL — cobros manuales, mesas QR y sesiones (2026-08-07)
+
+Migración `0013_manual_payments_and_dining_tables.sql`. UI web de cobros/mesas **no** conectada aún.
+
+| Verificación | Resultado real |
+|---|---|
+| `supabase db reset --local --no-seed` | aplica **0001–0013** |
+| pgTAP baseline (0001+0010+0011+0012+0013 pension) | **90+76+16+52+70 = 304** / 0 failed |
+| pgTAP `0014_manual_payments_dining_tables` | **83/83** |
+| pgTAP total | **387/387** / 0 failed |
+| Concurrencia run1 / run2 | **scenarios=28 assertions=36** / PASS ×2 |
+| Migraciones | local **0001–0013**; remoto **0001–0009**; sin db push |
+| UI pagos / QR visual / Stripe / banco / arqueo / notifications | **no** |
+| Graphify | **2.338 nodos, 6.168 aristas, 165 comunidades** |
