@@ -24,6 +24,7 @@ import { isValidPhone, cn } from "@/lib/utils";
 import { useMounted } from "@/hooks/use-mounted";
 import { useCartStore } from "@/stores/cart";
 import { useOrdersStore } from "@/stores/orders";
+import { useTableContextStore } from "@/stores/table-context";
 
 const STEPS = ["Entrega", "Tus datos", "Pago"] as const;
 
@@ -58,8 +59,13 @@ export function CheckoutScreen() {
   const tipPercent = useCartStore((state) => state.tipPercent);
   const clearCart = useCartStore((state) => state.clear);
   const addOrder = useOrdersStore((state) => state.addOrder);
+  const tableQrToken = useTableContextStore((state) => state.tableQrToken);
+  const tableCode = useTableContextStore((state) => state.tableCode);
+  const tableBranchId = useTableContextStore((state) => state.branchConfigId);
+  const hydrateTableContext = useTableContextStore((state) => state.hydrateFromSession);
 
   const [step, setStep] = useState(0);
+  const isTableLocal = Boolean(tableQrToken) && fulfillmentType === "local";
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   /** Una clave opaca por intento lógico; se reutiliza en retries del mismo intento. */
@@ -103,6 +109,16 @@ export function CheckoutScreen() {
       }),
     [items, activeCoupon, fulfillmentType, branch, tipPercent],
   );
+
+  useEffect(() => {
+    hydrateTableContext();
+  }, [hydrateTableContext]);
+
+  useEffect(() => {
+    if (!tableQrToken) return;
+    setFulfillment("local");
+    if (tableBranchId) setBranch(tableBranchId);
+  }, [tableQrToken, tableBranchId, setFulfillment, setBranch]);
 
   useEffect(() => {
     if (step === 2) track("add_payment_info", { method: "demo" });
@@ -171,6 +187,7 @@ export function CheckoutScreen() {
       ...(activeCoupon ? { couponCode: activeCoupon.code } : {}),
       tipPercent,
       notes: values.notes?.trim() ?? "",
+      ...(fulfillmentType === "local" && tableQrToken ? { tableQrToken } : {}),
     };
 
     const request = placeOrderRequest(payload);
@@ -191,11 +208,14 @@ export function CheckoutScreen() {
       total: result.order.totals.total,
       items: result.order.items.length,
     });
-    clearCart();
+    // Conservar contexto de mesa para pedidos adicionales en la misma session.
     // Nuevo intento lógico a partir de aquí (por si el usuario vuelve a pedir).
     idempotencyKey.current = crypto.randomUUID();
     toast({ title: "¡Pedido confirmado!", description: result.order.orderNumber, variant: "success" });
+    // Navegar antes de vaciar: si clearCart corre primero, el EmptyState remonta
+    // y puede cancelar el replace en WebKit/móvil.
     router.replace(`/pedido/${result.order.id}`);
+    clearCart();
   };
 
   if (!mounted) {
@@ -255,6 +275,17 @@ export function CheckoutScreen() {
 
       {step === 0 ? (
         <section aria-label="Método de entrega" className="flex flex-col gap-4">
+          {isTableLocal ? (
+            <div className="rounded-card border border-lime/40 bg-lime/10 p-4">
+              <p className="text-sm font-bold text-lime">Pedido en mesa</p>
+              <p className="mt-1 text-lg font-extrabold">
+                Mesa {tableCode ?? "—"}
+              </p>
+              <p className="mt-2 text-[13px] text-muted">
+                Tu pedido se asociará a la cuenta abierta de esta mesa.
+              </p>
+            </div>
+          ) : (
           <div role="radiogroup" aria-label="Tipo de servicio" className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -295,7 +326,9 @@ export function CheckoutScreen() {
               </span>
             </button>
           </div>
+          )}
 
+          {!isTableLocal ? (
           <fieldset className="rounded-card border border-border-soft bg-surface p-4">
             <legend className="px-1 text-sm font-bold">Sucursal</legend>
             <div role="radiogroup" aria-label="Sucursal" className="mt-1 flex flex-col gap-2">
@@ -324,6 +357,7 @@ export function CheckoutScreen() {
                 })}
             </div>
           </fieldset>
+          ) : null}
 
           {deliveryBelowMinimum ? (
             <p role="alert" className="rounded-2xl border border-warning/40 bg-warning/10 px-4 py-3 text-[13px] font-semibold text-warning">
@@ -463,8 +497,12 @@ export function CheckoutScreen() {
           >
             <h2 className="mb-1 text-base font-bold">Resumen</h2>
             <p className="mb-3 text-[13px] text-muted">
-              {fulfillmentType === "pickup" ? "Recogida en" : "Entrega desde"} {branch?.name} ·{" "}
-              {items.length} {items.length === 1 ? "línea" : "líneas"}
+              {fulfillmentType === "pickup"
+                ? "Recogida en"
+                : fulfillmentType === "local"
+                  ? "Mesa en"
+                  : "Entrega desde"}{" "}
+              {branch?.name} · {items.length} {items.length === 1 ? "línea" : "líneas"}
             </p>
             <ul className="mb-3 flex flex-col gap-1.5 border-b border-border-soft pb-3">
               {items.map((line) => (

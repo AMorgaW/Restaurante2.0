@@ -18,21 +18,20 @@ Estos documentos permiten el onboarding inicial sin explorar todo el repositorio
 - **Producto:** sistema **web responsive** (URL en navegador). No es aplicación móvil
   descargable, ni requisito de Play Store / App Store / PWA instalable.
 - Rama: `master`.
-- Checkpoint **11B-6 read model**: `0014_payment_read_models.sql` local.
-  RPCs read-only staff (`list_dining_tables_for_staff`, `get_table_session_account`,
-  `get_manual_payment_history`) con branch isolation; tablas sensibles siguen
-  deny-by-default (sin SELECT authenticated); sin QR hash/raw; sin side effects.
-  **UI web de cobros/mesas y generación visual de QR: pendientes**.
-  Notificaciones web: pendientes.
+- Checkpoint **11B-6 WEB**: UI mesas/cobros conectada a 0013+0014
+  (`/admin/mesas`, `/empleado/mesas`, `/mesa/[token]`, cobro manual en pedidos).
+  QR permanente hash-only; raw solo en create/rotate; ledger append-only;
+  pago no toca `orders.status`. **11B-6 CERRADA.** Notificaciones → **11B-7**.
+- Checkpoint previo **11B-6 read model**: `0014_payment_read_models.sql` local
+  (RPCs staff read-only; deny-by-default en tablas sensibles).
 - Checkpoint previo **11B-6 SQL write**: `0013_manual_payments_and_dining_tables.sql`
   (mesas/QR/sessions/ledger/confirm/void; intacta).
 - Checkpoint previo **11B-5 WEB**: UI `/pensionado` y `/admin/pensionados` conectadas.
 - Secuencia SQL: local `0001`–`0014`; remoto `0001`–`0009` (sin db push;
   0010–0014 no desplegadas). Tests SQL: `0014_manual_payments_dining_tables.test.sql`
-  (pgTAP de migration 0013; **no** migration) +
-  `0015_payment_read_models.test.sql` (pgTAP de migration 0014) + harness concurrencia.
+  (pgTAP 83 de 0013) + `0015_payment_read_models.test.sql` (pgTAP 69 de 0014).
 - Compuerta B no iniciada.
-- `graphify-out/` regenerado en 11B-6 read model: **2.342 nodos, 6.170 aristas, 172 comunidades**. Ignorado por Git.
+- `graphify-out/` regenerado en 11B-6 WEB: **2.570 nodos, 6.848 aristas, 182 comunidades**. Ignorado por Git.
 
 ## Pedidos — primitiva PostgreSQL (11B-2A)
 
@@ -190,6 +189,6 @@ siguen 503. Bootstrap remoto **no ejecutado**; Compuerta B **no ejecutada**. Ver
 
 ## Siguiente etapa recomendada
 
-**Notificaciones web** (nuevo pedido → empleado operativo + aviso paralelo al dueño
-de supervisión) quedan fuera. Siguiente: conectar UI web de cobros/mesas a 0013+0014
-(sin db push). Compuerta B sigue bloqueada hasta autorización expresa.
+**11B-7 — Notificaciones web** (nuevo pedido → empleado operativo + aviso paralelo
+al dueño de supervisión). Sin db push. Compuerta B sigue bloqueada hasta
+autorización expresa.

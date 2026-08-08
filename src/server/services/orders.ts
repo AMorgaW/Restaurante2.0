@@ -45,6 +45,12 @@ export async function placeOrder(input: CheckoutInput): Promise<Order> {
   if (input.fulfillmentType === "pickup" && !branch.pickupEnabled) {
     throw new OrderValidationError(`${branch.name} no ofrece recogida en tienda.`, "pickup-disabled");
   }
+  if (input.fulfillmentType === "local" && !input.tableQrToken) {
+    throw new OrderValidationError(
+      "El pedido en mesa requiere escanear el QR de la mesa.",
+      "table-qr-required",
+    );
+  }
 
   const menuRepository = getMenuRepository();
   const cartItems: CartItem[] = [];
@@ -162,6 +168,7 @@ export async function placeOrder(input: CheckoutInput): Promise<Order> {
     paymentStatus: isSupabase ? "pending" : paymentProvider === "demo" ? "paid" : "pending",
     paymentMethod: isSupabase ? "demo" : paymentProvider,
     fulfillmentType: input.fulfillmentType,
+    ...(input.tableQrToken ? { tableQrToken: input.tableQrToken } : {}),
     items: cartItems.map((item) => ({
       itemId: item.itemId,
       slug: item.slug,

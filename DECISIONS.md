@@ -1,5 +1,14 @@
 # DECISIONS — Registro de decisiones técnicas
 
+61. **UI web mesas/cobros (2026-08-07, etapa 11B-6 WEB)** — Conecta 0013+0014 sin
+cambiar migraciones: Server Actions + `src/server/dining-tables` (repo/service),
+`/admin/mesas` (owner/admin), `/empleado/mesas` (ops + cuenta), landing
+`/mesa/[token]`, cobro manual en cola de pedidos. Create/rotate mesa solo
+owner/admin; confirm cash/`bank_transfer` owner/admin/manager/cashier; void solo
+owner/admin. Raw QR solo en create/rotate; DB sigue hash-only. Pago no muta
+`orders.status`. Notificaciones → 11B-7. Local `0001`–`0014`; remoto `0001`–`0009`;
+sin db push.
+
 60. **Read models staff mesas/cobros (2026-08-07, etapa 11B-6 / 0014)** — 0013 deja
 tablas sensibles deny-by-default (sin SELECT authenticated) a propósito. Sin abrir
 SELECT table-wide: RPCs read-only SECURITY DEFINER
@@ -7,7 +16,7 @@ SELECT table-wide: RPCs read-only SECURITY DEFINER
 `get_manual_payment_history`) con `auth.uid()`, roles owner/admin/manager/cashier
 activos, `has_branch_access`, sin QR hash/raw ni fingerprints/idempotency keys.
 Owner/admin pueden incluir inactivas; manager/cashier no. Write RPCs 0013 intactas.
-UI web pendiente. Local `0001`–`0014`; remoto `0001`–`0009`; sin db push.
+UI web conectada en 11B-6 WEB. Local `0001`–`0014`; remoto `0001`–`0009`; sin db push.
 
 59. **Delivery + inventario real (2026-08-07, etapa 11B-4)** — Contrato DB existente
 (0004/0007) basta: consumo en `BEFORE UPDATE` de `orders.status` vía
@@ -476,4 +485,11 @@ solo SHA-256; raw solo en create/rotate. `resolve_table_qr` abre/reutiliza `tabl
 `allocations` + `voids`. Totales desde `orders.total`. Confirm:
 owner/admin/manager/cashier activos + branch. Void: solo owner/admin. `zero_balance` para
 total 0 (p. ej. pensión incluida). Pago no toca `orders.status`, inventario ni pensión.
-Stripe dormido no sobrescribe confirmación manual activa. UI web aún pendiente.
+Stripe dormido no sobrescribe confirmación manual activa. UI web conectada (11B-6 WEB).
+
+## 2026-08-07 (Etapa 11B-6 WEB — mesas/cobros conectados)
+
+102. **Mesas/cobros usan DATA_MODE estricto** — `supabase` → `src/server/dining-tables`
++ RPCs 0013/0014 sin SELECT table-wide; `local` → demo LocalDiningTablesRepository.
+Owner/admin gestionan mesas; confirmación manual owner/admin/manager/cashier;
+void solo owner/admin. Guest resuelve QR anon. Notificaciones diferidas a 11B-7.

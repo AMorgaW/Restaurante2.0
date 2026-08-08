@@ -91,7 +91,11 @@ export function OrderConfirmationScreen({ orderId }: { orderId: string }) {
           <Badge variant="success">{STATUS_LABELS[order.status] ?? order.status}</Badge>
           <Badge variant="lime">{PAYMENT_LABELS[order.paymentStatus] ?? order.paymentStatus}</Badge>
           <Badge variant="muted">
-            {order.fulfillmentType === "pickup" ? "Recogida en tienda" : "Domicilio"}
+            {order.fulfillmentType === "pickup"
+              ? "Recogida en tienda"
+              : order.fulfillmentType === "local"
+                ? "En mesa"
+                : "Domicilio"}
           </Badge>
         </div>
       </div>
@@ -103,7 +107,11 @@ export function OrderConfirmationScreen({ orderId }: { orderId: string }) {
         >
           <h2 className="flex items-center gap-2 text-base font-bold">
             <ChefHat aria-hidden className="size-5 text-lime" />
-            {order.fulfillmentType === "pickup" ? "Recoge tu pedido en" : "Preparado por"}
+            {order.fulfillmentType === "pickup"
+              ? "Recoge tu pedido en"
+              : order.fulfillmentType === "local"
+                ? "Pedido en mesa ·"
+                : "Preparado por"}
           </h2>
           <p className="mt-2 font-semibold">{branch.name}</p>
           <p className="flex items-start gap-1.5 text-sm text-muted">

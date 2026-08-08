@@ -25,6 +25,7 @@ export type OrderRow = {
   address_snapshot: unknown;
   notes: string | null;
   created_at: string;
+  table_session_id?: string | null;
 };
 
 export type OrderItemRow = {
@@ -118,7 +119,14 @@ function parseAddress(raw: unknown): Order["address"] | undefined {
 }
 
 function mapPaymentMethod(value: string): Order["paymentMethod"] {
-  if (value === "stripe" || value === "mercadopago") return value;
+  if (
+    value === "stripe" ||
+    value === "mercadopago" ||
+    value === "cash" ||
+    value === "bank_transfer"
+  ) {
+    return value;
+  }
   return "demo";
 }
 
@@ -153,7 +161,13 @@ export function mapOrderRowsToOrders(
       status: isOrderStatus(order.status) ? order.status : "pending",
       paymentStatus: isPaymentStatus(order.payment_status) ? order.payment_status : "pending",
       paymentMethod: mapPaymentMethod(order.payment_method),
-      fulfillmentType: order.fulfillment_type === "delivery" ? "delivery" : "pickup",
+      fulfillmentType:
+        order.fulfillment_type === "delivery"
+          ? "delivery"
+          : order.fulfillment_type === "local"
+            ? "local"
+            : "pickup",
+      tableSessionId: order.table_session_id ?? null,
       items: lineItems,
       totals: {
         subtotal: order.subtotal,

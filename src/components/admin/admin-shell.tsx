@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Armchair,
   LayoutDashboard,
   LogOut,
   MapPin,
@@ -36,6 +37,7 @@ const NAV = [
   { href: "/admin/empleados", label: "Empleados", icon: UsersRound, exact: false },
   { href: "/admin/pensionados", label: "Pensionados", icon: UserRoundCog, exact: false },
   { href: "/admin/pedidos", label: "Pedidos", icon: ReceiptText, exact: false },
+  { href: "/admin/mesas", label: "Mesas", icon: Armchair, exact: false },
   { href: "/admin/sucursales", label: "Sucursales", icon: MapPin, exact: false },
   { href: "/admin/promociones", label: "Promociones", icon: Sparkles, exact: false },
   { href: "/admin/configuracion", label: "Configuración", icon: Settings, exact: false },

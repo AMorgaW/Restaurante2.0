@@ -75,6 +75,16 @@ const MESSAGE_MAP: Array<{ match: RegExp; code: string; message: string; status?
     message: "Los datos del pedido no son válidos.",
     status: 422,
   },
+  {
+    match: /cuenta de mesa esta cerrada/i,
+    code: "session-closed",
+    message: "Esta cuenta ya fue cerrada. Vuelve a escanear el QR de la mesa.",
+  },
+  {
+    match: /qr invalido|pedido local requiere token qr|token qr solo aplica|mesa no pertenece/i,
+    code: "table-qr-invalid",
+    message: "Este código QR ya no es válido. Solicita ayuda al personal.",
+  },
 ];
 
 export function mapCreateCustomerOrderError(error: unknown): OrderPersistenceError {

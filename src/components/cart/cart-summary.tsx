@@ -1,7 +1,7 @@
 "use client";
 
 import { formatCurrency } from "@/lib/format/currency";
-import type { CartTotals } from "@/types/order";
+import type { CartTotals, FulfillmentType } from "@/types/order";
 
 /** Desglose de importes del carrito/checkout. */
 export function CartSummary({
@@ -9,7 +9,7 @@ export function CartSummary({
   fulfillmentType,
 }: {
   totals: CartTotals;
-  fulfillmentType: "pickup" | "delivery";
+  fulfillmentType: FulfillmentType;
 }) {
   const rows: Array<{ label: string; value: number; accent?: boolean }> = [
     { label: "Subtotal", value: totals.subtotal },

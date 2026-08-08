@@ -5,6 +5,15 @@ vi.mock("@/app/admin/order-actions", () => ({
   transitionOrderStatusAction: vi.fn(async () => ({ ok: true })),
 }));
 
+vi.mock("@/app/admin/dining-table-actions", () => ({
+  confirmManualOrderPaymentAction: vi.fn(async () => ({ ok: true, data: {} })),
+  confirmManualTableSessionPaymentAction: vi.fn(async () => ({ ok: true, data: {} })),
+  voidManualPaymentConfirmationAction: vi.fn(async () => ({ ok: true, data: {} })),
+  createDiningTableAction: vi.fn(async () => ({ ok: true, data: {} })),
+  setDiningTableActiveAction: vi.fn(async () => ({ ok: true, data: undefined })),
+  rotateDiningTableQrAction: vi.fn(async () => ({ ok: true, data: {} })),
+}));
+
 import { EmployeeWorkspace } from "@/components/employee/employee-workspace";
 import { ToastProvider } from "@/components/ui/toast";
 import { DEFAULT_SERVICE_SNAPSHOT } from "@/lib/menu/service-period";

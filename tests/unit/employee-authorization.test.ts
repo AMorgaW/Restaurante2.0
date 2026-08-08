@@ -5,10 +5,19 @@ describe("capacidades de empleado", () => {
   it("expone navegación según cargo sin crear un rol employee", () => {
     expect(isEmployeeRole("employee")).toBe(false);
     expect(getEmployeeNavigation("kitchen").map((item) => item.section)).toEqual(["home", "orders", "menu", "inventory", "history"]);
-    expect(getEmployeeNavigation("cashier").map((item) => item.section)).toEqual(["home", "orders", "inventory", "history", "incidents"]);
+    expect(getEmployeeNavigation("cashier").map((item) => item.section)).toEqual([
+      "home",
+      "orders",
+      "tables",
+      "inventory",
+      "history",
+      "incidents",
+    ]);
     expect(getEmployeeNavigation("editor").map((item) => item.section)).toEqual(["home", "menu", "catalog"]);
     expect(getEmployeeNavigation("editor").find((item) => item.section === "catalog")?.href).toBe("/empleado/catalogo");
     expect(getEmployeeNavigation("manager").map((item) => item.section)).toContain("catalog");
+    expect(getEmployeeNavigation("manager").map((item) => item.section)).toContain("tables");
+    expect(getEmployeeNavigation("cashier").find((item) => item.section === "tables")?.href).toBe("/empleado/mesas");
     expect(getEmployeeNavigation("support").map((item) => item.section)).toEqual(["home", "orders", "incidents"]);
     expect(canAccessEmployeeSection("kitchen", "catalog")).toBe(false);
     expect(canAccessEmployeeSection("editor", "catalog")).toBe(true);

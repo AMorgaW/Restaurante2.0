@@ -485,6 +485,47 @@ export type Database = {
         }
         Relationships: []
       }
+      dining_tables: {
+        Row: {
+          branch_id: string
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string | null
+          qr_token_hash: string
+          updated_at: string
+        }
+        Insert: {
+          branch_id: string
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string | null
+          qr_token_hash: string
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string | null
+          qr_token_hash?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dining_tables_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       favorites: {
         Row: {
           created_at: string
@@ -726,6 +767,168 @@ export type Database = {
             columns: ["reversal_of_movement_id"]
             isOneToOne: false
             referencedRelation: "inventory_movements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manual_payment_allocations: {
+        Row: {
+          amount: number
+          confirmation_id: string
+          created_at: string
+          id: string
+          order_id: string
+          previous_payment_method: string
+          previous_payment_reference: string | null
+          previous_payment_status: string
+        }
+        Insert: {
+          amount: number
+          confirmation_id: string
+          created_at?: string
+          id?: string
+          order_id: string
+          previous_payment_method: string
+          previous_payment_reference?: string | null
+          previous_payment_status: string
+        }
+        Update: {
+          amount?: number
+          confirmation_id?: string
+          created_at?: string
+          id?: string
+          order_id?: string
+          previous_payment_method?: string
+          previous_payment_reference?: string | null
+          previous_payment_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_payment_allocations_confirmation_id_fkey"
+            columns: ["confirmation_id"]
+            isOneToOne: false
+            referencedRelation: "manual_payment_confirmations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_payment_allocations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manual_payment_confirmations: {
+        Row: {
+          amount_snapshot: number
+          branch_id: string
+          confirmation_kind: string
+          confirmed_by: string
+          created_at: string
+          currency: string
+          id: string
+          idempotency_key: string
+          idempotency_scope: string
+          method: string | null
+          payment_reference: string | null
+          request_fingerprint: string
+          target_order_id: string | null
+          target_table_session_id: string | null
+        }
+        Insert: {
+          amount_snapshot: number
+          branch_id: string
+          confirmation_kind: string
+          confirmed_by: string
+          created_at?: string
+          currency?: string
+          id?: string
+          idempotency_key: string
+          idempotency_scope: string
+          method?: string | null
+          payment_reference?: string | null
+          request_fingerprint: string
+          target_order_id?: string | null
+          target_table_session_id?: string | null
+        }
+        Update: {
+          amount_snapshot?: number
+          branch_id?: string
+          confirmation_kind?: string
+          confirmed_by?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          idempotency_key?: string
+          idempotency_scope?: string
+          method?: string | null
+          payment_reference?: string | null
+          request_fingerprint?: string
+          target_order_id?: string | null
+          target_table_session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_payment_confirmations_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_payment_confirmations_target_order_id_fkey"
+            columns: ["target_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_payment_confirmations_target_table_session_id_fkey"
+            columns: ["target_table_session_id"]
+            isOneToOne: false
+            referencedRelation: "table_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manual_payment_voids: {
+        Row: {
+          confirmation_id: string
+          created_at: string
+          id: string
+          idempotency_key: string
+          idempotency_scope: string
+          reason: string
+          request_fingerprint: string
+          voided_by: string
+        }
+        Insert: {
+          confirmation_id: string
+          created_at?: string
+          id?: string
+          idempotency_key: string
+          idempotency_scope: string
+          reason: string
+          request_fingerprint: string
+          voided_by: string
+        }
+        Update: {
+          confirmation_id?: string
+          created_at?: string
+          id?: string
+          idempotency_key?: string
+          idempotency_scope?: string
+          reason?: string
+          request_fingerprint?: string
+          voided_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_payment_voids_confirmation_id_fkey"
+            columns: ["confirmation_id"]
+            isOneToOne: true
+            referencedRelation: "manual_payment_confirmations"
             referencedColumns: ["id"]
           },
         ]
@@ -1010,6 +1213,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          active_manual_payment_confirmation_id: string | null
           address_snapshot: Json | null
           branch_id: string
           coupon_code: string | null
@@ -1035,12 +1239,14 @@ export type Database = {
           service_fee: number
           status: string
           subtotal: number
+          table_session_id: string | null
           tax: number
           tip: number
           total: number
           user_id: string | null
         }
         Insert: {
+          active_manual_payment_confirmation_id?: string | null
           address_snapshot?: Json | null
           branch_id: string
           coupon_code?: string | null
@@ -1066,12 +1272,14 @@ export type Database = {
           service_fee?: number
           status?: string
           subtotal: number
+          table_session_id?: string | null
           tax?: number
           tip?: number
           total: number
           user_id?: string | null
         }
         Update: {
+          active_manual_payment_confirmation_id?: string | null
           address_snapshot?: Json | null
           branch_id?: string
           coupon_code?: string | null
@@ -1097,6 +1305,7 @@ export type Database = {
           service_fee?: number
           status?: string
           subtotal?: number
+          table_session_id?: string | null
           tax?: number
           tip?: number
           total?: number
@@ -1104,10 +1313,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "orders_active_manual_payment_confirmation_id_fkey"
+            columns: ["active_manual_payment_confirmation_id"]
+            isOneToOne: false
+            referencedRelation: "manual_payment_confirmations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "orders_branch_id_fkey"
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_table_session_id_fkey"
+            columns: ["table_session_id"]
+            isOneToOne: false
+            referencedRelation: "table_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -2144,6 +2367,57 @@ export type Database = {
           },
         ]
       }
+      table_sessions: {
+        Row: {
+          branch_id: string
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          id: string
+          opened_at: string
+          opened_by: string | null
+          status: string
+          table_id: string
+        }
+        Insert: {
+          branch_id: string
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          opened_at?: string
+          opened_by?: string | null
+          status: string
+          table_id: string
+        }
+        Update: {
+          branch_id?: string
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          opened_at?: string
+          opened_by?: string | null
+          status?: string
+          table_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "table_sessions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "table_sessions_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "dining_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -2192,6 +2466,24 @@ export type Database = {
         }
         Returns: string
       }
+      confirm_manual_order_payment: {
+        Args: {
+          p_idempotency_key: string
+          p_method: string
+          p_order_id: string
+          p_reference: string
+        }
+        Returns: Json
+      }
+      confirm_manual_table_session_payment: {
+        Args: {
+          p_idempotency_key: string
+          p_method: string
+          p_reference: string
+          p_session_id: string
+        }
+        Returns: Json
+      }
       consume_pension_benefit: {
         Args: {
           target_idempotency_key: string
@@ -2231,6 +2523,7 @@ export type Database = {
           p_idempotency_key: string
           p_items: Json
           p_notes?: string
+          p_table_qr_token?: string
           p_tip_percent?: number
         }
         Returns: {
@@ -2240,6 +2533,15 @@ export type Database = {
           replay: boolean
           status: string
           total: number
+        }[]
+      }
+      create_dining_table: {
+        Args: { p_branch_id: string; p_code: string; p_name?: string }
+        Returns: {
+          branch_id: string
+          code: string
+          qr_token: string
+          table_id: string
         }[]
       }
       create_pension_order: {
@@ -2253,6 +2555,7 @@ export type Database = {
           p_menu_id: string
           p_notes?: string
           p_pension_menu_item_ids: string[]
+          p_table_qr_token?: string
           p_tip_percent?: number
         }
         Returns: {
@@ -2264,6 +2567,18 @@ export type Database = {
           status: string
           total: number
         }[]
+      }
+      get_manual_payment_history: {
+        Args: { p_limit?: number; p_target_id: string; p_target_type: string }
+        Returns: Json
+      }
+      get_table_session_account: {
+        Args: { p_session_id: string }
+        Returns: Json
+      }
+      list_dining_tables_for_staff: {
+        Args: { p_branch_id?: string; p_include_inactive?: boolean }
+        Returns: Json
       }
       manage_staff_profile: {
         Args: {
@@ -2328,6 +2643,7 @@ export type Database = {
         }
         Returns: string
       }
+      resolve_table_qr: { Args: { p_qr_token: string }; Returns: Json }
       reverse_inventory_consumption: {
         Args: {
           original_movement: string
@@ -2344,6 +2660,13 @@ export type Database = {
         }
         Returns: string
       }
+      rotate_dining_table_qr: {
+        Args: { p_table_id: string }
+        Returns: {
+          qr_token: string
+          table_id: string
+        }[]
+      }
       save_pension_menu_draft: {
         Args: {
           target_branch: string
@@ -2353,6 +2676,10 @@ export type Database = {
           target_service_date: string
         }
         Returns: string
+      }
+      set_dining_table_active: {
+        Args: { p_is_active: boolean; p_table_id: string }
+        Returns: undefined
       }
       set_pension_delivery_fee: {
         Args: {
@@ -2376,6 +2703,14 @@ export type Database = {
           target_surcharge_amount: number
         }
         Returns: string
+      }
+      void_manual_payment_confirmation: {
+        Args: {
+          p_confirmation_id: string
+          p_idempotency_key: string
+          p_reason: string
+        }
+        Returns: Json
       }
     }
     Enums: {
@@ -2512,3 +2847,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

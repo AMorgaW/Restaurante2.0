@@ -168,6 +168,8 @@ export interface CreatePensionOrderInput {
   };
   notes?: string;
   tipPercent?: number;
+  /** Solo para fulfillment local; DB valida. */
+  tableQrToken?: string;
 }
 
 export interface CreatePensionOrderResult {

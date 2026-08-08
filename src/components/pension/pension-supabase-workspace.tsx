@@ -10,7 +10,7 @@ import {
   Sun,
   Utensils,
 } from "lucide-react";
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { placePensionOrderAction } from "@/app/pensionado/pension-order-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import { EmptyState } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { formatCurrency } from "@/lib/format/currency";
 import { PENSION_STATUS_LABELS } from "@/lib/pension/selectors";
+import { useTableContextStore } from "@/stores/table-context";
 import type {
   CreatePensionOrderResult,
   PensionCustomerSnapshot,
@@ -314,6 +315,9 @@ function PensionOrderForm({ snapshot }: { snapshot: PensionCustomerSnapshot }) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const idempotencyKeyRef = useRef(crypto.randomUUID());
+  const tableQrToken = useTableContextStore((state) => state.tableQrToken);
+  const tableCode = useTableContextStore((state) => state.tableCode);
+  const hydrateTableContext = useTableContextStore((state) => state.hydrateFromSession);
   const commercialDate = snapshot.commercialDate;
   const day = commercialDate ? snapshot.menusByDate[commercialDate] : undefined;
   const [period, setPeriod] = useState<PensionMenuPeriod>("lunch");
@@ -327,6 +331,14 @@ function PensionOrderForm({ snapshot }: { snapshot: PensionCustomerSnapshot }) {
   const [neighborhood, setNeighborhood] = useState("");
   const [notes, setNotes] = useState("");
   const [lastOrder, setLastOrder] = useState<CreatePensionOrderResult | null>(null);
+
+  useEffect(() => {
+    hydrateTableContext();
+  }, [hydrateTableContext]);
+
+  useEffect(() => {
+    if (tableQrToken) setFulfillmentType("local");
+  }, [tableQrToken]);
 
   const menu: PensionMenuView | null =
     period === "lunch" ? (day?.lunch ?? null) : (day?.dinner ?? null);
@@ -374,6 +386,7 @@ function PensionOrderForm({ snapshot }: { snapshot: PensionCustomerSnapshot }) {
             }
           : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
+        ...(fulfillmentType === "local" && tableQrToken ? { tableQrToken } : {}),
       });
       if (!result.ok) {
         toast({ title: "No se pudo crear el pedido", description: result.message, variant: "error" });
@@ -516,19 +529,25 @@ function PensionOrderForm({ snapshot }: { snapshot: PensionCustomerSnapshot }) {
           </div>
 
           <div className="mt-5 grid gap-4 rounded-2xl border border-border-soft bg-background-secondary/40 p-4">
+            {tableQrToken ? (
+              <p className="rounded-xl border border-lime/40 bg-lime/10 px-3 py-2 text-sm font-semibold">
+                Pedido en mesa {tableCode ?? "—"}. Se asociará a la cuenta de la mesa.
+              </p>
+            ) : null}
             <fieldset>
               <legend className="text-sm font-extrabold">Entrega</legend>
               <div className="mt-2 grid gap-2 sm:grid-cols-3">
                 {FULFILLMENT_OPTIONS.map((option) => (
                   <label
                     key={option.value}
-                    className={`flex min-h-11 cursor-pointer items-center justify-center rounded-xl border px-3 text-sm font-semibold ${fulfillmentType === option.value ? "border-lime bg-lime/10" : "border-border-soft bg-surface"}`}
+                    className={`flex min-h-11 cursor-pointer items-center justify-center rounded-xl border px-3 text-sm font-semibold ${fulfillmentType === option.value ? "border-lime bg-lime/10" : "border-border-soft bg-surface"} ${tableQrToken && option.value !== "local" ? "opacity-45" : ""}`}
                   >
                     <input
                       type="radio"
                       name="pension-fulfillment"
                       value={option.value}
                       checked={fulfillmentType === option.value}
+                      disabled={Boolean(tableQrToken) && option.value !== "local"}
                       onChange={() => setFulfillmentType(option.value)}
                       className="sr-only"
                     />

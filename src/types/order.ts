@@ -1,4 +1,4 @@
-export type FulfillmentType = "pickup" | "delivery";
+export type FulfillmentType = "pickup" | "delivery" | "local";
 
 export type OrderStatus =
   | "pending"
@@ -67,8 +67,11 @@ export type Order = {
   branchId: string;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
-  paymentMethod: "demo" | "stripe" | "mercadopago";
+  paymentMethod: "demo" | "stripe" | "mercadopago" | "cash" | "bank_transfer";
   fulfillmentType: FulfillmentType;
+  /** Solo tránsito hacia RPC; no autoridad de session. No persistir. */
+  tableQrToken?: string;
+  tableSessionId?: string | null;
   items: Array<{
     itemId: string;
     slug: string;

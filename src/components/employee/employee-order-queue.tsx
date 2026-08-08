@@ -4,12 +4,14 @@ import { Bike, Check, ChefHat, Clock3, MapPin, MessageSquare, RefreshCw, Store, 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { transitionOrderStatusAction } from "@/app/admin/order-actions";
+import { OrderManualPaymentPanel } from "@/components/dining-tables/order-manual-payment-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { formatCurrency } from "@/lib/format/currency";
 import { canEmployeeAction, type EmployeeRole } from "@/lib/employee/authorization";
+import { adminRoleCan } from "@/lib/admin/authorization";
 import { filterEmployeeOrders, getEmployeeOrderViews, statusLabel } from "@/lib/employee/selectors";
 import type { EmployeeOrderFilter } from "@/lib/employee/types";
 import { useOrdersStore } from "@/stores/orders";
@@ -197,6 +199,15 @@ export function EmployeeOrderQueue({
                   </Button>
                 ) : order.status === "delivered" || order.status === "cancelled" ? (
                   <p className="mt-4 flex items-center gap-2 text-xs font-semibold text-muted"><XCircle aria-hidden className="size-4" /> Estado terminal</p>
+                ) : null}
+                {mode === "supabase" && adminRoleCan(role, "confirm-manual-payments") ? (
+                  <OrderManualPaymentPanel
+                    orderId={order.id}
+                    paymentStatus={order.paymentStatus}
+                    tableSessionId={order.tableSessionId}
+                    canConfirm
+                    orderTotal={order.totals.total}
+                  />
                 ) : null}
               </article>
             );

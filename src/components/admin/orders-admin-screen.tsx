@@ -4,6 +4,7 @@ import { ReceiptText, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { transitionOrderStatusAction } from "@/app/admin/order-actions";
+import { OrderManualPaymentPanel } from "@/components/dining-tables/order-manual-payment-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/states";
@@ -13,7 +14,7 @@ import { formatCurrency } from "@/lib/format/currency";
 import { useMounted } from "@/hooks/use-mounted";
 import { useAdminStore } from "@/stores/admin";
 import { useEffectiveAdminRole } from "@/components/admin/admin-role-context";
-import { allowedOrderStatusTransitions } from "@/lib/admin/authorization";
+import { adminRoleCan, allowedOrderStatusTransitions } from "@/lib/admin/authorization";
 import { useOrdersStore } from "@/stores/orders";
 import type { Order, OrderStatus } from "@/types/order";
 
@@ -138,7 +139,12 @@ export function OrdersAdminScreen({
                 </div>
                 <p className="mt-1 text-[13px] text-muted">
                   {new Date(order.createdAt).toLocaleString("es-CO")} · {branch?.name ?? "—"} ·{" "}
-                  {order.fulfillmentType === "pickup" ? "Recogida" : "Domicilio"} · pago {order.paymentStatus} ·{" "}
+                  {order.fulfillmentType === "pickup"
+                    ? "Recogida"
+                    : order.fulfillmentType === "local"
+                      ? "Mesa"
+                      : "Domicilio"}{" "}
+                  · pago {order.paymentStatus} ·{" "}
                   <span className="font-bold tabular-nums text-foreground">{formatCurrency(order.totals.total)}</span>
                 </p>
                 <p className="mt-1 text-[12px] text-muted">{order.customer.name} · {order.customer.phone}</p>
@@ -181,6 +187,15 @@ export function OrdersAdminScreen({
                     No hay transiciones permitidas para tu rol y el estado actual.
                   </p>
                 )}
+                {mode === "supabase" && adminRoleCan(role, "confirm-manual-payments") ? (
+                  <OrderManualPaymentPanel
+                    orderId={order.id}
+                    paymentStatus={order.paymentStatus}
+                    tableSessionId={order.tableSessionId}
+                    canConfirm
+                    orderTotal={order.totals.total}
+                  />
+                ) : null}
               </li>
             );
           })}

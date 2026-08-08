@@ -30,7 +30,7 @@ import type { Order } from "@/types/order";
 import type { OrderRepository, UpdateOrderStatusInput, UpdateOrderStatusResult } from "./types";
 
 const ORDER_SELECT =
-  "id, order_number, user_id, branch_id, status, payment_status, payment_method, fulfillment_type, subtotal, discount, tax, service_fee, delivery_fee, tip, total, currency, coupon_code, customer_name, customer_phone, customer_email, address_snapshot, notes, created_at";
+  "id, order_number, user_id, branch_id, status, payment_status, payment_method, fulfillment_type, subtotal, discount, tax, service_fee, delivery_fee, tip, total, currency, coupon_code, customer_name, customer_phone, customer_email, address_snapshot, notes, created_at, table_session_id";
 
 const ORDER_ITEM_SELECT =
   "id, order_id, menu_item_id, name_snapshot, unit_price, quantity, modifiers_snapshot, notes, total";
@@ -230,6 +230,9 @@ export class SupabaseOrderRepository implements OrderRepository {
       p_notes: order.notes || null,
       p_tip_percent: options?.tipPercent ?? 0,
       p_coupon_code: order.couponCode ?? null,
+      ...(order.fulfillmentType === "local" && order.tableQrToken
+        ? { p_table_qr_token: order.tableQrToken }
+        : {}),
     } as Database["public"]["Functions"]["create_customer_order"]["Args"];
 
     // createServerClient tipa Functions de forma incompleta frente a RETURNS TABLE;

@@ -84,24 +84,42 @@ export const setPensionDeliveryFeeSchema = z.object({
   idempotencyKey: uuid,
 });
 
-export const createPensionOrderSchema = z.object({
-  idempotencyKey: uuid,
-  menuId: uuid,
-  pensionMenuItemIds: z.array(uuid).min(1, "Debes seleccionar al menos un plato."),
-  fulfillmentType,
-  customerName: z.string().trim().min(2, "El nombre es demasiado corto.").max(80),
-  customerPhone: z.string().trim().min(7, "El teléfono no es válido.").max(20),
-  customerEmail: z.string().trim().email("El correo no es válido.").max(254),
-  address: z
-    .object({
-      street: z.string().trim().min(4, "La dirección es incompleta.").max(160),
-      details: z.string().trim().max(160).optional(),
-      neighborhood: z.string().trim().max(80).optional(),
-    })
-    .optional(),
-  notes: z.string().trim().max(500).optional(),
-  tipPercent: z.number().min(0).max(100).optional(),
-});
+export const createPensionOrderSchema = z
+  .object({
+    idempotencyKey: uuid,
+    menuId: uuid,
+    pensionMenuItemIds: z.array(uuid).min(1, "Debes seleccionar al menos un plato."),
+    fulfillmentType,
+    customerName: z.string().trim().min(2, "El nombre es demasiado corto.").max(80),
+    customerPhone: z.string().trim().min(7, "El teléfono no es válido.").max(20),
+    customerEmail: z.string().trim().email("El correo no es válido.").max(254),
+    address: z
+      .object({
+        street: z.string().trim().min(4, "La dirección es incompleta.").max(160),
+        details: z.string().trim().max(160).optional(),
+        neighborhood: z.string().trim().max(80).optional(),
+      })
+      .optional(),
+    notes: z.string().trim().max(500).optional(),
+    tipPercent: z.number().min(0).max(100).optional(),
+    tableQrToken: z.string().trim().min(8).max(200).optional(),
+  })
+  .superRefine((value, context) => {
+    if (value.fulfillmentType === "local" && !value.tableQrToken) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["tableQrToken"],
+        message: "El pedido pensionado en mesa requiere el QR de la mesa.",
+      });
+    }
+    if (value.fulfillmentType !== "local" && value.tableQrToken) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["tableQrToken"],
+        message: "El token de mesa solo aplica a pedidos locales.",
+      });
+    }
+  });
 
 export type CreateAndActivatePensionMembershipSchema = z.infer<
   typeof createAndActivatePensionMembershipSchema

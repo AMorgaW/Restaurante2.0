@@ -55,7 +55,7 @@ export const checkoutInputSchema = z
   .object({
     idempotencyKey: z.string().uuid("Clave de pedido inválida."),
     branchId: z.string().min(1, "Selecciona una sucursal."),
-    fulfillmentType: z.enum(["pickup", "delivery"]),
+    fulfillmentType: z.enum(["pickup", "delivery", "local"]),
     customer: customerSchema,
     address: addressSchema.optional(),
     items: z
@@ -70,6 +70,8 @@ export const checkoutInputSchema = z
       .optional(),
     tipPercent: z.number().min(0).max(100).default(0),
     notes: z.string().trim().max(300, "Máximo 300 caracteres.").default(""),
+    /** Credencial opaca del QR; DB vuelve a validarla. No es table_session_id. */
+    tableQrToken: z.string().trim().min(8).max(200).optional(),
   })
   .superRefine((value, context) => {
     if (value.fulfillmentType === "delivery" && !value.address) {
@@ -77,6 +79,20 @@ export const checkoutInputSchema = z
         code: z.ZodIssueCode.custom,
         path: ["address"],
         message: "La entrega a domicilio requiere una dirección.",
+      });
+    }
+    if (value.fulfillmentType === "local" && !value.tableQrToken) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["tableQrToken"],
+        message: "El pedido en mesa requiere escanear el QR de la mesa.",
+      });
+    }
+    if (value.fulfillmentType !== "local" && value.tableQrToken) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["tableQrToken"],
+        message: "El token de mesa solo aplica a pedidos locales.",
       });
     }
   });

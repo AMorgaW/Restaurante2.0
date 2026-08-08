@@ -644,3 +644,19 @@ Migración aditiva `0014_payment_read_models.sql`. Sin UI. 0001–0013 intactas.
 | Migraciones | local **0001–0014**; remoto **0001–0009**; sin db push |
 | UI / Stripe / banco / notifications / remoto | **no** |
 | Graphify | **2.342 nodos, 6.170 aristas, 172 comunidades** |
+
+## Etapa 11B-6 WEB — mesas/cobros conectados (2026-08-07)
+
+UI web sobre 0013+0014 sin cambiar migraciones. 11B-6 **cerrada**.
+
+| Verificación | Resultado real |
+|---|---|
+| Vitest completo | **65 archivos / 525 pruebas / 0 failed** |
+| Integración `dining-tables-supabase` | **9/9** passed |
+| typecheck / lint / build | ✓ (lint: 2 warnings preexistentes dashboard) |
+| pgTAP `0014_manual_payments_dining_tables` (0013) | **83/83** (post `db reset --local --no-seed`) |
+| pgTAP `0015_payment_read_models` (0014) | **69/69** (post reset; fallo previo solo por DB contaminada de E2E) |
+| E2E `test:e2e:dining-tables-supabase` | **4/4** — Chromium 2/2 + WebKit 2/2 (viewport móvil) |
+| Migraciones | local **0001–0014** intactas; remoto **0001–0009**; sin db push |
+| Graphify | **2.570 nodos, 6.848 aristas, 182 comunidades** (ignorado por Git) |
+| Notificaciones (11B-7) / Stripe real / Compuerta B / git push | **no** |

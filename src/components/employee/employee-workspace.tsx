@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, BookOpen, CircleUserRound, LogOut, PackageSearch, ShieldAlert, ShoppingBag, Store, Timer } from "lucide-react";
+import { Armchair, BarChart3, BookOpen, CircleUserRound, LogOut, PackageSearch, ShieldAlert, ShoppingBag, Store, Timer } from "lucide-react";
 import { useMemo } from "react";
 import { BrandMark } from "@/components/layout/brand-mark";
 import { EmployeeMenuDay } from "@/components/employee/employee-menu-day";
@@ -37,7 +37,7 @@ const ROLE_LABELS: Record<EmployeeRole, string> = {
   support: "Atención",
 };
 
-const NAV_ICONS = { home: Store, orders: ShoppingBag, menu: BookOpen, catalog: BookOpen, inventory: PackageSearch, history: BarChart3, incidents: ShieldAlert } as const;
+const NAV_ICONS = { home: Store, orders: ShoppingBag, tables: Armchair, menu: BookOpen, catalog: BookOpen, inventory: PackageSearch, history: BarChart3, incidents: ShieldAlert } as const;
 
 export function EmployeeWorkspace({
   initialSnapshot,

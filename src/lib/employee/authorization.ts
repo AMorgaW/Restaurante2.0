@@ -10,7 +10,7 @@ import type { OrderStatus } from "@/types/order";
 export const EMPLOYEE_ROLES = ["manager", "kitchen", "cashier", "editor", "support"] as const;
 export type EmployeeRole = (typeof EMPLOYEE_ROLES)[number];
 
-export type EmployeeSection = "home" | "orders" | "menu" | "catalog" | "inventory" | "history" | "incidents";
+export type EmployeeSection = "home" | "orders" | "menu" | "catalog" | "inventory" | "history" | "incidents" | "tables";
 export type EmployeeAction =
   | "view-orders"
   | "prepare-order"
@@ -21,7 +21,9 @@ export type EmployeeAction =
   | "view-inventory"
   | "view-history"
   | "view-incidents"
-  | "record-incident";
+  | "record-incident"
+  | "view-tables"
+  | "confirm-manual-payments";
 
 const SECTION_CAPABILITY: Partial<Record<Exclude<EmployeeSection, "home">, AdminCapability>> = {
   orders: "read-orders",
@@ -30,6 +32,7 @@ const SECTION_CAPABILITY: Partial<Record<Exclude<EmployeeSection, "home">, Admin
   inventory: "read-inventory",
   history: "read-history",
   incidents: "read-incidents",
+  tables: "confirm-manual-payments",
 };
 
 const ACTION_CAPABILITY: Record<Exclude<EmployeeAction, "prepare-order" | "confirm-order" | "deliver-order" | "record-incident">, AdminCapability> = {
@@ -39,6 +42,8 @@ const ACTION_CAPABILITY: Record<Exclude<EmployeeAction, "prepare-order" | "confi
   "view-inventory": "read-inventory",
   "view-history": "read-history",
   "view-incidents": "read-incidents",
+  "view-tables": "confirm-manual-payments",
+  "confirm-manual-payments": "confirm-manual-payments",
 };
 
 export function isEmployeeRole(value: unknown): value is EmployeeRole {
@@ -74,6 +79,7 @@ export function getEmployeeNavigation(role: AdminRole | null | undefined): Array
   const candidates: Array<{ section: EmployeeSection; label: string; href?: string }> = [
     { section: "home", label: "Inicio" },
     { section: "orders", label: "Pedidos" },
+    { section: "tables", label: "Mesas", href: "/empleado/mesas" },
     { section: "menu", label: isEmployeeRole(role) && role === "editor" ? "Menú del día" : "Menú" },
     { section: "catalog", label: "Gestionar catálogo", href: "/empleado/catalogo" },
     { section: "inventory", label: "Inventario" },

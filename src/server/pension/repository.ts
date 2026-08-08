@@ -441,6 +441,9 @@ export class SupabasePensionRepository {
         : null,
       p_notes: input.notes ?? null,
       p_tip_percent: input.tipPercent ?? 0,
+      ...(input.fulfillmentType === "local" && input.tableQrToken
+        ? { p_table_qr_token: input.tableQrToken }
+        : {}),
     } as CreatePensionOrderArgs;
 
     const data = await callPensionRpc<
