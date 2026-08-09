@@ -1,5 +1,35 @@
 # DECISIONS — Registro de decisiones técnicas
 
+## Canonical index (pre-audit, active)
+
+Stable IDs for Codex. Detail and chronology remain in the numbered entries below.
+STATUS for all listed: **accepted/active**.
+
+| ID | Decision | Rationale | Consequence | See also |
+|---|---|---|---|---|
+| D-001 | Web responsive system; not native/PWA requirement | Product is URL-in-browser on phone/tablet/desktop | No APK/IPA/stores; do not promote `InstallPwaPrompt` in product | #97, #62 |
+| D-002 | No reservations | Business sells local/pickup/delivery only | No reservation routes/stores/APIs/tables | #65, #54 |
+| D-003 | Public registration always `customer` | Privilege must not come from signup UI/metadata | No public role/branch/membership picker | #66 |
+| D-004 | Pensionado = membership, not Auth role | Commercial contract, not JWT role | Always `profiles.role = customer` + membership | #67 |
+| D-005 | Pension plan `calendar_period` +29 days | 30 inclusive calendar days | `ends_at = starts_at + 29` | #0012 / pension rules |
+| D-006 | Independent lunch and dinner slots | Meals are period/day typed, not a fungible pool | Max conceptual 30 lunch + 30 dinner; not 60 interchangeable | #0012 |
+| D-007 | Surcharge from explicit commercial DB config | Substitution price is negotiated/configured | No auto-diff vs regular menu prices | #97–#98 |
+| D-008 | Inventory only on delivered | Create ≠ consume | Transactional exactly-once; recipe required; no negative stock | #72, #59 |
+| D-009 | Payment independent of operational/inventory status | Money and kitchen/delivery are separate axes | Valid: paid+preparing; delivered+pending payment | #101, #58 |
+| D-010 | `dining_table` vs `table_session` | Physical table ≠ open account | One open session/table; pay closes session → FREE; void does not reopen | #100 |
+| D-011 | Secure opaque table QR | Customer auth must not use table UUID/code | DB stores SHA-256 only; raw only create/rotate; rotate invalidates old | #100 |
+| D-012 | Manual MVP payments: cash / bank_transfer (+ zero_balance) | Staff verifies money in-person/transfer | No partial/split/arqueo/bank API; Stripe dormant | #99 |
+| D-013 | Append-only payment void | Corrections must leave history | No destructive paid→pending UPDATE; void owner/admin only | #101 |
+| D-014 | In-web polling for notification MVP | Avoid Realtime/Push complexity for MVP | ~15 s poll + focus/visibility/online; no Notification API/Web Push | #62 |
+| D-015 | Owner parallel supervision of alerts | Owner needs global view without replacing ops | Owner watches in `/admin`; manager/cashier operate | #62 |
+| D-016 | DATA_MODE strict, no fallback | Fail closed beats silent hybrid | `supabase` empty → empty UI; errors are real | #9, #92 |
+| D-017 | Stripe dormant in product flow | Manual payments cover MVP | Coexistence in SQL; no active Stripe checkout path | #74, #99 |
+| D-018 | Remote migrations remain `0001`–`0009` until Compuerta B | Local `0010`–`0014` not pushed | No `db push` of 0010–0014 without explicit gate | migrations section |
+
+103. **Cierre documental pre-auditoría (2026-08-09)** — Baseline funcional `79ebd2b`.
+11B CLOSED; 11C-1/2/3 CLOSED; 11C-4 y Compuerta B PENDING. Canonical D-001…D-018
+arriba. Graphify regenerado (`graphify update .`); salida gitignored.
+
 62. **Avisos web de pedidos (2026-08-08, etapa 11B-7)** — MVP in-web sin migration:
 polling ~15 s de `listOperationalOrders` (RLS), refetch en focus/visibility/online,
 dedup por `order.id`, baseline sin toast storm, pending = no atendido (sin read
@@ -234,9 +264,9 @@ por tarjeta en memoria de sesión; el regreso no lo repite. Reduced motion lo de
 54. **Producto actual sin reservas y pensionados fuera de Auth** — Brisas del Sinú vende para
 consumo en local y domicilios; la funcionalidad pública y administrativa de reservas se retira
 mediante `0003_remove_reservations.sql`. Un pensionado conserva `role = customer`; su condición
-comercial futura será un plan o contrato, no un rol. Las reglas están en
-`references/analysis/PENSIONADOS_BUSINESS_RULES.md`; queda abierta la decisión de 30 días
-calendario con almuerzo/cena frente a 30 comidas totales.
+comercial es membresía/plan, no un rol Auth. Las reglas vigentes están en
+`references/analysis/PENSIONADOS_BUSINESS_RULES.md` y migración 0012: `calendar_period` 30 días
+(`ends_at = starts_at + 29`), 1 lunch + 1 dinner/día (D-005/D-006).
 
 55. **Auth y datos son ejes independientes** — `AUTH_MODE` controla únicamente sesión/Auth y
 `DATA_MODE` controla repositorios comerciales. La combinación prevista es `supabase` + `local`
@@ -273,10 +303,12 @@ La idempotencia persistente por `event.id` es requisito pendiente de despliegue.
 consumos, movimientos y reversiones derivan el actor de `auth.uid()`. Los wrappers públicos son
 `SECURITY INVOKER`; los helpers privilegiados permanecen en `private` con `search_path = ''`.
 
-62. **Pensionado conserva identidad customer y ciclos históricos** — modalidad `meal_count`,
-`calendar_period` o `hybrid` se registra por ciclo. Precio público, acordado, actor, transición y
-consumo quedan inmutables/auditados. Se mantiene la regla aprobada más estricta: solo `owner`
-muta membresías; `admin` consulta.
+62. **Pensionado conserva identidad customer y ciclos históricos** — el esquema puede
+registrar modalidad por ciclo (`meal_count` / `calendar_period` / `hybrid` históricos).
+**Contrato operativo vigente (D-005/D-006, migración 0012):** `calendar_period` 30 días
+con 1 lunch + 1 dinner/día. Precio público, acordado, actor, transición y consumo quedan
+inmutables/auditados. Se mantiene la regla: solo `owner`/`admin` (según RPC vigente)
+mutan membresías de forma presencial/auditada.
 
 63. **Consumo físico trazable e idempotencia en PostgreSQL** — una entrega bloquea pedido e
 insumos, exige receta completa y crea una fuente por `order_item`/receta. Reversión y webhooks
@@ -316,15 +348,15 @@ fuente de verdad ni se actualizó.
 
 ### Decisiones temporales
 
-- Las interfaces y repositorios locales/demo continúan disponibles mientras se conectan gradualmente los adaptadores Supabase.
-- El contrato comercial soporta `meal_count`, `calendar_period` e `hybrid`; los fixtures eligen ejemplos solo para pruebas.
+- Las interfaces y repositorios locales/demo continúan disponibles en `DATA_MODE=local` mientras el modo supabase usa PostgreSQL sin fallback.
+- El esquema histórico puede mencionar modalidades adicionales; el **contrato operativo vigente** de pensionados es `calendar_period` (D-005/D-006; migración 0012).
 - Recetas, precios, imágenes y perfiles demo no son datos oficiales del restaurante.
 
 ### Asuntos comerciales abiertos
 
-- Definir si el plan pensionado definitivo se vende por comidas, por días calendario o de forma híbrida.
 - Resolver la discrepancia entre sopa de cerdo y sopa de pollo antes de publicar menús definitivos.
 - Validar precios, horarios, contenido legal, datos de sucursales y recetas reales.
+- (Histórico cerrado) modalidad pensionado: vigente `calendar_period` 30 días / lunch+dinner; no 60 comidas intercambiables.
 
 ### Trabajo técnico diferido
 

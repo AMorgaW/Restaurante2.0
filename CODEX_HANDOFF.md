@@ -1,198 +1,153 @@
-# CODEX_HANDOFF — Restaurante2.0
+# Brisas del Sinú — Codex Handoff
 
-## ORDEN DE LECTURA PARA CURSOR
+Compact orientation for a new agent. Full operational detail lives in `AGENTS.md`.
+Code, migrations and tests beat documentation when they disagree.
+
+## Product
+
+Brisas del Sinú is a **responsive web system** (URL in a browser on phone, tablet, desktop).
+It is **not** a native app, APK/IPA, Play/App Store product, or mandatory installable PWA.
+`InstallPwaPrompt` must not be promoted in product UI (legacy component may remain for `/visual-lab` only).
+A legacy service worker may exist; installation is **not** a requirement.
+Sales: local/table, pickup, delivery. **No reservations.**
+
+## Current gate
+
+| Stage | Status |
+|---|---|
+| 11B-1…11B-7 | **CLOSED** |
+| 11C-1 precheck | **CLOSED** |
+| 11C-2 technical regression | **CLOSED** |
+| 11C-3 real restaurant flows | **CLOSED** |
+| 11C-4 | **PENDING** |
+| Compuerta B | **PENDING** (not started) |
+
+Next task for Codex: **independent pre-11C-4 audit** (read-only unless a new CRITICAL/HIGH needs directed proof).
+
+## Git baseline
+
+- Branch: `master`
+- Functional baseline before documentation sync: `79ebd2b` — `test: estabiliza regresion e2e preproduccion`
+- For current documentation-sync HEAD: run `git log -1 --oneline` (do not hardcode the docs commit hash here)
+
+## Local/remote migration state
+
+| Scope | Versions |
+|---|---|
+| Files on disk (local) | `0001`–`0014` |
+| Local DB expected | through `0014` |
+| Remote documented | `0001`–`0009` |
+| **Not** deployed remote | `0010`–`0014` |
+
+No `db push`. No migration `0015`.
+
+**Test filename ≠ migration number:**
+
+- `supabase/tests/0014_manual_payments_dining_tables.test.sql` → tests **migration 0013** (83/83)
+- `supabase/tests/0015_payment_read_models.test.sql` → tests **migration 0014** (69/69)
+- Global pgTAP: **456/456**
+
+### Local-only migrations (purpose)
+
+| Mig | File | PURPOSE | KEY RPC/FUNCTIONS | SECURITY/INTEGRITY | Remote |
+|---|---|---|---|---|---|
+| 0010 | `0010_create_customer_order.sql` | Idempotent standard order create | `create_customer_order` | SECURITY DEFINER; replay before catalog; no inventory on create | NOT deployed |
+| 0011 | `0011_profiles_staff_status_select_grant.sql` | Column grant for session resolver | `GRANT SELECT (staff_status)` only | No table SELECT; RLS unchanged | NOT deployed |
+| 0012 | `0012_pension_orders_and_management.sql` | Pension orders + owner/admin management | `create_pension_order`, activate/renew/menu RPCs | calendar_period 30d; lunch/dinner; coupling order↔consumption | NOT deployed |
+| 0013 | `0013_manual_payments_and_dining_tables.sql` | Manual payments + dining tables/QR/sessions | `create_dining_table`, `resolve_table_qr`, confirm/void RPCs | Hash-only QR; append-only ledger; Stripe dormant coexistence | NOT deployed |
+| 0014 | `0014_payment_read_models.sql` | Staff read models for tables/payments | `list_dining_tables_for_staff`, `get_table_session_account`, `get_manual_payment_history` | No table-wide SELECT; no QR hash/raw | NOT deployed |
+
+## Closed functional domains
+
+- **11B-1** catalog (authoritative DATA_MODE + admin writes via session/RLS)
+- **11B-2** orders (`create_customer_order` + checkout wired)
+- **11B-3** staff order operations (optimistic status; `payment_status` read-only)
+- **11B-4** inventory on `ready→delivered` (exactly-once, transactional)
+- **11B-5** pensionados (SQL 0012 + web `/pensionado`, `/admin/pensionados`)
+- **11B-6** mesas/QR/cobros (SQL 0013/0014 + web)
+- **11B-7** in-web order alerts (polling ~15 s; no Realtime/Push)
+
+## Critical invariants
+
+- **DATA_MODE:** `local` = explicit demo; `supabase` = PostgreSQL only. No silent fallback/hybrid. Empty DB → empty UI; DB error → real error.
+- **Inventory:** order created ≠ inventory consumed. Only valid **delivered** consumes stock (transactional, exactly-once, recipe required, no negative stock). Payment and pension benefit alone do **not** consume inventory.
+- **Payment vs ops:** `payment_status` independent of `orders.status`. Valid: paid+preparing; delivered+payment pending. PAID records money; DELIVERED consumes inventory.
+- **MVP payments:** `cash`, `bank_transfer`, `zero_balance` when applicable. No partial/split/arqueo/bank sync/refund ERP. **Stripe dormant.**
+- **Pension:** `customer` + commercial membership (not Auth/JWT role). Plan `calendar_period`, 30 calendar days, `ends_at = starts_at + 29`. 1 lunch + 1 dinner/day (not 60 interchangeable meals). Surcharge and pension delivery fee from DB config. `/menu` normal orders do not consume benefit.
+- **Tables:** `dining_table` = physical; `table_session` = account/occupation. Max one open session per table; many orders per session. Paying the account closes session → table FREE. Void does **not** reopen session. QR = opaque random token; DB stores SHA-256 only; raw only on create/rotate. Table UUID/code is not customer auth. Table QR ≠ bank QR.
+- **Confirm payment:** owner/admin/manager/cashier. **Void:** owner/admin only. Append-only void (no destructive paid→pending UPDATE).
+- **Alerts MVP:** in-web poll ~15 s + focus/visibility/online refetch; dedup `order.id`; baseline skips pre-existing toasts; pending = persistent signal. No Realtime / Notification API / Web Push. Closed browser → no MVP notification.
+- **No reservations.** Public signup always `customer` (no role picker). No generic `employee` role.
+
+## Roles/routes
+
+| Who | Destination |
+|---|---|
+| owner / admin | `/admin` |
+| manager, kitchen, cashier, editor, support (active) | `/empleado` |
+| manager / editor catalog | `/empleado/catalogo` |
+| customer + membership | `/pensionado` |
+| customer without membership | `/cuenta` |
+| inactive/suspended staff | `/cuenta` |
+| anonymous | `/login` |
+
+Canonical roles only: `owner`, `admin`, `manager`, `kitchen`, `cashier`, `editor`, `support`, `customer`.
+
+## Data modes
+
+- `AUTH_MODE` and `DATA_MODE` are independent.
+- Demo identity only with explicit `AUTH_MODE=disabled` in development/test.
+- Production Auth: only configured `AUTH_MODE=supabase` is valid.
+
+## Latest test evidence
+
+Source: `TEST_REPORT.md` (11C-2 / 11C-3 at functional baseline `79ebd2b`).
+
+- pgTAP: 7 suites · **456/456** · 0 failed
+- Concurrency: 28 scenarios · 36 assertions · run1 PASS · run2 PASS
+- Vitest: 68 files · **552/552** · 0 skipped
+- typecheck PASS · lint 0 errors / 2 known dashboard warnings · build PASS
+- Official E2E `npm run test:e2e` EXIT=0: Chromium 150p/7 flaky/0 fail; WebKit 134p/6 flaky/3 skip/0 fail; desktop 3/3
+- Dedicated Supabase: catalog 12 · staff 14 · dining 4 · pension 14 · alerts 8
+- 11C-3: CRITICAL 0 · HIGH 0 · real mesa/pension/normal flows approved
+
+## Known non-blocking issues
+
+- E2E cold-login / long-suite flakes (MEDIUM; environment/tooling)
+- Local Auth sensitivity after rapid `db reset` (MEDIUM; environment; recovered)
+- Lint: 2 `react-hooks/exhaustive-deps` warnings on dashboard (known)
+
+## Sources of truth
+
+1. Code / migrations / tests
+2. Git
+3. Scripts
+4. Local DB (read-only when consulted)
+5. Docs (`AGENTS.md`, this file, `DECISIONS.md`, `TEST_REPORT.md`, `references/analysis/POSTGRESQL_SECURITY_MODEL.md`)
+
+Graphify (`graphify-out/`, gitignored): auxiliary map. Canonical refresh: `graphify update .`. Latest regen metrics: **2622 nodes · 6979 edges · 181 communities**. Always verify against code.
+
+Project-scoped Codex custom agents may exist under `.codex/agents/` (gitignored): security, PostgreSQL, architecture, payments, QA, UI/UX, accessibility, performance. Do **not** modify them in a docs sync.
+
+## Forbidden remote operations
+
+Without explicit authorization: `supabase link`, `supabase db push`, `--linked`, remote MCP writes, production changes, `git push`, deploy, Compuerta B, creating users, requesting secrets. Never publish `.env.local`, keys, tokens, JWT, cookies, or `.codex/` contents.
+
+## Files worth reading first
 
 1. `AGENTS.md`
-2. `CODEX_HANDOFF.md`
-3. `DECISIONS.md`
-4. `TEST_REPORT.md`
+2. `CODEX_HANDOFF.md` (this file)
+3. `DECISIONS.md` (canonical D-001…D-018 index + history)
+4. `TEST_REPORT.md` (11C evidence)
 5. `references/analysis/POSTGRESQL_SECURITY_MODEL.md`
-6. Graphify
-7. Solo después, archivos de código directamente relacionados con la tarea
+6. `references/analysis/PENSIONADOS_BUSINESS_RULES.md`
+7. Target code under `src/`, `supabase/migrations/`, `supabase/tests/`, `tests/`
 
-Estos documentos permiten el onboarding inicial sin explorar todo el repositorio. Antes de modificar algo, contraste la conclusión con el código objetivo, su migración y sus pruebas dirigidas.
+## What NOT to rerun automatically
 
-## Estado del checkpoint
+Do **not** rerun full regression automatically during a read-only audit unless a new CRITICAL/HIGH requires directed proof.
+That means: no automatic full pgTAP/concurrency/Vitest/Playwright/build marathon “just to reconfirm.”
 
-- Proyecto: Restaurante2.0 / Brisas del Sinú.
-- **Producto:** sistema **web responsive** (URL en navegador). No es aplicación móvil
-  descargable, ni requisito de Play Store / App Store / PWA instalable.
-- Rama: `master`.
-- Checkpoint **11B-7**: avisos web in-web (polling ~15 s + toast + pending
-  persistente + sonido opcional). Owner supervisión en shell `/admin`;
-  manager/cashier operativos en `/empleado`. Sin Realtime/SQL nuevo, sin
-  Notification API/Web Push, sin PWA instalable. **11B-7 CERRADA.** Siguiente: 11C.
-- Checkpoint previo **11B-6 WEB**: UI mesas/cobros conectada a 0013+0014
-  (`/admin/mesas`, `/empleado/mesas`, `/mesa/[token]`, cobro manual en pedidos).
-  QR permanente hash-only; raw solo en create/rotate; ledger append-only;
-  pago no toca `orders.status`. **11B-6 CERRADA.**
-- Checkpoint previo **11B-6 read model**: `0014_payment_read_models.sql` local
-  (RPCs staff read-only; deny-by-default en tablas sensibles).
-- Checkpoint previo **11B-6 SQL write**: `0013_manual_payments_and_dining_tables.sql`
-  (mesas/QR/sessions/ledger/confirm/void; intacta).
-- Checkpoint previo **11B-5 WEB**: UI `/pensionado` y `/admin/pensionados` conectadas.
-- Secuencia SQL: local `0001`–`0014`; remoto `0001`–`0009` (sin db push;
-  0010–0014 no desplegadas). Tests SQL: `0014_manual_payments_dining_tables.test.sql`
-  (pgTAP 83 de 0013) + `0015_payment_read_models.test.sql` (pgTAP 69 de 0014).
-- Compuerta B no iniciada.
-- `graphify-out/` regenerado en 11B-7: **2.621 nodos, 6.975 aristas, 187 comunidades**. Ignorado por Git.
+## Next task: independent pre-11C-4 audit
 
-## Pedidos — primitiva PostgreSQL (11B-2A)
-
-- RPC única transaccional: `orders` + `order_items` (modifiers en `modifiers_snapshot`).
-- SECURITY DEFINER, `search_path=''`, sin SQL dinámico, sin `service_role` EXECUTE.
-- EXECUTE solo `anon` + `authenticated`. Sin INSERT directo en tablas/secuencia.
-- Idempotencia: `idempotency_key` + `idempotency_scope` (`auth:<uid>`|`anon`) + fingerprint SHA-256;
-  UNIQUE parcial; **replay/conflicto se resuelven ANTES del catálogo** tras
-  `pg_advisory_xact_lock(hash(scope||key))` (xact-scoped; UNIQUE sigue siendo garantía).
-- Replay mismo fingerprint → snapshot histórico (`replay=true`); no revalida catálogo/cupón;
-  no `nextval`; no inserta items. Conflicto fingerprint distinto → error temprano sin side-effects.
-- Cupón: `FOR UPDATE` + incremento atómico de `redeemed_count` solo en pedido nuevo (nunca replay/conflicto);
-  rollback restaura contador.
-- Precios/disponibilidad/modificadores/totales reconstruidos en DB solo en creación nueva.
-- Status/payment iniciales: `pending` / `pending` / `demo`. No consume inventario.
-- Guest: `user_id` NULL, scope `anon`. Authenticated: `user_id = auth.uid()`.
-- Config comercial DB: `restaurants.checkout_tax_rate|service_fee_rate|max_line_quantity|order_number_prefix`,
-  `branches.delivery_minimum` (valores alineados con `restaurantConfig`).
-- Harness concurrencia: fixtures únicas por run (repetible sin reset).
-- **11B-2B (app):** `DATA_MODE=supabase` llama la RPC (anon/session SSR); local demo intacto.
-  Idempotency key = un intento lógico (reuso en retry; nueva tras éxito). Carrito se limpia solo
-  tras 2xx. Total/status/payment autoritativos de la RPC (`pending`/`pending`/`demo`).
-  Inventario intacto. Staff kitchen/cashier y delivered → **11B-3**. Compuerta B no iniciada.
-
-## Catálogo autoritativo (11B-1A)
-
-- Resolución única: `getResolvedDataMode()` / `getMenuRepository()` — sin alias hybrid/demo/fallback.
-- `DATA_MODE=local`: fixtures `src/data/menu` + overrides demo del panel solo en ese modo.
-- `DATA_MODE=supabase`: lectura vía `SupabaseMenuRepository` + `menu-mapper` (anon, RLS pública).
-  Sin mezclar precios/nombres/disponibilidad/modificadores desde fixtures.
-- Sucursal: IDs de UI en `restaurantConfig` (`branch-centro`); slug `centro`/`norte` resuelto
-  contra `public.branches`. Precio/disponibilidad exigen fila en `branch_menu_items`.
-- Imágenes: `image_path` remoto o placeholder `/icon.svg`; no se sustituye identidad por otro plato local.
-- Checkout: `placeOrder` usa el mismo repositorio; payload de precio del cliente no es autoridad.
-- Pedidos Supabase: `placeOrder` → `SupabaseOrderRepository` → RPC `create_customer_order`
-  (ya no `persistence-pending`).
-- Compuerta B: **no iniciada**.
-
-## Administración de catálogo (11B-1B)
-
-- Server Actions (`src/app/admin/catalog-actions.ts`) → `admin-service` → cliente SSR con sesión → RLS.
-- Roles de escritura comprobados: owner, admin, editor (+ manager según `can_manage_catalog` / capacidades).
-- Shell `/admin` exclusivo owner/admin. Manager/editor gestionan catálogo desde `/empleado/catalogo` (mismas Server Actions + RLS).
-- Tablas escritas: `menu_items`, `branch_menu_items`, `categories`, `modifier_groups`, `modifier_options`.
-- Soft-disable: `available` / `is_active`. Sin DELETE físico en UI. Grupos sin flag soft-delete.
-- Cero `service_role` en la app (solo fixture de prueba local para crear usuarios Auth).
-- Pedidos siguen `persistence-pending`; inventario/pensionados no conectados.
-
-## Resultado funcional por etapa
-
-1. Panel administrativo local con inventario prioritario y `/admin/inventario` para `owner/admin`.
-2. Dominio tipado de inventario, unidades, recetas, movimientos, consumo idempotente y reversión.
-3. Experiencia `/empleado` por capacidades de `manager`, `kitchen`, `cashier`, `editor` y `support`; no existe rol `employee`.
-4. Experiencia `/pensionado`: `customer` con membresía comercial `pending|active|suspended|expired|cancelled`, menú, consumos y excedentes demo.
-5. Administración local de personal y membresías con auditoría append-only; activación comercial reservada al `owner` en la UI/contrato vigente.
-6. Login único, sesión discriminada, protección servidor, destinos canónicos, callback, recuperación, cuenta y logout. `AUTH_MODE` y `DATA_MODE` son independientes.
-7. Backend PostgreSQL/Supabase local real: personal, membresías, menús, consumos, inventario, auditoría, Stripe, RLS, RPC transaccionales, concurrencia e idempotencia.
-
-Reservaciones fueron retiradas del producto, incluyendo rutas, navegación, servicios, stores, pruebas funcionales y esquema final (`0003`). La aplicación conserva carrito, checkout, pedidos locales/domicilios y navegación invitada.
-
-## Arquitectura de sesión
-
-- `src/lib/session/`: resolvedor discriminado, destinos, guards y adaptadores demo/servidor.
-- `middleware.ts`: renovación SSR por solicitud, cookies request/response, `private, no-store` y `Vary: Cookie` solo donde corresponde.
-- `src/lib/supabase/browser.ts` y `server.ts`: clientes separados; el servidor crea cliente por request y autoriza con `getUser()`, no con `getSession()`. `getServerSessionContext()` resuelve rol, `staff_status`, sucursales (`staff_branch_permissions`) y estado de membresía (`pension_memberships`) desde PostgreSQL; `resolveServerSession` los propaga para producir correctamente owner/admin, personal técnico, `suspended_staff` (no activo → `/cuenta`) y `customer_with_membership`/`_without_membership`. El rol nunca proviene de `user_metadata` ni del cliente.
-- `src/app/auth/*`, `/login`, `/registro`, `/recuperar-contrasena`, `/actualizar-contrasena`, `/cuenta`: flujos Auth únicos, redirecciones internas seguras y recuperación por token OTP.
-- Destinos: owner/admin → `/admin`; personal técnico activo → `/empleado`; customer con cualquier estado de membresía → `/pensionado`; customer sin membresía → `/cuenta`.
-- En `AUTH_MODE=disabled` se usa identidad demo determinista. En `AUTH_MODE=supabase` no se aceptan `rb-admin`, Zustand, localStorage ni metadata como autoridad.
-
-## Arquitectura local/demo
-
-- Estado compartido: `src/stores/inventory.ts`, `staff.ts`, `pension.ts`, `pension-admin.ts`, `orders.ts`.
-- Dominios: `src/lib/inventory/`, `employee/`, `staff/`, `pension/`, `pension-admin/`, `admin/`, `session/`.
-- Fixtures tipados y deterministas alimentan las interfaces; no representan datos reales, recetas oficiales ni acuerdos comerciales definitivos.
-- La presentación React consume operaciones/selectores; conversiones, capacidades, precios, consumo e idempotencia no viven en JSX.
-
-## Arquitectura Supabase real local
-
-- `src/types/database.generated.ts`: tipos generados desde la base local y revisados.
-- `src/server/repositories/supabase-operations.ts`: adaptador servidor para RPC sensibles.
-- `src/server/repositories/supabase.ts`: repositorio comercial existente; las operaciones aún no aseguradas fallan cerradas.
-- `src/app/api/webhooks/stripe/route.ts`: valida firma sobre cuerpo original y delega persistencia idempotente a PostgreSQL; `service_role` permanece solo en servidor.
-- `supabase/config.toml`: entorno local con `[db.seed].enabled = false`.
-- Servicios usados: PostgreSQL, Auth, PostgREST, Realtime, Storage, Kong, Studio y pg-meta. Edge Runtime, Logflare, Vector, Analytics, imgproxy y pooler se excluyeron/detuvieron deliberadamente; no repararlos como prerrequisito.
-
-## Migraciones canónicas
-
-- `0001_initial.sql`: núcleo, catálogo, perfiles, carrito, pedidos, marketing y esquema histórico de reservas.
-- `0002_auth_security_foundation.sql`: perfil Auth seguro `customer`, roles, sucursales, máquina de pedidos, RLS/grants explícitos y helpers privados.
-- `0003_remove_reservations.sql`: elimina reservas, capacidad de mesas y configuración asociada.
-- `0004_inventory_foundation.sql`: insumos, recetas, ingredientes, movimientos y consumo/reversión transaccional inicial.
-- `0005_staff_audit_foundation.sql`: estado laboral, turnos, incidencias, gestión de personal y auditoría inmutable.
-- `0006_pension_foundation.sql`: planes, membresías/ciclos/transiciones, menús, selecciones y consumos comerciales.
-- `0007_inventory_payment_hardening.sql`: trazabilidad pedido→receta→movimiento, inmutabilidad, entrega/reversión endurecida e idempotencia Stripe.
-- `0008_stripe_payment_state_ordering.sql`: reemplaza (append-only) `public.process_stripe_payment_event` para imponer monotonía de `payment_status` (un pago asentado no se degrada por un evento tardío/fuera de orden); conserva firma, idempotencia, auditoría y ACL a `service_role`.
-- `0009_remote_advisor_hardening.sql` (local y remoto): índices `orders_user_id_idx`, `modifier_groups_menu_item_idx`, `modifier_options_group_idx`, `branch_menu_items_menu_item_idx`; `GRANT EXECUTE` de `private.current_role()` a `authenticated` (defecto latente: policies lo invocaban sin grant); consolidación de policies SELECT permisivas duplicadas en banners, promotions, pension_plans/menus/categories/items y profiles (unión lógica idéntica; anon solo público; authenticated = público OR personal). No toca `payment_webhook_events` (deny-by-default intencional). No elimina índices `unused_*` (sin tráfico). Desplegada y verificada en producción tras auditoría y dry-run.
-
-El detalle de tablas, relaciones, funciones, RLS y ACL está en `references/analysis/POSTGRESQL_SECURITY_MODEL.md`.
-
-## Seguridad e invariantes
-
-- Registro público crea siempre `customer`; `user_metadata` nunca asigna rol.
-- Pensionado es membresía, no rol. Los clientes solo leen sus propios datos y no alteran precio, descuento, saldo, estado, consumos, inventario o auditoría.
-- Las políticas distinguen catálogo público, datos privados, personal por sucursal y administración. Grants y RLS deben cumplirse simultáneamente.
-- Funciones privilegiadas internas viven en `private`, usan `search_path = ''`, nombres cualificados y actor derivado de `auth.uid()`; `PUBLIC` no ejecuta helpers.
-- Entrega e inventario son una transacción: receta completa, filas bloqueadas, movimientos trazables, stock no negativo y una sola entrega efectiva.
-- Membresías, ciclos, consumos, reversiones y eventos externos usan constraints/keys de idempotencia y bloqueos de fila.
-- Auditorías, transiciones, ciclos, consumos y movimientos son append-only; registros con historia se desactivan, no se eliminan.
-
-## Stripe
-
-La integración existente valida firmas y persiste `payment_webhook_events` por `provider_event_id`, digest y estado resultante. `public.process_stripe_payment_event` es la única función pública `SECURITY DEFINER` del backend nuevo; solo `service_role` puede ejecutarla después de verificar la firma en el servidor. Pagos reales siguen deshabilitados hasta configurar secretos externos, revisar conciliación y autorizar despliegue.
-
-## Pruebas y comandos vigentes
-
-```powershell
-supabase db reset --local --no-seed
-supabase db lint --local --level warning
-npm.cmd run test:db
-npm.cmd run test:db:concurrency
-npm.cmd run typecheck
-npm.cmd run lint
-npm.cmd run test
-npm.cmd run build
-```
-
-Último ciclo local (11B-1B): Vitest **49 archivos / 415 pruebas**; typecheck/lint/build OK;
-E2E admin catálogo local 2/2 × Chromium+WebKit; integración admin RLS 1/1; pedidos remotes
-siguen 503. Bootstrap remoto **no ejecutado**; Compuerta B **no ejecutada**. Ver `TEST_REPORT.md`.
-
-## Archivos principales por área
-
-- Sesión/Auth: `middleware.ts`, `src/lib/session/`, `src/lib/auth/`, `src/lib/supabase/`, `src/app/auth/`.
-- Autorización administrativa: `src/lib/admin/`, `src/app/admin/layout.tsx`.
-- Empleados: `src/lib/employee/`, `src/lib/staff/`, `src/stores/staff.ts`, `src/app/empleado/`, `src/app/admin/empleados/`.
-- Pensionados: `src/server/pension/` (repo/service/actions), `src/lib/pension/`,
-  `src/lib/pension-admin/`, stores demo, `src/app/pensionado/`, `src/app/admin/pensionados/`.
-- Inventario: `src/lib/inventory/`, `src/stores/inventory.ts`, `src/app/admin/inventario/`.
-- Pedidos/pagos: `src/stores/orders.ts`, `src/server/repositories/`, `src/server/catalog/`, `src/lib/payments/`, webhooks API.
-- Catálogo: `src/server/repositories/menu-mapper.ts`, `SupabaseMenuRepository`, `load-public-catalog.ts`.
-- PostgreSQL: `supabase/migrations/0001_initial.sql`–`0009_remote_advisor_hardening.sql`, `supabase/tests/0001_backend_security.test.sql`, `scripts/test-supabase-concurrency.ps1`.
-
-## Pendientes y riesgos conocidos
-
-- Persistencia remota de pedidos y panel admin de catálogo pendientes (11B-2 / 11B-1B).
-- Local y remoto alineados en `0001`–`0009`. Advisors post-despliegue: FKs sin índice 24→20; 7 avisos `multiple_permissive_policies` eliminados; `unused_index` diferidos hasta tráfico real; `payment_webhook_events` sin policies (deny-by-default aceptado). No se afirma advisors en cero.
-- FKs de auditoría/ON DELETE lógico no indexadas a propósito.
-- Auth real / Site URL / Redirect URLs / bootstrap del primer owner: Compuerta B pendiente (`references/runbooks/FIRST_OWNER_BOOTSTRAP.md`). Promoción serializada por lock; sin reversión automática. URL productiva de la app aún no definida en el repositorio.
-- Auth real, secretos fuera de Git, conciliación de pagos y despliegue de aplicación siguen requiriendo aprobación expresa.
-- La definición comercial final de pensionados sigue abierta: cantidad de comidas, días calendario o modalidad híbrida.
-- Resolver comercialmente la discrepancia de sopas (cerdo/pollo) antes de publicar un menú pensionado definitivo.
-- Los fixtures, precios, recetas e imágenes de inventario son demo; deben validarse con el restaurante.
-- Validar plantillas de correo, redirect URLs y configuración Auth en un entorno autorizado; no crear usuarios reales durante el onboarding.
-- La conciliación de pagos reales y gestión de secretos queda diferida al despliegue controlado.
-
-## Siguiente etapa recomendada
-
-**11C — Regresión integral** (no iniciar sin autorización). Compuerta B sigue
-bloqueada. 11B-7 cerró avisos in-web; fuera de MVP: Realtime, Notification API,
-Web Push, PWA instalable.
+Read-only multiagent audit against the documented baseline. Do not start 11C-4 or Compuerta B from this handoff alone.

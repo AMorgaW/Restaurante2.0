@@ -1,6 +1,10 @@
 # Restaurante2.0 — guía operativa para agentes
 
-Restaurante2.0 es la aplicación mobile-first de Brisas del Sinú: catálogo, carrito y pedidos locales/domicilios, PWA, panel administrativo, espacios de empleados y pensionados, y un backend Supabase/PostgreSQL preparado y validado localmente.
+Brisas del Sinú es un **sistema web responsive** (URL en navegador: móvil, tablet, escritorio): catálogo, carrito, pedidos local/pickup/delivery, panel administrativo, espacios de empleados y pensionados, y backend Supabase/PostgreSQL preparado y validado localmente.
+
+**No es** app nativa, APK/IPA, producto de Play/App Store ni PWA instalable obligatoria. Un service worker legacy puede existir; `InstallPwaPrompt` no debe promoverse en producto.
+
+**Estado de etapa (baseline funcional `79ebd2b`):** 11B-1…11B-7 **CLOSED** · 11C-1 **CLOSED** · 11C-2 **CLOSED** · 11C-3 **CLOSED** · **11C-4 PENDING** · **Compuerta B PENDING** (no iniciada).
 
 ## Orden de lectura
 
@@ -52,12 +56,13 @@ Mantener `[db.seed].enabled = false`. `supabase/seed.sql` contiene datos demo y 
 - Públicas: `/`, `/menu`, `/buscar`, `/carrito`, `/favoritos`, `/checkout`, `/pedido/*`, páginas informativas y Auth (`/login`, `/registro`, recuperación/callback).
 - Privadas: `/cuenta`, `/admin/*`, `/empleado/*`, `/pensionado/*` y APIs privadas.
 - Existe un único login. El resolvedor discriminado de `src/lib/session/` valida identidad en servidor y calcula el destino estable.
-- `owner`/`admin` → `/admin`; `manager`, `kitchen`, `cashier`, `editor`, `support` activos → `/empleado`; `customer` con membresía → `/pensionado`; `customer` sin membresía → `/cuenta`; anónimo → `/login`.
+- `owner`/`admin` → `/admin`; `manager`, `kitchen`, `cashier`, `editor`, `support` activos → `/empleado`; `customer` con membresía → `/pensionado`; `customer` sin membresía → `/cuenta`; personal inactive/suspended → `/cuenta`; anónimo → `/login`.
 - Roles técnicos permitidos: `owner`, `admin`, `manager`, `kitchen`, `cashier`, `editor`, `support`, `customer`. No crear un rol genérico `employee`.
-- Pensionado no es rol JWT: siempre es `customer` con membresía comercial.
+- Pensionado no es rol JWT/Auth: siempre es `customer` con membresía comercial.
 - Registro público siempre crea `customer`; nunca añadir selector público de rol, cargo, sucursal, membresía o permisos.
 - `AUTH_MODE` y `DATA_MODE` son independientes. Los stores demo nunca conceden identidad en modo Supabase.
-- Con `DATA_MODE=supabase` el catálogo público y la validación de checkout leen PostgreSQL (anon + RLS); no hay fallback a `src/data/menu`. La persistencia remota de pedidos usa `public.create_customer_order` (migración local `0010`) vía `SupabaseOrderRepository`; local sigue demo. Operaciones staff de pedidos (11B-3) leen/actualizan `orders.status` vía RLS + Server Actions (`expectedStatus` optimista). Delivery (11B-4): `ready→delivered` dispara `consume_order_inventory` en la misma TX del trigger; inventario UI lee PostgreSQL y escribe solo vía `apply_inventory_movement`. Cobros manuales (11B-6): SQL 0013/0014 + UI web conectada (`/admin/mesas`, `/empleado/mesas`, `/mesa/[token]`, paneles de cobro); efectivo/`bank_transfer`, ledger append-only, mesas QR hash-only y `table_sessions`. Avisos web (11B-7): polling in-web ~15 s + toast + pending persistente + sonido opcional; sin Realtime/Notification API/Web Push/PWA instalable. Stripe real pendiente.
+- **DATA_MODE:** `local` → demo/Zustand explícito; `supabase` → PostgreSQL/Supabase sin fallback ni hybrid silencioso. Catálogo vacío remoto → UI vacía real; error DB → error real. No fixtures fingiendo datos Supabase.
+- Con `DATA_MODE=supabase` el catálogo público y la validación de checkout leen PostgreSQL (anon + RLS). Persistencia de pedidos: `public.create_customer_order` (migración local `0010`) vía `SupabaseOrderRepository`. Operaciones staff (11B-3): `orders.status` vía RLS + Server Actions (`expectedStatus` optimista). Delivery/inventario (11B-4): `ready→delivered` dispara `consume_order_inventory` en la misma TX. Cobros/mesas (11B-6): SQL `0013`/`0014` + UI (`/admin/mesas`, `/empleado/mesas`, `/mesa/[token]`). Avisos (11B-7): polling in-web ~15 s + toast + pending persistente + sonido opcional; sin Realtime/Notification API/Web Push/PWA instalable. Stripe dormido.
 - Administración de catálogo: owner/admin en `/admin/platos` y `/admin/categorias`; manager/editor activos en `/empleado/catalogo`. En `AUTH_MODE=disabled` + demo local usa Zustand; con Auth+DATA supabase escribe vía Server Actions + sesión + RLS (`can_manage_catalog`). Shell `/admin` exclusivo owner/admin. Sin `service_role` en la app.
 - En producción solo `AUTH_MODE=supabase` configurado es válido; `disabled`/ausente/`demo` → invalid.
 - Demo solo con `AUTH_MODE=disabled` explícito en `development` o `test` (E2E vía `next dev`, no `next start`).
@@ -66,10 +71,12 @@ Mantener `[db.seed].enabled = false`. `supabase/seed.sql` contiene datos demo y 
 ## Invariantes de negocio y seguridad
 
 - Reservaciones fueron retiradas: no reintroducir rutas, stores, APIs, tablas activas ni navegación.
-- El producto mantiene ventas locales y domicilios; cuentas de cliente opcionales.
-- Inventario usa gramos, mililitros o unidades como cantidades canónicas `numeric`; kg/L son presentación.
-- Un producto que consume inventario requiere receta activa y completa.
-- El stock se descuenta transaccionalmente solo al pasar un pedido válidamente a `delivered`, exactamente una vez. Nunca permitir stock negativo.
+- Ventas: local/mesa, pickup y delivery; cuentas de cliente opcionales.
+- Inventario: unidades canónicas `g` / `ml` / `unidad` (`numeric`); kg/L solo presentación. Producto que consume inventario requiere receta activa y completa. **ORDER CREATED ≠ INVENTORY CONSUMED.** El stock se descuenta solo al pasar válidamente a `delivered`, transaccional, exactly-once, sin stock negativo, ledger inmutable/auditable. Payment y beneficio pensionado **no** consumen inventario por sí mismos.
+- Payment status es independiente del status operativo. PAID registra dinero; DELIVERED consume inventario. MVP: `cash` / `bank_transfer` / `zero_balance` cuando corresponda. Sin pagos parciales, split, arqueo, conciliación bancaria automática ni refund ERP. Stripe dormido (no flujo de producto activo).
+- Mesas: `dining_table` (física) vs `table_session` (cuenta/ocupación). Máx. una sesión open por mesa; muchos pedidos por sesión. Pago de cuenta cierra sesión → mesa FREE. Void de pago **no** reabre sesión. QR: token raw impredecible; DB solo SHA-256; raw solo create/rotate. UUID/código de mesa no autorizan al cliente. QR de mesa ≠ QR bancario. Confirm: owner/admin/manager/cashier. Void: solo owner/admin. Corrección = void append-only.
+- Pensionado: plan `calendar_period`, 30 días calendario, `ends_at = starts_at + 29`; 1 lunch + 1 dinner/día (no 60 comidas intercambiables). Activación presencial owner/admin; `agreed_price` negociable; surcharge y fee domicilio pensionado desde config DB. Pedido normal vía `/menu` no consume beneficio.
+- Avisos web MVP: polling ~15 s; refetch focus/visibility/online; dedup `order.id`; baseline sin toast de preexistentes; señal persistente de pending. Owner = supervisión paralela; manager/cashier = operativo; kitchen según workflow (pending no es etapa kitchen). Sin Realtime/Notification API/Web Push; navegador cerrado → sin notificación MVP.
 - Reintentos, consumos, activaciones, renovaciones, reversiones y eventos Stripe usan claves/constraints de idempotencia. Una reversión crea historia, restaura una sola vez y nunca borra movimientos.
 - Registros con historia se desactivan lógicamente; no borrar pedidos, recetas usadas, movimientos, membresías, consumos ni auditorías.
 - PostgreSQL es la autoridad final: RLS de mínimo privilegio, grants explícitos, actor derivado de `auth.uid()`, sucursal validada y operaciones sensibles transaccionales.
@@ -78,32 +85,40 @@ Mantener `[db.seed].enabled = false`. `supabase/seed.sql` contiene datos demo y 
 
 ## Migraciones
 
-La secuencia canónica desplegada en remoto es `0001`–`0009`. Localmente existen además
-`0010_create_customer_order.sql` (RPC de pedidos standard, conectada en app),
-`0011_profiles_staff_status_select_grant.sql` (`GRANT SELECT (staff_status)` a
-`authenticated`, sin SELECT de tabla ni cambio de RLS; desbloquea el resolvedor de sesión),
-`0012_pension_orders_and_management.sql` (pedidos pensionados atómicos, activación
-presencial owner/admin, menús, fee domicilio pensionado, coupling order↔consumption;
-UI `/pensionado` y `/admin/pensionados` conectadas en `DATA_MODE=supabase`; local demo
-intacta)
-y `0013_manual_payments_and_dining_tables.sql` (mesas físicas + QR permanente hash-only,
-`table_sessions`, cobro manual cash/`bank_transfer` con ledger append-only,
-confirm/void RPCs, `local` ligado a sesión vía token QR; Stripe dormido coexistente;
-tablas sensibles deny-by-default sin SELECT authenticated)
-y `0014_payment_read_models.sql` (RPCs read-only staff:
-`list_dining_tables_for_staff`, `get_table_session_account`,
-`get_manual_payment_history`; sin SELECT table-wide; sin QR hash/raw;
-UI web de mesas/cobros ya conectada en 11B-6 WEB).
-Ninguna de `0010`–`0014` está desplegada en remoto (sin db push). La RPC 0010 resuelve
-replay/conflicto de idempotencia antes del catálogo (serialización por
-`pg_advisory_xact_lock` + UNIQUE) e incrementa `coupons.redeemed_count` atómicamente solo
-en creación nueva. Añadir nuevas migraciones numeradas y append-only, sin editar
-silenciosamente las ya validadas. `0008_stripe_payment_state_ordering.sql` reemplaza (append-only) `public.process_stripe_payment_event` para imponer la monotonía de `payment_status`. `0009_remote_advisor_hardening.sql` añade índices de cobertura justificados y consolida políticas SELECT permisivas duplicadas sin ampliar RLS; ya fue auditada, dry-run aprobada y desplegada en el proyecto remoto autorizado. Ejecutar desde cero y probar antes de cualquier integración nueva. `npm run test:db` y `npm run test:db:concurrency` deben correrse en serie sobre la misma base, nunca en paralelo. No crear secuencias timestamp paralelas ni una tabla pública `sessions`.
+| Alcance | Versiones |
+|---|---|
+| Local (archivos) | `0001`–`0014` |
+| DB local esperada | hasta `0014` |
+| Remoto documentado | `0001`–`0009` |
+| No desplegadas en remoto | `0010`–`0014` |
 
-## Operación segura
+Sin `db push`. No crear `0015`.
 
-Sin autorización explícita están prohibidos `supabase link`, `supabase db push`, cualquier operación `--linked`, escrituras MCP remotas, cambios en producción, `git push` y despliegues. Nunca publicar `.env.local`, credenciales, claves locales/remotas, tokens, JWT, cookies, logs, `.codex/`, artefactos de pruebas ni `graphify-out/` generado. No usar `git reset --hard`, `clean`, `restore` o checkout destructivo sobre cambios ajenos.
+**Importante — tests ≠ migrations:**
+
+- `supabase/tests/0014_manual_payments_dining_tables.test.sql` prueba la **migración 0013** (pgTAP 83/83).
+- `supabase/tests/0015_payment_read_models.test.sql` prueba la **migración 0014** (pgTAP 69/69).
+- Global pgTAP vigente: **456/456**.
+
+Localmente, además de `0001`–`0009`:
+
+- `0010_create_customer_order.sql` — RPC `create_customer_order` (idempotencia antes de catálogo; sin consumo de inventario).
+- `0011_profiles_staff_status_select_grant.sql` — `GRANT SELECT (staff_status)` a `authenticated` (sin SELECT de tabla ni cambio de RLS).
+- `0012_pension_orders_and_management.sql` — pedidos pensionados, activación owner/admin, menús, fee domicilio, coupling order↔consumption.
+- `0013_manual_payments_and_dining_tables.sql` — mesas/QR hash-only, `table_sessions`, cobro manual cash/`bank_transfer`, ledger append-only, confirm/void.
+- `0014_payment_read_models.sql` — RPCs read-only staff (`list_dining_tables_for_staff`, `get_table_session_account`, `get_manual_payment_history`).
+
+`0008_stripe_payment_state_ordering.sql` impone monotonía de `payment_status`. `0009_remote_advisor_hardening.sql` ya está en remoto autorizado. `npm run test:db` y `npm run test:db:concurrency` en serie sobre la misma base, nunca en paralelo. No crear secuencias timestamp paralelas ni una tabla pública `sessions`.
+
+## Pruebas (punteros)
+
+Evidencia consolidada de 11C: `TEST_REPORT.md`. Baseline funcional: `79ebd2b`.
+No reejecutar regresión completa automáticamente en auditoría read-only salvo nuevo CRITICAL/HIGH que exija prueba dirigida.
+
+## Operación segura / reset
+
+Sin autorización explícita están prohibidos `supabase link`, `supabase db push`, cualquier operación `--linked`, escrituras MCP remotas, cambios en producción, `git push` y despliegues. Nunca publicar `.env.local`, credenciales, claves locales/remotas, tokens, JWT, cookies, logs, `.codex/`, artefactos de pruebas ni `graphify-out/` generado. No usar `git reset --hard`, `clean`, `restore` o checkout destructivo sobre cambios ajenos. Resets DB: siempre `--local --no-seed`.
 
 ## Graphify
 
-El mapa regenerado está en `graphify-out/` y está ignorado por Git. Para consultas use primero `graphify query`, `graphify path` o `graphify explain`; contraste siempre el resultado con el código objetivo. Tras cambios aprobados, actualice con `graphify update .` sin forzar su versionado.
+El mapa regenerado está en `graphify-out/` y está **ignorado por Git**. Comando canónico: `graphify update .`. Consultas: `graphify query` / `path` / `explain`; contraste siempre con el código. Última regeneración documentada: **2622 nodos · 6979 aristas · 181 comunidades**. No versionar con `git add -f`.

@@ -1,4 +1,125 @@
-# TEST_REPORT — Informe de pruebas (resultados reales)
+# TEST REPORT
+
+## Current checkpoint
+
+- Functional baseline: `79ebd2b` — `test: estabiliza regresion e2e preproduccion`
+- Branch: `master` (clean at that commit before docs sync)
+- Migrations: local files `0001`–`0014`; local DB through `0014`; remote documented `0001`–`0009`; `0010`–`0014` **not** remote
+- Stages: 11B CLOSED · 11C-1 CLOSED · 11C-2 CLOSED · 11C-3 CLOSED · **11C-4 PENDING** · **Compuerta B PENDING**
+- Product: responsive web system (not native / not installable-PWA requirement)
+
+**Do not rerun full regression automatically during read-only audit unless a new CRITICAL/HIGH requires directed proof.**
+
+## 11C-1 Precheck
+
+Executed against HEAD `754485e` (pre–E2E stabilization). Result: **PRECHECK 11C OK**.
+
+- working tree clean; migrations on disk `0001`–`0014`; local DB applied through `0014`
+- remote documented `0001`–`0009`; SQL tests live under `supabase/tests/` (not migrations)
+- no db push / git push / Compuerta B
+
+## 11C-2 Technical regression
+
+Evidence from the approved 11C-2 closure at commit `79ebd2b` (after fixing HIGH `11C-TECH-001` Playwright isolation). First measurement pass was at `754485e`; E2E isolation fix landed in `79ebd2b`.
+
+### pgTAP
+
+- Suites: **7** (`supabase/tests/`)
+- Total: **456** · Passed: **456** · Failed: **0**
+- Mapping (do not confuse test filename with migration number):
+  - `0014_manual_payments_dining_tables.test.sql` → **migration 0013** → **83/83**
+  - `0015_payment_read_models.test.sql` → **migration 0014** → **69/69**
+  - Global remains **456/456** (not “0014 = 83”)
+
+### concurrency
+
+- Harness: `scripts/test-supabase-concurrency.ps1`
+- Scenarios: **28** · Assertions: **36**
+- run1: **PASS** · run2: **PASS**
+
+### Vitest
+
+- Files: **68** · Total: **552** · Passed: **552** · Failed: **0** · Skipped: **0**
+
+### typecheck
+
+- **PASS**
+
+### lint
+
+- **0 errors** · **2 warnings** known (`dashboard-screen.tsx` `react-hooks/exhaustive-deps`)
+
+### build
+
+- **PASS**
+
+### Playwright main
+
+- Official `npm run test:e2e` → **EXIT=0**
+- Chromium: **150 passed** / **7 flaky** / **0 failed**
+- WebKit: **134 passed** / **6 flaky** / **3 skipped** / **0 failed**
+- desktop: **3/3**
+
+### dedicated Supabase suites
+
+| Suite | Result |
+|---|---|
+| catalog | **12 PASS** |
+| staff | **14 PASS** |
+| dining | **4 PASS** |
+| pension | **14 PASS** |
+| alerts | **8 PASS** |
+
+## 11C-3 Real restaurant flows
+
+Verdict: **11C-3 FLUJOS REALES APROBADOS** (HEAD `79ebd2b`; no product code changes).
+
+### CRITICAL / HIGH status
+
+- **CRITICAL: 0**
+- **HIGH: 0**
+
+### Mesa (approved)
+
+QR create/rotate · guest `resolve_table_qr` · multiple orders · same `table_session` · notifications · staff ops · delivered · inventory exactly-once · cash confirm · closed session · free table.
+
+### Pension (approved)
+
+Active membership · included meal · substitution · surcharge from DB · benefit exactly-once · replay · lunch/dinner · inventory independent of benefit create.
+
+### Normal order (approved)
+
+Pickup/delivery · no table session · `bank_transfer` · payment before delivered valid · inventory only at delivered.
+
+### Also smoked
+
+Branch isolation · roles matrix · void append-only · WebKit dining directed smoke PASS.
+
+## Known flakes/environment issues
+
+- MEDIUM: E2E cold-login / long-suite flakes (retry-stabilized; not product bugs while unreproducible as product defects)
+- MEDIUM: local Auth sensitivity after rapid `db reset` (environment/tooling; recovered)
+- LOW: known dashboard lint warnings; GoTrue multi-client noise in some integrations
+
+## Suites that should NOT be repeated automatically
+
+Full pgTAP (456), full concurrency ×2, full Vitest (552), full Playwright matrix, and dedicated Supabase marathons — **unless** a new CRITICAL/HIGH needs directed proof.
+
+## Final evidence summary
+
+| Gate | Result |
+|---|---|
+| 11C-1 | OK |
+| 11C-2 | APPROVED (`79ebd2b`) |
+| 11C-3 | APPROVED (CRITICAL 0 / HIGH 0) |
+| 11C-4 | PENDING |
+| Compuerta B | PENDING |
+
+---
+
+# Historical archive (pre-11C and stage-by-stage)
+
+> Sections below preserve chronological evidence from earlier stages. Prefer the **Current checkpoint / 11C** sections above for audit orientation. Do not reinterpret historical reservation E2E rows as current product behavior.
 
 > **Estado vigente 2026-08-04:** el cierre consolidado al final de este archivo es la referencia
 > actual: PostgreSQL/Supabase local está disponible, `0001`–`0007` pasó dos resets desde cero,
