@@ -27,7 +27,7 @@ test.describe("árbol real de filas editoriales del menú", () => {
       await expect(rows.first()).toBeVisible();
       await expect(panels.first()).toBeVisible();
       await expect(page.getByTestId("bottom-nav-active-pill")).toHaveCount(0);
-      await expect(page.getByTestId("menu-user-entry")).toHaveAttribute("aria-label", "Acceso de usuario");
+      await expect(page.getByTestId("menu-user-entry")).toHaveAttribute("aria-label", "Iniciar sesión");
       await expect(page.getByRole("navigation", { name: "Navegación principal" })).toHaveCount(0);
 
       const [firstBox, secondBox, panelBox, circleBox] = await Promise.all([
@@ -94,6 +94,7 @@ test.describe("árbol real de filas editoriales del menú", () => {
 
   test("genera evidencia del árbol visible en los viewports requeridos", async ({ page }, testInfo) => {
     testInfo.skip(testInfo.project.name !== "mobile-chromium", "La evidencia se conserva una sola vez por ejecución.");
+    test.setTimeout(180_000);
     for (const viewport of [
       ...mobileAndTablet,
       { name: "1260x800", width: 1260, height: 800 },

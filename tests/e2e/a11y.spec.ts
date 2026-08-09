@@ -72,7 +72,7 @@ test.describe("Accesibilidad (axe)", () => {
   test("sin violaciones críticas en el checkout", async ({ page }) => {
     await addSimpleDishToCart(page);
     await page.goto("/checkout");
-    await expect(page.getByText("Finalizar pedido")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Finalizar pedido", exact: true })).toBeVisible();
     await expectNoSeriousViolations(page, "/checkout");
   });
 

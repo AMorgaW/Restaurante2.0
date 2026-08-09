@@ -60,7 +60,15 @@ export default defineConfig({
     {
       name: "mobile-chromium",
       use: { ...devices["Pixel 7"] },
-      testIgnore: ["**/desktop.spec.ts", "**/catalog-supabase.spec.ts", "**/staff-orders-supabase.spec.ts"],
+      // Suites Supabase tienen configs dedicadas (AUTH/DATA supabase + puertos propios).
+      testIgnore: [
+        "**/desktop.spec.ts",
+        "**/catalog-supabase.spec.ts",
+        "**/staff-orders-supabase.spec.ts",
+        "**/dining-tables-supabase.spec.ts",
+        "**/pension-supabase.spec.ts",
+        "**/order-alerts-supabase.spec.ts",
+      ],
     },
     {
       name: "mobile-webkit",
@@ -71,6 +79,9 @@ export default defineConfig({
         "**/desktop.spec.ts",
         "**/catalog-supabase.spec.ts",
         "**/staff-orders-supabase.spec.ts",
+        "**/dining-tables-supabase.spec.ts",
+        "**/pension-supabase.spec.ts",
+        "**/order-alerts-supabase.spec.ts",
       ],
     },
     {

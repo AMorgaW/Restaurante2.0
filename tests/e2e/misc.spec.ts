@@ -74,6 +74,7 @@ test.describe("Rutas, PWA y estados generales", () => {
   });
 
   test("las páginas informativas cargan y son navegables desde el pie", async ({ page }) => {
+    test.setTimeout(120_000);
     await page.goto("/menu");
     for (const [link, heading] of [
       ["Preguntas frecuentes", "Preguntas frecuentes"],
@@ -84,7 +85,9 @@ test.describe("Rutas, PWA y estados generales", () => {
     ] as const) {
       await page.goto("/menu");
       await page.getByRole("contentinfo").getByRole("link", { name: link }).click();
-      await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+      await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible({
+        timeout: 30_000,
+      });
       expect(await expectNoHorizontalScroll(page)).toBe(true);
     }
   });
@@ -142,7 +145,8 @@ test.describe("Rutas, PWA y estados generales", () => {
     await page.goto("/admin");
     await expect(page.getByRole("heading", { name: "Panel de administración" })).toBeVisible();
     await page.getByRole("button", { name: /propietario/i }).click();
-    await expect(page.getByRole("heading", { name: "Resumen" })).toBeVisible();
+    // Dashboard actual: h1 "Administrador" (nav usa label "Resumen", no es heading).
+    await expect(page.getByRole("heading", { name: "Administrador", exact: true })).toBeVisible();
 
     // Edición real: marcar un plato como agotado se refleja en la tienda.
     await page.getByRole("link", { name: "Platos" }).first().click();

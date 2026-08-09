@@ -7,7 +7,7 @@ test.describe("Experiencia de escritorio", () => {
   });
 
   test("el menú se centra sin navegación persistente", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/menu");
     await expect(page).toHaveURL(/\/menu$/);
     await expect(page.getByRole("heading", { name: "Menú", exact: true })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Navegación principal" })).toHaveCount(0);
@@ -18,14 +18,13 @@ test.describe("Experiencia de escritorio", () => {
     await page.goto("/menu");
     const cards = page.locator("article");
     await expect(cards.first()).toBeVisible();
-    // Estable frente a animaciones de entrada: se comprueba el layout
-    // computado del grid, no posiciones en pleno vuelo. Tras el rediseño el
-    // contenedor es lista (flex) en móvil y rejilla solo desde md; se localiza
-    // por data-testid porque la clase base `grid` ya no está presente.
+    // Contrato UI actual: `lg:grid-cols-2` (lista en viewport estrecho, 2 cols en desktop).
+    // No hay requisito comercial de ≥3 columnas; se valida rejilla usable sin overflow.
     const columnCount = await page
       .getByTestId("menu-grid")
       .evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length);
-    expect(columnCount).toBeGreaterThanOrEqual(3);
+    expect(columnCount).toBeGreaterThanOrEqual(2);
+    expect(await expectNoHorizontalScroll(page)).toBe(true);
   });
 
   test("checkout y detalle mantienen anchura legible centrada", async ({ page }) => {

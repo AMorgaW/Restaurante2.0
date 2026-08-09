@@ -63,6 +63,48 @@ function seed() {
     delete from public.inventory_movements where inventory_item_id = '${INV_ID}';
     delete from public.order_items where menu_item_id = '${ITEM_ID}';
     delete from public.orders where branch_id in ('${BRANCH_A}', '${BRANCH_B}');
+    -- Limpia restos de otras suites en slug centro/norte antes de borrar branches.
+    delete from public.manual_payment_voids
+      where confirmation_id in (
+        select id from public.manual_payment_confirmations
+        where branch_id in (select id from public.branches where slug in ('centro', 'norte'))
+      );
+    delete from public.manual_payment_allocations
+      where confirmation_id in (
+        select id from public.manual_payment_confirmations
+        where branch_id in (select id from public.branches where slug in ('centro', 'norte'))
+      );
+    delete from public.manual_payment_confirmations
+      where branch_id in (select id from public.branches where slug in ('centro', 'norte'));
+    delete from public.order_items where order_id in (
+      select id from public.orders
+      where branch_id in (select id from public.branches where slug in ('centro', 'norte'))
+    );
+    delete from public.orders
+      where branch_id in (select id from public.branches where slug in ('centro', 'norte'));
+    delete from public.table_sessions
+      where branch_id in (select id from public.branches where slug in ('centro', 'norte'));
+    delete from public.dining_tables
+      where branch_id in (select id from public.branches where slug in ('centro', 'norte'));
+    delete from public.inventory_consumption_sources
+      where inventory_item_id in (
+        select id from public.inventory_items
+        where branch_id in (select id from public.branches where slug in ('centro', 'norte'))
+      );
+    delete from public.inventory_movements
+      where inventory_item_id in (
+        select id from public.inventory_items
+        where branch_id in (select id from public.branches where slug in ('centro', 'norte'))
+      );
+    delete from public.recipe_items
+      where recipe_id in (
+        select id from public.recipes
+        where branch_id in (select id from public.branches where slug in ('centro', 'norte'))
+      );
+    delete from public.recipes
+      where branch_id in (select id from public.branches where slug in ('centro', 'norte'));
+    delete from public.inventory_items
+      where branch_id in (select id from public.branches where slug in ('centro', 'norte'));
     set session_replication_role = DEFAULT;
     delete from public.recipe_items where recipe_id = '${RECIPE_ID}';
     delete from public.recipes where id = '${RECIPE_ID}';
@@ -186,14 +228,17 @@ async function createOrder(branchId: string): Promise<{ id: string; orderNumber:
 }
 
 async function login(page: Page, email: string) {
+  await page.context().clearCookies();
   await skipOnboarding(page);
   await page.goto("/login");
   await expect(page.getByRole("heading", { name: /Iniciar sesión/i })).toBeVisible();
   await page.locator('input[type="email"]').fill(email);
   await page.locator('input[type="password"]').fill(PASSWORD);
+  const submit = page.getByRole("button", { name: "Entrar" });
+  await expect(submit).toBeEnabled();
   await Promise.all([
     page.waitForURL(/\/(empleado|admin)(\/|$|\?)/, { timeout: 45_000 }),
-    page.getByRole("button", { name: "Entrar" }).click(),
+    submit.click(),
   ]);
   await page.waitForLoadState("networkidle");
 }

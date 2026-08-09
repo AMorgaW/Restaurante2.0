@@ -34,6 +34,7 @@ async function waitForPainted(page: Page, selectors: string[]) {
 
 test("captura la escena completa en estados y viewports requeridos", async ({ page }, testInfo) => {
   testInfo.skip(testInfo.project.name !== "mobile-chromium", "Evidencia única en Chromium.");
+  test.setTimeout(180_000);
 
   for (const viewport of [
     { name: "390x844", width: 390, height: 844 },

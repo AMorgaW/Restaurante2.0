@@ -60,12 +60,12 @@ test.describe("sesión administrativa local", () => {
     expect(critical.violations.filter((violation) => ["critical", "serious"].includes(violation.impact ?? ""))).toEqual([]);
   });
 
-  test("admin consulta sin mostrar acciones sensibles y el acceso sin rol queda cerrado", async ({ page }) => {
+  test("admin gestiona pensionados como owner/admin y sin rol el acceso queda cerrado", async ({ page }) => {
+    // Contrato vigente: owner/admin tienen manage-pension-memberships (no es solo lectura).
     await seedRole(page, "admin");
     await page.goto("/admin/pensionados");
-    await expect(page.getByText("Consulta operativa")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Activar pensionado" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Suspender membresía" })).toHaveCount(0);
+    await expect(page.getByText("Demo local · Jefe")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Activar pensionado" }).first()).toBeVisible();
     await seedRole(page, null);
     await page.goto("/admin/empleados");
     await expect(page.getByRole("heading", { name: "Panel de administración" })).toBeVisible();

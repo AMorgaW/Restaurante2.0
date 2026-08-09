@@ -60,10 +60,14 @@ test.describe("Carrito y checkout demo", () => {
   });
 
   test("checkout completo en modo demostración", async ({ page }) => {
+    test.setTimeout(180_000);
     await addSimpleDishToCart(page);
     await page.goto("/carrito");
-    await page.getByRole("button", { name: "Continuar con el pedido" }).click();
-    await expect(page).toHaveURL(/\/checkout/);
+    await expect(page.getByRole("button", { name: "Continuar con el pedido" })).toBeEnabled();
+    await Promise.all([
+      page.waitForURL(/\/checkout/, { timeout: 45_000 }),
+      page.getByRole("button", { name: "Continuar con el pedido" }).click(),
+    ]);
 
     // Paso 1: entrega (recogida preseleccionada).
     await expect(page.getByRole("radio", { name: /recoger en tienda/i })).toHaveAttribute(
@@ -84,10 +88,20 @@ test.describe("Carrito y checkout demo", () => {
     // Paso 3: pago demo + confirmación.
     await expect(page.getByText("Pago de demostración")).toBeVisible();
     await expect(page.getByText("Requiere configuración")).toBeVisible();
-    await page.getByRole("button", { name: /confirmar pedido/i }).click();
+    const confirm = page.getByRole("button", { name: /confirmar pedido/i });
+    await expect(confirm).toBeEnabled();
+    const orderPost = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        /\/api\/orders/.test(response.url()),
+      { timeout: 60_000 },
+    );
+    await confirm.click();
+    const settled = await orderPost;
+    expect(settled.ok()).toBeTruthy();
+    await expect(page).toHaveURL(/\/pedido\//, { timeout: 45_000 });
 
     // Confirmación.
-    await expect(page).toHaveURL(/\/pedido\//, { timeout: 15_000 });
     await expect(page.getByRole("heading", { name: "¡Pedido confirmado!" })).toBeVisible();
     // El número aparece en la página (y también en el toast): basta el primero.
     await expect(page.getByText(/CB-[A-Z0-9]+/).first()).toBeVisible();

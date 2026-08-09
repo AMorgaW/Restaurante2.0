@@ -25,8 +25,11 @@ test.describe("Auth opcional en modo local", () => {
 
   test("la entrada de usuario conduce a la ruta interna de login", async ({ page }) => {
     await page.goto("/menu");
-    await page.getByTestId("menu-user-entry").click();
-    await expect(page).toHaveURL(/\/login$/);
+    await page.waitForLoadState("networkidle");
+    const entry = page.getByRole("button", { name: "Iniciar sesión" });
+    await expect(entry).toBeVisible();
+    await entry.click();
+    await expect(page).toHaveURL(/\/login(\?|$)/, { timeout: 30_000 });
   });
 
   test("admin local conserva la demostracion explicita", async ({ page }) => {

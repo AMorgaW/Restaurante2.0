@@ -83,14 +83,22 @@ export function MenuExplorer({
     let stored: string | null = null;
     try {
       stored = sessionStorage.getItem("rb-menu-scroll-y");
-      if (stored !== null) sessionStorage.removeItem("rb-menu-scroll-y");
     } catch {
       return;
     }
     if (stored === null) return;
     const y = Number(stored);
     if (!Number.isFinite(y) || y <= 0) return;
-    const frame = requestAnimationFrame(() => window.scrollTo({ top: y, behavior: "instant" }));
+    // No borrar la clave hasta aplicar el scroll: en development React Strict Mode
+    // monta→limpia→remonta y cancelaría el rAF dejando el listado arriba.
+    const frame = requestAnimationFrame(() => {
+      window.scrollTo({ top: y, behavior: "instant" });
+      try {
+        sessionStorage.removeItem("rb-menu-scroll-y");
+      } catch {
+        /* ignore */
+      }
+    });
     return () => cancelAnimationFrame(frame);
   }, []);
 

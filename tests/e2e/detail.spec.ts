@@ -27,7 +27,12 @@ test.describe("Detalle de plato", () => {
     await page.evaluate(() => window.scrollTo({ top: 1200, behavior: "instant" }));
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
 
-    await page.getByRole("link", { name: `Ver ${SIMPLE_DISH_NAME}` }).click();
+    const dishLink = page.getByRole("link", { name: `Ver ${SIMPLE_DISH_NAME}` });
+    await dishLink.scrollIntoViewIfNeeded();
+    await Promise.all([
+      page.waitForURL(new RegExp(`/plato/${SIMPLE_DISH_SLUG}`), { timeout: 30_000 }),
+      dishLink.click(),
+    ]);
     await expect(page.getByRole("heading", { level: 1, name: SIMPLE_DISH_NAME })).toBeVisible();
     await page.goBack();
     await expect(page.getByRole("button", { name: "Carnes", exact: true })).toHaveAttribute("aria-pressed", "true");
