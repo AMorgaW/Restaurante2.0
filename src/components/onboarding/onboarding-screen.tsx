@@ -2,23 +2,11 @@
 
 import { m } from "motion/react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 import introImage from "../../../images/inicio.png";
 import { UserEntryButton } from "@/components/navigation/user-entry-button";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 /** Portada permanente: conserva contenido y navegación, con composición editorial. */
 export function OnboardingScreen() {
-  const router = useRouter();
-  const [navigating, setNavigating] = useState(false);
-  const handleStart = () => {
-    if (navigating) return;
-    setNavigating(true);
-    router.push("/menu");
-  };
-
   // La portada debe ser utilizable desde el HTML SSR. Las capas no parten
   // ocultas mientras Motion se hidrata; asÃ­ no hay contenido crÃ­tico con
   // opacity: 0 ni una animaciÃ³n completa que dependa de JavaScript.
@@ -28,10 +16,7 @@ export function OnboardingScreen() {
     <main
       aria-labelledby="onboarding-title"
       data-testid="landing-page"
-      className={cn(
-        "landing-shell min-h-dvh overflow-x-hidden bg-[#01020b] text-white",
-        navigating && "landing-is-leaving",
-      )}
+      className="landing-shell min-h-dvh overflow-x-hidden bg-[#01020b] text-white"
     >
       <div
         className="landing-layout mx-auto grid min-h-dvh w-full max-w-[90rem] grid-cols-1 content-start gap-y-[clamp(0.9rem,2.4dvh,1.35rem)] px-5 pb-[max(env(safe-area-inset-bottom),1.25rem)] pt-[max(env(safe-area-inset-top),1rem)] sm:max-w-2xl sm:px-8 lg:max-w-7xl lg:grid-cols-[minmax(0,0.94fr)_minmax(22rem,0.82fr)] lg:content-center lg:items-center lg:gap-x-[clamp(3rem,7vw,7rem)] lg:gap-y-8 lg:px-12 xl:px-20"
@@ -107,17 +92,23 @@ export function OnboardingScreen() {
           </m.p>
           <div className="mt-[clamp(1.15rem,2.4dvh,1.8rem)] w-full max-w-sm lg:max-w-[28rem]">
             <m.div {...reveal()}>
-              <Button
-                fullWidth
-                type="button"
-                onClick={handleStart}
-                disabled={navigating}
-                aria-busy={navigating}
+              {/*
+                Hard navigation (no next/link soft-nav): router.push + disabled
+                `navigating` dejaba el CTA inerte si ViewTransitions/HMR abortaba.
+                href nativo también responde antes de hidratar.
+              */}
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- full load required; Link soft-nav was the dead-click bug */}
+              <a
+                href="/menu"
                 data-testid="landing-cta"
-                className="landing-cta h-14 rounded-full text-base"
+                className="landing-cta inline-flex h-14 w-full select-none items-center justify-center gap-2 rounded-full bg-action px-6 text-base font-bold text-action-foreground shadow-glow transition-[transform,filter,background-color,border-color] duration-150 hover:brightness-95 active:scale-[0.98] motion-reduce:active:scale-100"
+                onClick={(event) => {
+                  event.preventDefault();
+                  window.location.assign("/menu");
+                }}
               >
                 Comenzar
-              </Button>
+              </a>
             </m.div>
             <m.p
               {...reveal()}

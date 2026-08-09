@@ -2,7 +2,6 @@
 
 import { UserRound } from "lucide-react";
 import type { ButtonHTMLAttributes } from "react";
-import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { PENSION_DEMO_MEMBERSHIPS, PENSION_DEMO_PROFILES } from "@/lib/pension/fixtures";
 import { resolveDemoSession } from "@/lib/session/demo-resolver";
@@ -15,7 +14,6 @@ export function UserEntryButton({
   className,
   ...props
 }: { className?: string } & ButtonHTMLAttributes<HTMLButtonElement>) {
-  const router = useRouter();
   const admin = useAdminStore();
   const pension = usePensionStore();
   const staff = useStaffStore();
@@ -38,15 +36,15 @@ export function UserEntryButton({
         props.onClick?.(event);
         if (!event.defaultPrevented && !props.disabled) {
           if (session.kind !== "anonymous") {
-            router.push("/cuenta");
+            window.location.assign("/cuenta");
             return;
           }
           try {
             const response = await fetch("/auth/state", { cache: "no-store" });
             const state = await response.json() as { authenticated?: boolean };
-            router.push(state.authenticated ? "/cuenta" : "/login");
+            window.location.assign(state.authenticated ? "/cuenta" : "/login");
           } catch {
-            router.push("/login");
+            window.location.assign("/login");
           }
         }
       }}

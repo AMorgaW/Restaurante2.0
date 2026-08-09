@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { type FormEvent, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { safeNextPath } from "@/lib/auth/redirect";
 import { buildPublicSignupMetadata } from "@/lib/auth/signup-metadata";
 import { siteUrl } from "@/lib/env/client";
@@ -34,7 +33,6 @@ export function AuthForm({
   tokenHash?: string;
   unavailableMessage?: string;
 }) {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
@@ -88,8 +86,10 @@ export function AuthForm({
         });
         const resolved = await resolution.json() as { destination?: string };
         if (!resolution.ok || !resolved.destination) throw new Error("session-resolution-failed");
-        router.replace(resolved.destination);
-        router.refresh();
+        // Carga completa tras Auth: la soft-nav (replace+refresh) bajo ViewTransitions
+        // podía quedar pendiente y el formulario se veía "sin respuesta".
+        window.location.assign(resolved.destination);
+        return;
       } else if (mode === "register") {
         const { data: signUpData, error: authError } = await supabase.auth.signUp({
           email,
@@ -109,8 +109,8 @@ export function AuthForm({
           });
           const resolved = await resolution.json() as { destination?: string };
           if (!resolution.ok || !resolved.destination) throw new Error("session-resolution-failed");
-          router.replace(resolved.destination);
-          router.refresh();
+          window.location.assign(resolved.destination);
+          return;
         } else {
           setMessage("Si el correo es válido, recibirás instrucciones para confirmar tu cuenta.");
         }
@@ -130,8 +130,8 @@ export function AuthForm({
         if (!response.ok) throw new Error("password-update-failed");
         setPassword("");
         setConfirmation("");
-        router.replace("/login?message=password-updated");
-        router.refresh();
+        window.location.assign("/login?message=password-updated");
+        return;
       }
     } catch {
       setError("No pudimos completar la operaci\u00f3n. Revisa los datos e int\u00e9ntalo de nuevo.");
@@ -148,20 +148,20 @@ export function AuthForm({
       resetStaffDemo();
       resetPensionDemo();
       loginDemo("owner");
-      router.push("/admin");
+      window.location.assign("/admin");
       return;
     }
     if (kind === "kitchen") {
       resetPensionDemo();
       loginDemo("kitchen");
       setSelectedEmployee("demo-kitchen");
-      router.push("/empleado");
+      window.location.assign("/empleado");
       return;
     }
     useAdminStore.getState().logout();
     resetStaffDemo();
     setDemoProfile(PENSION_DEMO_PROFILES[2]!.id);
-    router.push("/pensionado");
+    window.location.assign("/pensionado");
   }
 
   return (
