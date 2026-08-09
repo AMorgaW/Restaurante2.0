@@ -10,7 +10,14 @@ import {
   Sun,
   Utensils,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  type FormEvent,
+} from "react";
 import { placePensionOrderAction } from "@/app/pensionado/pension-order-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +35,14 @@ import type {
   PensionMenuView,
   PensionMembershipStatus,
 } from "@/server/pension/types";
+
+type PensionOrderFieldErrors = {
+  selection?: string;
+  customerName?: string;
+  customerPhone?: string;
+  customerEmail?: string;
+  street?: string;
+};
 
 const STATUS_VARIANT: Record<
   PensionMembershipStatus | "none",
@@ -315,6 +330,11 @@ function PensionOrderForm({ snapshot }: { snapshot: PensionCustomerSnapshot }) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const idempotencyKeyRef = useRef(crypto.randomUUID());
+  const selectionGroupRef = useRef<HTMLDivElement>(null);
+  const customerNameRef = useRef<HTMLInputElement>(null);
+  const customerPhoneRef = useRef<HTMLInputElement>(null);
+  const customerEmailRef = useRef<HTMLInputElement>(null);
+  const streetRef = useRef<HTMLInputElement>(null);
   const tableQrToken = useTableContextStore((state) => state.tableQrToken);
   const tableCode = useTableContextStore((state) => state.tableCode);
   const hydrateTableContext = useTableContextStore((state) => state.hydrateFromSession);
@@ -330,6 +350,7 @@ function PensionOrderForm({ snapshot }: { snapshot: PensionCustomerSnapshot }) {
   const [details, setDetails] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
   const [notes, setNotes] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<PensionOrderFieldErrors>({});
   const [lastOrder, setLastOrder] = useState<CreatePensionOrderResult | null>(null);
 
   useEffect(() => {
@@ -355,15 +376,95 @@ function PensionOrderForm({ snapshot }: { snapshot: PensionCustomerSnapshot }) {
     Boolean(menu && published && !consumed) &&
     requiredCategories.every((category) => Boolean(selections[category.id]));
 
+  function clearFieldError(key: keyof PensionOrderFieldErrors) {
+    setFieldErrors((current) => {
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  }
+
   function changePeriod(next: PensionMenuPeriod) {
     setPeriod(next);
     setSelections({});
+    clearFieldError("selection");
   }
 
   function choose(categoryId: string, itemId: string) {
     setSelections((current) => ({ ...current, [categoryId]: itemId }));
+    clearFieldError("selection");
   }
 
+  function collectClientErrors(): PensionOrderFieldErrors {
+    const errors: PensionOrderFieldErrors = {};
+    if (!selectionComplete) {
+      errors.selection = "Elige una opción en cada categoría obligatoria.";
+    }
+
+    const trimmedName = customerName.trim();
+    if (!trimmedName) {
+      errors.customerName = "El nombre es obligatorio.";
+    } else if (trimmedName.length < 2) {
+      errors.customerName = "El nombre es demasiado corto.";
+    }
+
+    const trimmedPhone = customerPhone.trim();
+    if (!trimmedPhone) {
+      errors.customerPhone = "El teléfono es obligatorio.";
+    } else if (trimmedPhone.length < 7) {
+      errors.customerPhone = "El teléfono no es válido.";
+    }
+
+    const trimmedEmail = customerEmail.trim();
+    if (!trimmedEmail) {
+      errors.customerEmail = "El correo es obligatorio.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      errors.customerEmail = "El correo no es válido.";
+    }
+
+    if (fulfillmentType === "delivery") {
+      const trimmedStreet = street.trim();
+      if (!trimmedStreet) {
+        errors.street = "La dirección es obligatoria.";
+      } else if (trimmedStreet.length < 4) {
+        errors.street = "La dirección es incompleta.";
+      }
+    }
+
+    return errors;
+  }
+
+  function focusFirstInvalid(errors: PensionOrderFieldErrors) {
+    if (errors.selection) {
+      const firstRequired = requiredCategories.find((category) => !selections[category.id]);
+      const target =
+        (firstRequired
+          ? selectionGroupRef.current?.querySelector<HTMLInputElement>(
+              `input[name="pension-cat-${firstRequired.id}"]:not(:disabled)`,
+            )
+          : null) ?? selectionGroupRef.current?.querySelector<HTMLInputElement>('input[type="radio"]:not(:disabled)');
+      target?.focus();
+      return;
+    }
+    if (errors.customerName) {
+      customerNameRef.current?.focus();
+      return;
+    }
+    if (errors.customerPhone) {
+      customerPhoneRef.current?.focus();
+      return;
+    }
+    if (errors.customerEmail) {
+      customerEmailRef.current?.focus();
+      return;
+    }
+    if (errors.street) {
+      streetRef.current?.focus();
+    }
+  }
+
+  /** Autoridad de creación del pedido; no duplicar lógica aquí. */
   function submit() {
     if (!menu || !selectionComplete) return;
     const pensionMenuItemIds = Object.values(selections);
@@ -402,6 +503,18 @@ function PensionOrderForm({ snapshot }: { snapshot: PensionCustomerSnapshot }) {
     });
   }
 
+  function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (consumed || isPending) return;
+    const errors = collectClientErrors();
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      focusFirstInvalid(errors);
+      return;
+    }
+    submit();
+  }
+
   return (
     <section
       id="menu-plan"
@@ -425,34 +538,6 @@ function PensionOrderForm({ snapshot }: { snapshot: PensionCustomerSnapshot }) {
         <Badge variant="lime">
           <Utensils aria-hidden className="size-4" /> Pedido real
         </Badge>
-      </div>
-
-      <div className="mt-5">
-        <span className="text-sm font-semibold">Periodo</span>
-        <div
-          role="group"
-          aria-label="Periodo del menú"
-          className="mt-1 grid grid-cols-2 rounded-xl border border-border-soft bg-background-secondary p-1"
-        >
-          <button
-            type="button"
-            aria-pressed={period === "lunch"}
-            onClick={() => changePeriod("lunch")}
-            className={`min-h-11 rounded-lg text-sm font-bold focus-visible:outline-2 focus-visible:outline-lime ${period === "lunch" ? "bg-action text-action-foreground" : "text-muted"}`}
-          >
-            <Sun aria-hidden className="mr-1 inline size-4" />
-            Almuerzo
-          </button>
-          <button
-            type="button"
-            aria-pressed={period === "dinner"}
-            onClick={() => changePeriod("dinner")}
-            className={`min-h-11 rounded-lg text-sm font-bold focus-visible:outline-2 focus-visible:outline-lime ${period === "dinner" ? "bg-action text-action-foreground" : "text-muted"}`}
-          >
-            <Moon aria-hidden className="mr-1 inline size-4" />
-            Cena
-          </button>
-        </div>
       </div>
 
       {!commercialDate || !day ? (
@@ -481,186 +566,313 @@ function PensionOrderForm({ snapshot }: { snapshot: PensionCustomerSnapshot }) {
             </div>
           ) : null}
 
-          <div className="mt-5 grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            {menu.categories.map((category) => (
-              <fieldset
-                key={category.id}
-                className="rounded-2xl border border-border-soft bg-background-secondary/40 p-3"
-              >
-                <legend className="px-1 text-sm font-extrabold">
-                  {category.label}{" "}
-                  <span className="text-lime">
-                    {category.isRequired ? "(elige 1)" : "(opcional)"}
-                  </span>
-                </legend>
-                <div className="mt-2 grid gap-2">
-                  {category.items
-                    .filter((item) => item.isAvailable)
-                    .map((item) => {
-                      const selected = selections[category.id] === item.id;
-                      return (
-                        <label
-                          key={item.id}
-                          className={`flex min-h-14 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm ${selected ? "border-lime bg-lime/10" : "border-border-soft bg-surface"} ${consumed ? "opacity-60" : ""}`}
-                        >
-                          <input
-                            type="radio"
-                            name={`pension-cat-${category.id}`}
-                            value={item.id}
-                            checked={selected}
-                            disabled={consumed}
-                            onChange={() => choose(category.id, item.id)}
-                            className="size-4 accent-lime"
-                          />
-                          <span className="min-w-0 flex-1">
-                            <span className="block font-semibold">{item.name}</span>
-                            <span className="block text-xs text-lime">
-                              {item.isIncluded
-                                ? "Incluido"
-                                : `+${formatCurrency(item.surchargeAmount)}`}
-                            </span>
-                          </span>
-                        </label>
-                      );
-                    })}
-                </div>
-              </fieldset>
-            ))}
-          </div>
-
-          <div className="mt-5 grid gap-4 rounded-2xl border border-border-soft bg-background-secondary/40 p-4">
-            {tableQrToken ? (
-              <p className="rounded-xl border border-lime/40 bg-lime/10 px-3 py-2 text-sm font-semibold">
-                Pedido en mesa {tableCode ?? "—"}. Se asociará a la cuenta de la mesa.
-              </p>
-            ) : null}
-            <fieldset>
-              <legend className="text-sm font-extrabold">Entrega</legend>
-              <div className="mt-2 grid gap-2 sm:grid-cols-3">
-                {FULFILLMENT_OPTIONS.map((option) => (
-                  <label
-                    key={option.value}
-                    className={`flex min-h-11 cursor-pointer items-center justify-center rounded-xl border px-3 text-sm font-semibold ${fulfillmentType === option.value ? "border-lime bg-lime/10" : "border-border-soft bg-surface"} ${tableQrToken && option.value !== "local" ? "opacity-45" : ""}`}
-                  >
-                    <input
-                      type="radio"
-                      name="pension-fulfillment"
-                      value={option.value}
-                      checked={fulfillmentType === option.value}
-                      disabled={Boolean(tableQrToken) && option.value !== "local"}
-                      onChange={() => setFulfillmentType(option.value)}
-                      className="sr-only"
-                    />
-                    {option.label}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-
-            {fulfillmentType === "delivery" ? (
+          <form
+            aria-label="Pedido pensionado"
+            className="mt-5 grid gap-5"
+            noValidate
+            onSubmit={handleFormSubmit}
+          >
+            <div>
+              <span className="text-sm font-semibold">Periodo</span>
               <div
-                role="status"
-                className="rounded-xl border border-border-soft bg-surface px-3 py-2 text-sm"
+                role="group"
+                aria-label="Periodo del menú"
+                className="mt-1 grid grid-cols-2 rounded-xl border border-border-soft bg-background-secondary p-1"
               >
-                {typeof snapshot.deliveryFee === "number" ? (
-                  <p>
-                    Fee de domicilio:{" "}
-                    <span className="font-bold">{formatCurrency(snapshot.deliveryFee)}</span>
-                  </p>
-                ) : (
-                  <p className="text-warning">
-                    El fee de domicilio puede no estar configurado. PostgreSQL rechazará el pedido
-                    si falta.
-                  </p>
-                )}
+                <button
+                  type="button"
+                  aria-pressed={period === "lunch"}
+                  onClick={() => changePeriod("lunch")}
+                  className={`min-h-11 rounded-lg text-sm font-bold focus-visible:outline-2 focus-visible:outline-lime ${period === "lunch" ? "bg-action text-action-foreground" : "text-muted"}`}
+                >
+                  <Sun aria-hidden className="mr-1 inline size-4" />
+                  Almuerzo
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={period === "dinner"}
+                  onClick={() => changePeriod("dinner")}
+                  className={`min-h-11 rounded-lg text-sm font-bold focus-visible:outline-2 focus-visible:outline-lime ${period === "dinner" ? "bg-action text-action-foreground" : "text-muted"}`}
+                >
+                  <Moon aria-hidden className="mr-1 inline size-4" />
+                  Cena
+                </button>
               </div>
-            ) : null}
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="text-sm font-semibold">
-                Nombre
-                <input
-                  value={customerName}
-                  onChange={(event) => setCustomerName(event.target.value)}
-                  required
-                  autoComplete="name"
-                  className="mt-1 min-h-11 w-full rounded-xl border border-border-soft bg-surface px-3 font-normal"
-                />
-              </label>
-              <label className="text-sm font-semibold">
-                Teléfono
-                <input
-                  value={customerPhone}
-                  onChange={(event) => setCustomerPhone(event.target.value)}
-                  required
-                  autoComplete="tel"
-                  className="mt-1 min-h-11 w-full rounded-xl border border-border-soft bg-surface px-3 font-normal"
-                />
-              </label>
-              <label className="text-sm font-semibold sm:col-span-2">
-                Correo
-                <input
-                  type="email"
-                  value={customerEmail}
-                  onChange={(event) => setCustomerEmail(event.target.value)}
-                  required
-                  autoComplete="email"
-                  className="mt-1 min-h-11 w-full rounded-xl border border-border-soft bg-surface px-3 font-normal"
-                />
-              </label>
             </div>
 
-            {fulfillmentType === "delivery" ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="text-sm font-semibold sm:col-span-2">
-                  Dirección
-                  <input
-                    value={street}
-                    onChange={(event) => setStreet(event.target.value)}
-                    required
-                    autoComplete="street-address"
-                    className="mt-1 min-h-11 w-full rounded-xl border border-border-soft bg-surface px-3 font-normal"
-                  />
-                </label>
-                <label className="text-sm font-semibold">
-                  Detalles
-                  <input
-                    value={details}
-                    onChange={(event) => setDetails(event.target.value)}
-                    className="mt-1 min-h-11 w-full rounded-xl border border-border-soft bg-surface px-3 font-normal"
-                  />
-                </label>
-                <label className="text-sm font-semibold">
-                  Barrio
-                  <input
-                    value={neighborhood}
-                    onChange={(event) => setNeighborhood(event.target.value)}
-                    className="mt-1 min-h-11 w-full rounded-xl border border-border-soft bg-surface px-3 font-normal"
-                  />
-                </label>
-              </div>
+            <div ref={selectionGroupRef} className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+              {menu.categories.map((category) => {
+                const categoryInvalid =
+                  Boolean(fieldErrors.selection) &&
+                  category.isRequired &&
+                  !selections[category.id];
+                return (
+                  <fieldset
+                    key={category.id}
+                    aria-invalid={categoryInvalid ? true : undefined}
+                    aria-describedby={
+                      categoryInvalid ? "pension-order-selection-error" : undefined
+                    }
+                    className={`rounded-2xl border bg-background-secondary/40 p-3 ${categoryInvalid ? "border-error/60" : "border-border-soft"}`}
+                  >
+                    <legend className="px-1 text-sm font-extrabold">
+                      {category.label}{" "}
+                      <span className="text-lime">
+                        {category.isRequired ? "(elige 1)" : "(opcional)"}
+                      </span>
+                    </legend>
+                    <div className="mt-2 grid gap-2">
+                      {category.items
+                        .filter((item) => item.isAvailable)
+                        .map((item) => {
+                          const selected = selections[category.id] === item.id;
+                          return (
+                            <label
+                              key={item.id}
+                              className={`flex min-h-14 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm ${selected ? "border-lime bg-lime/10" : "border-border-soft bg-surface"} ${consumed ? "opacity-60" : ""}`}
+                            >
+                              <input
+                                type="radio"
+                                name={`pension-cat-${category.id}`}
+                                value={item.id}
+                                checked={selected}
+                                disabled={consumed}
+                                onChange={() => choose(category.id, item.id)}
+                                className="size-4 accent-lime"
+                              />
+                              <span className="min-w-0 flex-1">
+                                <span className="block font-semibold">{item.name}</span>
+                                <span className="block text-xs text-lime">
+                                  {item.isIncluded
+                                    ? "Incluido"
+                                    : `+${formatCurrency(item.surchargeAmount)}`}
+                                </span>
+                              </span>
+                            </label>
+                          );
+                        })}
+                    </div>
+                  </fieldset>
+                );
+              })}
+            </div>
+            {fieldErrors.selection ? (
+              <p
+                id="pension-order-selection-error"
+                role="alert"
+                className="text-[13px] font-medium text-error"
+              >
+                {fieldErrors.selection}
+              </p>
             ) : null}
 
-            <label className="text-sm font-semibold">
-              Notas
-              <textarea
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                rows={3}
-                className="mt-1 w-full rounded-xl border border-border-soft bg-surface px-3 py-2 font-normal"
-              />
-            </label>
+            <div className="grid gap-4 rounded-2xl border border-border-soft bg-background-secondary/40 p-4">
+              {tableQrToken ? (
+                <p className="rounded-xl border border-lime/40 bg-lime/10 px-3 py-2 text-sm font-semibold">
+                  Pedido en mesa {tableCode ?? "—"}. Se asociará a la cuenta de la mesa.
+                </p>
+              ) : null}
+              <fieldset>
+                <legend className="text-sm font-extrabold">Entrega</legend>
+                <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                  {FULFILLMENT_OPTIONS.map((option) => (
+                    <label
+                      key={option.value}
+                      className={`flex min-h-11 cursor-pointer items-center justify-center rounded-xl border px-3 text-sm font-semibold ${fulfillmentType === option.value ? "border-lime bg-lime/10" : "border-border-soft bg-surface"} ${tableQrToken && option.value !== "local" ? "opacity-45" : ""}`}
+                    >
+                      <input
+                        type="radio"
+                        name="pension-fulfillment"
+                        value={option.value}
+                        checked={fulfillmentType === option.value}
+                        disabled={Boolean(tableQrToken) && option.value !== "local"}
+                        onChange={() => {
+                          setFulfillmentType(option.value);
+                          if (option.value !== "delivery") clearFieldError("street");
+                        }}
+                        className="sr-only"
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
 
-            <Button
-              fullWidth
-              size="lg"
-              className="sm:w-auto"
-              disabled={!selectionComplete || consumed || isPending}
-              onClick={submit}
-            >
-              {isPending ? "Enviando…" : "Confirmar pedido pensionado"}
-            </Button>
-          </div>
+              {fulfillmentType === "delivery" ? (
+                <div
+                  role="status"
+                  className="rounded-xl border border-border-soft bg-surface px-3 py-2 text-sm"
+                >
+                  {typeof snapshot.deliveryFee === "number" ? (
+                    <p>
+                      Fee de domicilio:{" "}
+                      <span className="font-bold">{formatCurrency(snapshot.deliveryFee)}</span>
+                    </p>
+                  ) : (
+                    <p className="text-warning">
+                      El fee de domicilio puede no estar configurado. PostgreSQL rechazará el pedido
+                      si falta.
+                    </p>
+                  )}
+                </div>
+              ) : null}
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-sm font-semibold" htmlFor="pension-customer-name">
+                  Nombre
+                  <input
+                    id="pension-customer-name"
+                    ref={customerNameRef}
+                    value={customerName}
+                    onChange={(event) => {
+                      setCustomerName(event.target.value);
+                      clearFieldError("customerName");
+                    }}
+                    required
+                    autoComplete="name"
+                    aria-invalid={fieldErrors.customerName ? true : undefined}
+                    aria-describedby={
+                      fieldErrors.customerName ? "pension-customer-name-error" : undefined
+                    }
+                    className={`mt-1 min-h-11 w-full rounded-xl border bg-surface px-3 font-normal ${fieldErrors.customerName ? "border-error/60" : "border-border-soft"}`}
+                  />
+                  {fieldErrors.customerName ? (
+                    <span
+                      id="pension-customer-name-error"
+                      role="alert"
+                      className="mt-1 block text-[13px] font-medium text-error"
+                    >
+                      {fieldErrors.customerName}
+                    </span>
+                  ) : null}
+                </label>
+                <label className="text-sm font-semibold" htmlFor="pension-customer-phone">
+                  Teléfono
+                  <input
+                    id="pension-customer-phone"
+                    ref={customerPhoneRef}
+                    value={customerPhone}
+                    onChange={(event) => {
+                      setCustomerPhone(event.target.value);
+                      clearFieldError("customerPhone");
+                    }}
+                    required
+                    autoComplete="tel"
+                    aria-invalid={fieldErrors.customerPhone ? true : undefined}
+                    aria-describedby={
+                      fieldErrors.customerPhone ? "pension-customer-phone-error" : undefined
+                    }
+                    className={`mt-1 min-h-11 w-full rounded-xl border bg-surface px-3 font-normal ${fieldErrors.customerPhone ? "border-error/60" : "border-border-soft"}`}
+                  />
+                  {fieldErrors.customerPhone ? (
+                    <span
+                      id="pension-customer-phone-error"
+                      role="alert"
+                      className="mt-1 block text-[13px] font-medium text-error"
+                    >
+                      {fieldErrors.customerPhone}
+                    </span>
+                  ) : null}
+                </label>
+                <label className="text-sm font-semibold sm:col-span-2" htmlFor="pension-customer-email">
+                  Correo
+                  <input
+                    id="pension-customer-email"
+                    ref={customerEmailRef}
+                    type="email"
+                    value={customerEmail}
+                    onChange={(event) => {
+                      setCustomerEmail(event.target.value);
+                      clearFieldError("customerEmail");
+                    }}
+                    required
+                    autoComplete="email"
+                    aria-invalid={fieldErrors.customerEmail ? true : undefined}
+                    aria-describedby={
+                      fieldErrors.customerEmail ? "pension-customer-email-error" : undefined
+                    }
+                    className={`mt-1 min-h-11 w-full rounded-xl border bg-surface px-3 font-normal ${fieldErrors.customerEmail ? "border-error/60" : "border-border-soft"}`}
+                  />
+                  {fieldErrors.customerEmail ? (
+                    <span
+                      id="pension-customer-email-error"
+                      role="alert"
+                      className="mt-1 block text-[13px] font-medium text-error"
+                    >
+                      {fieldErrors.customerEmail}
+                    </span>
+                  ) : null}
+                </label>
+              </div>
+
+              {fulfillmentType === "delivery" ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="text-sm font-semibold sm:col-span-2" htmlFor="pension-street">
+                    Dirección
+                    <input
+                      id="pension-street"
+                      ref={streetRef}
+                      value={street}
+                      onChange={(event) => {
+                        setStreet(event.target.value);
+                        clearFieldError("street");
+                      }}
+                      required
+                      autoComplete="street-address"
+                      aria-invalid={fieldErrors.street ? true : undefined}
+                      aria-describedby={fieldErrors.street ? "pension-street-error" : undefined}
+                      className={`mt-1 min-h-11 w-full rounded-xl border bg-surface px-3 font-normal ${fieldErrors.street ? "border-error/60" : "border-border-soft"}`}
+                    />
+                    {fieldErrors.street ? (
+                      <span
+                        id="pension-street-error"
+                        role="alert"
+                        className="mt-1 block text-[13px] font-medium text-error"
+                      >
+                        {fieldErrors.street}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="text-sm font-semibold">
+                    Detalles
+                    <input
+                      value={details}
+                      onChange={(event) => setDetails(event.target.value)}
+                      className="mt-1 min-h-11 w-full rounded-xl border border-border-soft bg-surface px-3 font-normal"
+                    />
+                  </label>
+                  <label className="text-sm font-semibold">
+                    Barrio
+                    <input
+                      value={neighborhood}
+                      onChange={(event) => setNeighborhood(event.target.value)}
+                      className="mt-1 min-h-11 w-full rounded-xl border border-border-soft bg-surface px-3 font-normal"
+                    />
+                  </label>
+                </div>
+              ) : null}
+
+              <label className="text-sm font-semibold">
+                Notas
+                <textarea
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  rows={3}
+                  className="mt-1 w-full rounded-xl border border-border-soft bg-surface px-3 py-2 font-normal"
+                />
+              </label>
+
+              <Button
+                type="submit"
+                fullWidth
+                size="lg"
+                className="sm:w-auto"
+                disabled={consumed || isPending}
+              >
+                {isPending ? "Enviando…" : "Confirmar pedido pensionado"}
+              </Button>
+            </div>
+          </form>
         </>
       )}
 
