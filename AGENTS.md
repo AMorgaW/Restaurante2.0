@@ -6,6 +6,8 @@ Brisas del Sinú es un **sistema web responsive** (URL en navegador: móvil, tab
 
 **Estado de etapa (baseline funcional `79ebd2b`):** 11B-1…11B-7 **CLOSED** · 11C-1 **CLOSED** · 11C-2 **CLOSED** · 11C-3 **CLOSED** · **11C-4 PENDING** · **Compuerta B PENDING** (no iniciada).
 
+**Admin UX (2026-08-10, local):** refinamiento de chrome Admin cerrado en `a8b3850` (marca Brisas del Sinú, nav scroller, avisos en campana, progressive disclosure mesas/empleados/pensionados, inventario con filtros colapsables, UI de una sola sede sin Promociones en nav). `branch_id`/RLS/promotions domain se conservan. **EMPLOYEE CREATION AUTH BLOCKER:** no hay invite Auth seguro en producto; CTA visible con submit deshabilitado (sin fingir Zustand). Checkout customer P7 deferred.
+
 ## Orden de lectura
 
 1. `AGENTS.md`.

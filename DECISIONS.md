@@ -25,6 +25,10 @@ STATUS for all listed: **accepted/active**.
 | D-016 | DATA_MODE strict, no fallback | Fail closed beats silent hybrid | `supabase` empty → empty UI; errors are real | #9, #92 |
 | D-017 | Stripe dormant in product flow | Manual payments cover MVP | Coexistence in SQL; no active Stripe checkout path | #74, #99 |
 | D-018 | Remote migrations remain `0001`–`0009` until Compuerta B | Local `0010`–`0014` not pushed | No `db push` of 0010–0014 without explicit gate | migrations section |
+| D-019 | Admin single-branch chrome + hide Promociones nav | One active sede; no redundant branch/promo choice in Admin | Keep `branch_id`/RLS/`staff_branch_permissions`/promotions config; inject canonical branch server-side | Admin UX 2026-08-10 |
+| D-020 | Employee Auth create blocked in product UI | No safe Auth invite path without privileged server architecture | CTA may disclose form; submit disabled; no Zustand fake create | EMPLOYEE CREATION AUTH BLOCKER |
+
+104. **Admin UX refinement (2026-08-10)** — Local commits `46ab302`…`a8b3850`. Brand Admin = Brisas del Sinú; avisos en campana (cerrar ≠ atender); mesas/inventario/empleados/pensionados progressive disclosure; plan mensual demo public price 500000 COP (provision `.codex/demo/` + plan upsert); VENCIDO derivado por fecha sin auto-suspend; sin nav Sucursales/Promociones en Admin. Sin migrations nuevas. Customer checkout P7 deferred.
 
 103. **Cierre documental pre-auditoría (2026-08-09)** — Baseline funcional `79ebd2b`.
 11B CLOSED; 11C-1/2/3 CLOSED; 11C-4 y Compuerta B PENDING. Canonical D-001…D-018

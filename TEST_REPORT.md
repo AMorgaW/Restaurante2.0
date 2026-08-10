@@ -10,6 +10,13 @@
 
 **Do not rerun full regression automatically during read-only audit unless a new CRITICAL/HIGH requires directed proof.**
 
+## Admin UX refinement (2026-08-10)
+
+- HEAD: `a8b3850` — `fix: estabiliza experiencia admin refinada` (after waves 1–4)
+- Directed: typecheck PASS · eslint touched PASS · inventory/admin-management/pension-admin/authorization Vitest PASS · browser smoke desktop+375 PASS (brand, nav chevrons, bell, mesas, filtros, empleados BLOCKER, pensionados $500.000, no Sucursales/Promociones)
+- EMPLOYEE CREATION AUTH BLOCKER: documented; no fake Auth create
+- No full e2e / pgTAP / db reset / remote
+
 ## 11C-1 Precheck
 
 Executed against HEAD `754485e` (pre–E2E stabilization). Result: **PRECHECK 11C OK**.

@@ -22,6 +22,8 @@ Sales: local/table, pickup, delivery. **No reservations.**
 | 11C-4 | **PENDING** |
 | Compuerta B | **PENDING** (not started) |
 
+Admin UX refinement (local, 2026-08-10): **CLOSED** at `a8b3850` — single-branch Admin chrome, notification bell, progressive create dialogs, pension plan display $500.000, EMPLOYEE CREATION AUTH BLOCKER documented. Customer checkout P7 and Compuerta B not started.
+
 Next task for Codex: **independent pre-11C-4 audit** (read-only unless a new CRITICAL/HIGH needs directed proof).
 
 ## Git baseline
