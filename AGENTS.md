@@ -123,4 +123,4 @@ Sin autorización explícita están prohibidos `supabase link`, `supabase db pus
 
 ## Graphify
 
-El mapa regenerado está en `graphify-out/` y está **ignorado por Git**. Comando canónico: `graphify update .`. Consultas: `graphify query` / `path` / `explain`; contraste siempre con el código. Última regeneración documentada: **2622 nodos · 6979 aristas · 181 comunidades**. No versionar con `git add -f`.
+El mapa regenerado está en `graphify-out/` y está **ignorado por Git**. Comando canónico: `graphify update .`. Consultas: `graphify query` / `path` / `explain`; contraste siempre con el código. Última regeneración documentada: **2646 nodos · 7060 aristas · 175 comunidades**. No versionar con `git add -f`.
