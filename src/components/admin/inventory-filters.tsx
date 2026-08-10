@@ -121,14 +121,14 @@ export function InventoryFilters({
                 ))}
               </SelectField>
               <div className="md:col-span-4">
-                <label htmlFor="inventory-activity" className="text-sm font-semibold text-foreground">
+                <p id="inventory-activity-label" className="text-sm font-semibold text-foreground">
                   Actividad
-                </label>
+                </p>
                 <div
                   id="inventory-activity"
                   className="mt-1.5 flex flex-wrap gap-2"
                   role="group"
-                  aria-label="Filtrar actividad"
+                  aria-labelledby="inventory-activity-label"
                 >
                   {(["all", "active", "inactive"] as const).map((activity) => (
                     <button

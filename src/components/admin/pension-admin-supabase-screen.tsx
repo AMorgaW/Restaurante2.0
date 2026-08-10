@@ -1020,6 +1020,7 @@ export function PensionAdminSupabaseScreen({
                 <li key={hit.id}>
                   <button
                     type="button"
+                    aria-pressed={customerId === hit.id}
                     onClick={() => setCustomerId(hit.id)}
                     className={`w-full rounded-xl border px-3 py-2 text-left text-sm ${customerId === hit.id ? "border-lime bg-lime/10" : "border-border-soft bg-background-secondary/50"}`}
                   >

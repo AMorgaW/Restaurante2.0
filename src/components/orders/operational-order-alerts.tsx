@@ -147,10 +147,13 @@ function OperationalOrderBell({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
-  const closePanel = useCallback(() => {
+  const closePanel = useCallback((restoreFocus = true) => {
     setOpen(false);
-    // Restore focus to the bell; closing must not attend/mutate orders.
-    queueMicrotask(() => triggerRef.current?.focus());
+    // Restore focus for Escape/close; outside dismiss must not steal the new target.
+    // Closing must not attend/mutate orders.
+    if (restoreFocus) {
+      queueMicrotask(() => triggerRef.current?.focus());
+    }
   }, []);
 
   useEffect(() => {
@@ -159,14 +162,14 @@ function OperationalOrderBell({
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        closePanel();
+        closePanel(true);
       }
     };
     const onPointerDown = (event: MouseEvent | PointerEvent) => {
       const target = event.target;
       if (!(target instanceof Node)) return;
       if (rootRef.current && !rootRef.current.contains(target)) {
-        closePanel();
+        closePanel(false);
       }
     };
 
@@ -263,7 +266,7 @@ function OperationalOrderBell({
                 ref={closeRef}
                 type="button"
                 aria-label="Cerrar avisos"
-                onClick={closePanel}
+                onClick={() => closePanel(true)}
                 className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-white/8 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
               >
                 <X aria-hidden className="size-4" />
@@ -295,7 +298,7 @@ function OperationalOrderBell({
                 ordersHref={ordersHref}
                 pendingCount={pendingCount}
                 showsPendingAlerts={showsPendingAlerts}
-                onNavigate={closePanel}
+                onNavigate={() => closePanel(true)}
               />
             </div>
           </m.div>

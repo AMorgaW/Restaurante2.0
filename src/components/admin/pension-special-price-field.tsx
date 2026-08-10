@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
+import { useId, useRef } from "react";
 import { filterReveal, pickVariants } from "@/components/motion/variants";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format/currency";
@@ -25,6 +26,8 @@ export function PensionSpecialPriceField({
   allowSurcharge?: boolean;
 }) {
   const reduced = useReducedMotion() ?? false;
+  const panelId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
   const parsed = Number(agreedPrice);
   const invalid =
     agreedPrice.trim() !== "" &&
@@ -32,6 +35,11 @@ export function PensionSpecialPriceField({
       !Number.isInteger(parsed) ||
       parsed < 0 ||
       (!allowSurcharge && parsed > publicPrice));
+
+  function openSpecial() {
+    onSpecialOpenChange(true);
+    queueMicrotask(() => inputRef.current?.focus());
+  }
 
   return (
     <div className="grid gap-3">
@@ -47,7 +55,9 @@ export function PensionSpecialPriceField({
           type="button"
           variant="secondary"
           size="sm"
-          onClick={() => onSpecialOpenChange(true)}
+          aria-expanded={false}
+          aria-controls={panelId}
+          onClick={openSpecial}
         >
           Aplicar precio especial
         </Button>
@@ -56,6 +66,8 @@ export function PensionSpecialPriceField({
           type="button"
           variant="ghost"
           size="sm"
+          aria-expanded={true}
+          aria-controls={panelId}
           onClick={() => onSpecialOpenChange(false)}
         >
           Ocultar precio especial
@@ -64,6 +76,7 @@ export function PensionSpecialPriceField({
       <AnimatePresence initial={false}>
         {specialOpen ? (
           <m.div
+            id={panelId}
             key="special-price"
             initial="hidden"
             animate="visible"
@@ -73,6 +86,7 @@ export function PensionSpecialPriceField({
             <label className="text-sm font-semibold">
               Precio acordado
               <input
+                ref={inputRef}
                 type="number"
                 min={0}
                 step={1}

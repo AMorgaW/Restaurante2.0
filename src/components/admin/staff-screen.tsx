@@ -352,7 +352,11 @@ export function StaffScreen() {
             <Button type="button" variant="secondary" onClick={closeDialog}>
               Cerrar
             </Button>
-            <Button type="submit" disabled title="EMPLOYEE CREATION AUTH BLOCKER">
+            <Button
+              type="submit"
+              disabled
+              title="La creación de empleados requiere un flujo Auth aún no disponible"
+            >
               Crear empleado
             </Button>
           </div>

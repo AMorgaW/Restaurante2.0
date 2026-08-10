@@ -33,6 +33,17 @@ function readEdges(el: HTMLElement | null): ScrollEdges {
   };
 }
 
+function edgesEqual(a: ScrollEdges, b: ScrollEdges): boolean {
+  return a.overflow === b.overflow && a.canLeft === b.canLeft && a.canRight === b.canRight;
+}
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
 /**
  * Mobile horizontal admin nav with overflow affordance.
  * Desktop (md+) stays a plain vertical list — no scroller chrome.
@@ -45,6 +56,7 @@ export function AdminNavScroller({
   className?: string;
 }) {
   const scrollerRef = useRef<HTMLUListElement>(null);
+  const rafRef = useRef<number | null>(null);
   const [edges, setEdges] = useState<ScrollEdges>({
     overflow: false,
     canLeft: false,
@@ -52,8 +64,18 @@ export function AdminNavScroller({
   });
 
   const updateEdges = useCallback(() => {
-    setEdges(readEdges(scrollerRef.current));
+    const next = readEdges(scrollerRef.current);
+    setEdges((prev) => (edgesEqual(prev, next) ? prev : next));
   }, []);
+
+  /** Coalesce scroll/resize/observer noise to one read per frame. */
+  const scheduleUpdate = useCallback(() => {
+    if (rafRef.current != null) return;
+    rafRef.current = window.requestAnimationFrame(() => {
+      rafRef.current = null;
+      updateEdges();
+    });
+  }, [updateEdges]);
 
   useEffect(() => {
     const el = scrollerRef.current;
@@ -61,30 +83,41 @@ export function AdminNavScroller({
 
     updateEdges();
 
-    const onScroll = () => updateEdges();
-    el.addEventListener("scroll", onScroll, { passive: true });
+    el.addEventListener("scroll", scheduleUpdate, { passive: true });
 
-    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateEdges) : null;
+    const ro =
+      typeof ResizeObserver !== "undefined" ? new ResizeObserver(scheduleUpdate) : null;
     ro?.observe(el);
 
-    const mo = typeof MutationObserver !== "undefined" ? new MutationObserver(updateEdges) : null;
-    mo?.observe(el, { childList: true, subtree: true, characterData: true });
+    // childList is enough for nav item mount/unmount; avoid characterData thrash.
+    const mo =
+      typeof MutationObserver !== "undefined"
+        ? new MutationObserver(scheduleUpdate)
+        : null;
+    mo?.observe(el, { childList: true, subtree: true });
 
-    window.addEventListener("resize", updateEdges);
+    window.addEventListener("resize", scheduleUpdate);
 
     return () => {
-      el.removeEventListener("scroll", onScroll);
+      el.removeEventListener("scroll", scheduleUpdate);
       ro?.disconnect();
       mo?.disconnect();
-      window.removeEventListener("resize", updateEdges);
+      window.removeEventListener("resize", scheduleUpdate);
+      if (rafRef.current != null) {
+        window.cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
     };
-  }, [updateEdges]);
+  }, [scheduleUpdate, updateEdges]);
 
   const scrollByPage = (direction: -1 | 1) => {
     const el = scrollerRef.current;
     if (!el) return;
     const delta = Math.max(120, el.clientWidth * SCROLL_STEP_RATIO) * direction;
-    el.scrollBy({ left: delta, behavior: "smooth" });
+    el.scrollBy({
+      left: delta,
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+    });
   };
 
   return (
