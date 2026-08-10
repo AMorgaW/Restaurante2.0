@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
-import { branches } from "@/config/restaurant";
 import {
   getStaffRoleLabel,
   getStaffStatusLabel,
@@ -33,7 +32,7 @@ const DEMO_NOW = "2026-08-04T12:00:00-05:00";
 const EMPLOYEE_CREATION_AUTH_BLOCKER =
   "El alta real de empleados (Auth + perfil + rol) aún no está disponible desde este panel. Se necesita un flujo privilegiado servidor preparado; no se simula con datos locales.";
 
-type DialogState = "create" | "role" | "branch" | "status" | null;
+type DialogState = "create" | "role" | "status" | null;
 
 export function StaffScreen() {
   const { toast } = useToast();
@@ -43,7 +42,6 @@ export function StaffScreen() {
   const selectedEmployeeId = useStaffStore((state) => state.selectedEmployeeId);
   const setSelectedEmployee = useStaffStore((state) => state.setSelectedEmployee);
   const changeRole = useStaffStore((state) => state.changeRole);
-  const assignBranches = useStaffStore((state) => state.assignBranches);
   const setStatus = useStaffStore((state) => state.setStatus);
   const [filters, setFilters] = useState<StaffFilters>({
     search: "",
@@ -53,7 +51,6 @@ export function StaffScreen() {
   });
   const [dialog, setDialog] = useState<DialogState>(null);
   const [nextRole, setNextRole] = useState<EmployeeRole>("manager");
-  const [nextBranches, setNextBranches] = useState<string[]>([]);
   const [nextStatus, setNextStatus] = useState<StaffStatus>("active");
   const [reason, setReason] = useState("");
   const [createName, setCreateName] = useState("");
@@ -77,7 +74,6 @@ export function StaffScreen() {
     setSelectedEmployee(member.id);
     setDialog(next);
     setNextRole(member.role === "owner" || member.role === "admin" ? "manager" : member.role);
-    setNextBranches(member.branchIds);
     setNextStatus(member.status === "active" ? "suspended" : "active");
     setReason("");
   }
@@ -130,7 +126,7 @@ export function StaffScreen() {
             <BriefcaseBusiness aria-hidden className="size-7 text-lime" /> Empleados
           </h1>
           <p className="mt-2 max-w-xl text-sm text-muted">
-            Cargos, estado y sucursales del equipo. Suspender o reactivar no crea cuentas Auth.
+            Cargos y estado del equipo. Suspender o reactivar no crea cuentas Auth.
           </p>
         </div>
         {canManage ? (
@@ -261,11 +257,6 @@ export function StaffScreen() {
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Badge variant="lime">{getStaffRoleLabel(member.role)}</Badge>
-                  {member.branchNames.map((name) => (
-                    <Badge key={name} variant="muted">
-                      {name}
-                    </Badge>
-                  ))}
                 </div>
                 <p className="mt-3 text-xs leading-relaxed text-muted">
                   Capacidades:{" "}
@@ -278,13 +269,6 @@ export function StaffScreen() {
                     <>
                       <Button size="sm" variant="secondary" onClick={() => openManageDialog("role", member)}>
                         Cambiar cargo
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => openManageDialog("branch", member)}
-                      >
-                        Asignar sucursal
                       </Button>
                       <Button
                         size="sm"
@@ -313,7 +297,7 @@ export function StaffScreen() {
         open={dialog === "create"}
         onOpenChange={(open) => !open && closeDialog()}
         title="Crear empleado"
-        description="El empleado quedaría activo al crearse. La sucursal se asigna en el servidor."
+        description="El empleado quedaría activo al crearse. La asignación operativa se resuelve en el servidor."
       >
         <form
           className="flex flex-col gap-4"
@@ -378,13 +362,7 @@ export function StaffScreen() {
       <Dialog
         open={Boolean(dialog && dialog !== "create" && selected)}
         onOpenChange={(open) => !open && closeDialog()}
-        title={
-          dialog === "role"
-            ? "Cambiar cargo"
-            : dialog === "branch"
-              ? "Asignar sucursal"
-              : "Actualizar estado"
-        }
+        title={dialog === "role" ? "Cambiar cargo" : "Actualizar estado"}
         description="Los cambios de gestión conservan staff_status (activo, suspendido o inactivo)."
       >
         {selected && dialog === "role" ? (
@@ -409,45 +387,6 @@ export function StaffScreen() {
               }
             >
               Guardar cargo
-            </Button>
-          </div>
-        ) : null}
-        {selected && dialog === "branch" ? (
-          <div className="flex flex-col gap-4">
-            <fieldset>
-              <legend className="text-sm font-semibold">Sucursales asignadas</legend>
-              <div className="mt-2 grid gap-2">
-                {branches.map((branch) => (
-                  <label
-                    key={branch.id}
-                    className="flex min-h-11 items-center gap-3 rounded-xl border border-border-soft px-3"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={nextBranches.includes(branch.id)}
-                      onChange={(event) =>
-                        setNextBranches((current) =>
-                          event.target.checked
-                            ? [...current, branch.id]
-                            : current.filter((id) => id !== branch.id),
-                        )
-                      }
-                      className="size-4 accent-lime"
-                    />
-                    {branch.name}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            <Button
-              onClick={() =>
-                run(
-                  () => assignBranches(selected.id, nextBranches, role, "demo-jefe", DEMO_NOW),
-                  "Sucursales actualizadas",
-                )
-              }
-            >
-              Guardar sucursales
             </Button>
           </div>
         ) : null}

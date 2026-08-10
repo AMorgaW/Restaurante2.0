@@ -7,6 +7,13 @@ import {
 } from "@/lib/admin/authorization";
 
 describe("matriz administrativa deny-by-default", () => {
+  it("oculta sucursales y promociones del producto admin (ruta no promovida)", () => {
+    for (const role of ["owner", "admin", "manager", "editor"] as const) {
+      expect(canAccessAdminPath(role, "/admin/sucursales")).toBe(false);
+      expect(canAccessAdminPath(role, "/admin/promociones")).toBe(false);
+    }
+  });
+
   it("limita editor al catalogo y excluye operaciones sensibles", () => {
     expect(canAccessAdminPath("editor", "/admin/platos")).toBe(true);
     expect(canAccessAdminPath("editor", "/admin/categorias")).toBe(true);

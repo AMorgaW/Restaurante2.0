@@ -86,7 +86,21 @@ export function getAdminSectionForPath(pathname: string): AdminSection | null {
   return null;
 }
 
+/**
+ * Paths kept for domain/routes but not promoted in admin product UX
+ * (single-branch operation; marketing deferred from admin chrome).
+ */
+function isHiddenAdminProductPath(pathname: string): boolean {
+  return (
+    pathname === "/admin/sucursales" ||
+    pathname.startsWith("/admin/sucursales/") ||
+    pathname === "/admin/promociones" ||
+    pathname.startsWith("/admin/promociones/")
+  );
+}
+
 export function canAccessAdminPath(role: AdminRole | null | undefined, pathname: string): boolean {
+  if (isHiddenAdminProductPath(pathname)) return false;
   const section = getAdminSectionForPath(pathname);
   return section !== null && canAccessAdminSection(role, section);
 }

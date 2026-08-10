@@ -134,7 +134,9 @@ export function PensionAdminSupabaseScreen({
   const [createOpen, setCreateOpen] = useState(false);
 
   const draftKeyRef = useRef(newKey());
-  const [menuBranchId, setMenuBranchId] = useState(snapshot.branches[0]?.id ?? "");
+  /** Single-branch admin UX: inject sole/canonical branch; no selector. */
+  const canonicalBranch = snapshot.branches[0] ?? null;
+  const menuBranchId = canonicalBranch?.id ?? "";
   const [menuServiceDate, setMenuServiceDate] = useState(todayIso());
   const [menuPeriod, setMenuPeriod] = useState<PensionMenuPeriod>("lunch");
   const [menuNote, setMenuNote] = useState("");
@@ -149,9 +151,9 @@ export function PensionAdminSupabaseScreen({
   const [itemOrder, setItemOrder] = useState("0");
 
   const feeKeyRef = useRef(newKey());
-  const [feeBranchId, setFeeBranchId] = useState(snapshot.branches[0]?.id ?? "");
+  const feeBranchId = canonicalBranch?.id ?? "";
   const [feeAmount, setFeeAmount] = useState(
-    String(snapshot.branches[0]?.deliveryFee ?? ""),
+    String(canonicalBranch?.deliveryFee ?? ""),
   );
 
   const filteredMemberships = useMemo(() => {
@@ -602,7 +604,7 @@ export function PensionAdminSupabaseScreen({
         </p>
 
         {snapshot.menus.length === 0 ? (
-          <p className="mt-4 text-sm text-muted">No hay menús cargados para la sucursal.</p>
+          <p className="mt-4 text-sm text-muted">No hay menús cargados.</p>
         ) : (
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {snapshot.menus.map((menu) => (
@@ -658,20 +660,6 @@ export function PensionAdminSupabaseScreen({
             <div className="grid gap-3">
               <h3 className="font-bold">Guardar borrador</h3>
               <label className="text-sm font-semibold">
-                Sucursal
-                <select
-                  value={menuBranchId}
-                  onChange={(event) => setMenuBranchId(event.target.value)}
-                  className="mt-1 min-h-11 w-full rounded-xl border border-border-soft bg-background-secondary px-3 font-normal"
-                >
-                  {snapshot.branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm font-semibold">
                 Fecha
                 <input
                   type="date"
@@ -702,7 +690,7 @@ export function PensionAdminSupabaseScreen({
                   className="mt-1 min-h-11 w-full rounded-xl border border-border-soft bg-background-secondary px-3 font-normal"
                 />
               </label>
-              <Button disabled={isPending} onClick={submitMenuDraft}>
+              <Button disabled={isPending || !menuBranchId} onClick={submitMenuDraft}>
                 Guardar borrador
               </Button>
             </div>
@@ -813,48 +801,18 @@ export function PensionAdminSupabaseScreen({
         <p className="mt-1 text-sm text-muted">
           Fee de domicilio del plan pensionado.
         </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {snapshot.branches.map((branch) => (
-            <div
-              key={branch.id}
-              className="rounded-2xl border border-border-soft bg-background-secondary/40 p-3 text-sm"
-            >
-              <p className="font-bold">{branch.name}</p>
-              <p className="mt-1 text-muted">
-                Actual:{" "}
-                {typeof branch.deliveryFee === "number"
-                  ? formatCurrency(branch.deliveryFee)
-                  : "Sin configurar"}
-              </p>
-            </div>
-          ))}
+        <div className="mt-4 rounded-2xl border border-border-soft bg-background-secondary/40 p-3 text-sm">
+          <p className="text-muted">
+            Actual:{" "}
+            <span className="font-bold text-foreground">
+              {typeof canonicalBranch?.deliveryFee === "number"
+                ? formatCurrency(canonicalBranch.deliveryFee)
+                : "Sin configurar"}
+            </span>
+          </p>
         </div>
         {canManage ? (
-          <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-            <label className="text-sm font-semibold">
-              Sucursal
-              <select
-                value={feeBranchId}
-                onChange={(event) => {
-                  setFeeBranchId(event.target.value);
-                  const branch = snapshot.branches.find(
-                    (candidate) => candidate.id === event.target.value,
-                  );
-                  setFeeAmount(
-                    branch?.deliveryFee !== null && branch?.deliveryFee !== undefined
-                      ? String(branch.deliveryFee)
-                      : "",
-                  );
-                }}
-                className="mt-1 min-h-11 w-full rounded-xl border border-border-soft bg-background-secondary px-3 font-normal"
-              >
-                {snapshot.branches.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
             <label className="text-sm font-semibold">
               Fee (unidades menores)
               <input
@@ -866,7 +824,7 @@ export function PensionAdminSupabaseScreen({
               />
             </label>
             <div className="flex items-end">
-              <Button disabled={isPending} onClick={submitDeliveryFee}>
+              <Button disabled={isPending || !feeBranchId} onClick={submitDeliveryFee}>
                 Guardar fee
               </Button>
             </div>

@@ -75,7 +75,7 @@ export function DiningTablesAdminScreen({
   function handleCreate(event: FormEvent) {
     event.preventDefault();
     if (!canCreate) {
-      toast({ title: "No hay sucursal disponible", variant: "error" });
+      toast({ title: "No se puede crear la mesa ahora", variant: "error" });
       return;
     }
     startTransition(async () => {
@@ -181,7 +181,7 @@ export function DiningTablesAdminScreen({
 
       {!canCreate && !loadError ? (
         <p role="status" className="rounded-card border border-warning/30 bg-warning/8 px-4 py-3 text-sm text-warning">
-          No hay sucursal activa para crear mesas. Revisa la configuración del restaurante.
+          No hay configuración operativa para crear mesas. Revisa la configuración del restaurante.
         </p>
       ) : null}
 

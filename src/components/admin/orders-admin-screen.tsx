@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
-import { branches } from "@/config/restaurant";
 import { formatCurrency } from "@/lib/format/currency";
 import { useMounted } from "@/hooks/use-mounted";
 import { useAdminStore } from "@/stores/admin";
@@ -124,7 +123,6 @@ export function OrdersAdminScreen({
       ) : (
         <ul className="flex flex-col gap-4">
           {orders.map((order) => {
-            const branch = branches.find((candidate) => candidate.id === order.branchId);
             const allowedStatuses = allowedOrderStatusTransitions(role, order.status);
             return (
               <li key={order.id} className="rounded-card border border-border-soft bg-surface p-4">
@@ -138,7 +136,7 @@ export function OrdersAdminScreen({
                   </Badge>
                 </div>
                 <p className="mt-1 text-[13px] text-muted">
-                  {new Date(order.createdAt).toLocaleString("es-CO")} · {branch?.name ?? "—"} ·{" "}
+                  {new Date(order.createdAt).toLocaleString("es-CO")} ·{" "}
                   {order.fulfillmentType === "pickup"
                     ? "Recogida"
                     : order.fulfillmentType === "local"

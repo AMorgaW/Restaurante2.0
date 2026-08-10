@@ -332,11 +332,11 @@ function DishEditor({
               />
             </div>
             <div className="flex items-center justify-between gap-2 rounded-xl bg-white/4 px-3 py-2.5">
-              <span className="text-[13px] font-semibold">Disponible en sucursal</span>
+              <span className="text-[13px] font-semibold">Disponible</span>
               <Toggle
                 checked={item.branchAvailable ?? item.available}
                 disabled={!canEditMenu || pending}
-                label={`Disponibilidad en sucursal de ${item.fullName}`}
+                label={`Disponibilidad de ${item.fullName}`}
                 onChange={(next) => {
                   runRemote(async () => {
                     const result = await upsertBranchCommerceAction({
@@ -346,7 +346,7 @@ function DishEditor({
                     });
                     if (
                       reportResult(result, toast, {
-                        title: next ? "Plato activado en sucursal" : "Plato no disponible en sucursal",
+                        title: next ? "Plato activado" : "Plato no disponible",
                         description: item.fullName,
                       })
                     ) {
@@ -389,7 +389,7 @@ function DishEditor({
         <div className="mt-3 flex items-end gap-2">
           <div className="flex-1">
             <label htmlFor={`precio-${item.slug}`} className="text-[13px] font-semibold text-muted">
-              Precio (COP){mode === "supabase" ? " · sucursal" : ""}
+              Precio (COP)
             </label>
             <input
               id={`precio-${item.slug}`}
@@ -509,7 +509,7 @@ export function DishesScreen({
         <p className="mt-1 text-sm text-muted">
           {mode === "local"
             ? "Los cambios afectan la tienda de este navegador (modo demo local)."
-            : "Los cambios se guardan en PostgreSQL con la sesión autenticada y RLS. «Activo en catálogo» es global; precio y «Disponible en sucursal» aplican solo a la sucursal configurada."}
+            : "Los cambios se guardan en PostgreSQL con la sesión autenticada y RLS. «Activo en catálogo» es global; precio y disponibilidad comercial aplican a la operación configurada."}
         </p>
       </header>
 

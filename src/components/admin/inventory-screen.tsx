@@ -193,7 +193,7 @@ export function InventoryScreen({
                 <h3 className="font-bold">No encontramos insumos</h3>
                 <p className="mt-1 text-sm text-muted">
                   {mode === "supabase"
-                    ? "No hay insumos visibles para tu sucursal, o el filtro no coincide."
+                    ? "No hay insumos visibles, o el filtro no coincide."
                     : "Prueba otro filtro o agrega un insumo local."}
                 </p>
               </div>

@@ -4,12 +4,10 @@ import {
   Armchair,
   LayoutDashboard,
   LogOut,
-  MapPin,
   PackageSearch,
   ReceiptText,
   Settings,
   ShieldCheck,
-  Sparkles,
   Tags,
   UtensilsCrossed,
   UserRoundCog,
@@ -34,6 +32,7 @@ import { resetPensionDemo } from "@/stores/pension";
 
 const ADMIN_BRAND_NAME = "Brisas del Sinú";
 
+/** Product nav only. Sucursales/promociones stay in routes for domain, not promoted. */
 const NAV = [
   { href: "/admin", label: "Resumen", icon: LayoutDashboard, exact: true },
   { href: "/admin/platos", label: "Platos", icon: UtensilsCrossed, exact: false },
@@ -43,8 +42,6 @@ const NAV = [
   { href: "/admin/pensionados", label: "Pensionados", icon: UserRoundCog, exact: false },
   { href: "/admin/pedidos", label: "Pedidos", icon: ReceiptText, exact: false },
   { href: "/admin/mesas", label: "Mesas", icon: Armchair, exact: false },
-  { href: "/admin/sucursales", label: "Sucursales", icon: MapPin, exact: false },
-  { href: "/admin/promociones", label: "Promociones", icon: Sparkles, exact: false },
   { href: "/admin/configuracion", label: "Configuración", icon: Settings, exact: false },
 ] as const;
 

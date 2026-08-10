@@ -33,7 +33,7 @@ export default async function AdminDishesPage() {
       return (
         <EmptyState
           title="Catálogo vacío"
-          description="No hay platos publicados para administrar en esta sucursal."
+          description="No hay platos publicados para administrar."
         />
       );
     }

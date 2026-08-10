@@ -240,7 +240,11 @@ export async function changePensionMembershipStatus(input: unknown): Promise<str
 export async function savePensionMenuDraft(input: unknown): Promise<string> {
   await requirePensionManager();
   const parsed = parseOrThrow(savePensionMenuDraftSchema, input);
-  return new SupabasePensionRepository().saveMenuDraft(parsed);
+  const branchId = parsed.branchId ?? (await resolveCanonicalDiningBranchId());
+  if (!branchId) {
+    throw new PensionPersistenceError("No hay sucursal activa disponible.", "validation", 400);
+  }
+  return new SupabasePensionRepository().saveMenuDraft({ ...parsed, branchId });
 }
 
 export async function upsertPensionMenuItem(input: unknown): Promise<string> {
@@ -264,7 +268,11 @@ export async function closePensionMenu(input: unknown): Promise<string> {
 export async function setPensionDeliveryFee(input: unknown): Promise<number> {
   await requirePensionManager();
   const parsed = parseOrThrow(setPensionDeliveryFeeSchema, input);
-  return new SupabasePensionRepository().setDeliveryFee(parsed);
+  const branchId = parsed.branchId ?? (await resolveCanonicalDiningBranchId());
+  if (!branchId) {
+    throw new PensionPersistenceError("No hay sucursal activa disponible.", "validation", 400);
+  }
+  return new SupabasePensionRepository().setDeliveryFee({ ...parsed, branchId });
 }
 
 export async function searchPensionCustomers(query: string) {

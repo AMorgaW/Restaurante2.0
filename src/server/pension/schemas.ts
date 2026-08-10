@@ -51,7 +51,7 @@ export const changePensionMembershipStatusSchema = z.object({
 });
 
 export const savePensionMenuDraftSchema = z.object({
-  branchId: z.string().trim().min(1, "La sucursal es obligatoria."),
+  branchId: z.string().trim().min(1).optional(),
   serviceDate: dateOnly,
   period,
   note: z.string().trim().max(500).optional(),
@@ -80,7 +80,7 @@ export const publishPensionMenuSchema = z.object({
 export const closePensionMenuSchema = publishPensionMenuSchema;
 
 export const setPensionDeliveryFeeSchema = z.object({
-  branchId: z.string().trim().min(1, "La sucursal es obligatoria."),
+  branchId: z.string().trim().min(1).optional(),
   fee: z.number().int().min(0, "El fee no puede ser negativo."),
   idempotencyKey: uuid,
 });
