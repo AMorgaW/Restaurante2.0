@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CircleAlert, QrCode, RefreshCw } from "lucide-react";
+import { ArrowLeft, CircleAlert, Plus, QrCode, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition, type FormEvent } from "react";
@@ -14,7 +14,7 @@ import { TableQrCode, buildTableQrUrl } from "@/components/dining-tables/table-q
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { SelectField, TextField } from "@/components/ui/form-field";
+import { TextField } from "@/components/ui/form-field";
 import { EmptyState } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { formatCurrency } from "@/lib/format/currency";
@@ -38,25 +38,30 @@ export function DiningTablesAdminScreen({
   tables,
   loadError,
   role,
-  branchOptions,
+  canCreate,
 }: {
   tables: DiningTableListItem[];
   loadError: string | null;
   role: AdminTablesRole;
-  branchOptions: Array<{ id: string; label: string }>;
+  canCreate: boolean;
 }) {
   const router = useRouter();
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
 
+  const [createOpen, setCreateOpen] = useState(false);
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
-  const [branchId, setBranchId] = useState(branchOptions[0]?.id ?? "");
   const [credential, setCredential] = useState<DiningTableQrCredential | null>(null);
   const [credentialName, setCredentialName] = useState<string | null>(null);
   const [rotateTarget, setRotateTarget] = useState<DiningTableListItem | null>(null);
 
   const pendingTableIdRef = useRef<string | null>(null);
+
+  function resetCreateForm() {
+    setCode("");
+    setName("");
+  }
 
   function showCredential(data: DiningTableQrCredential, nameHint?: string | null) {
     setCredential(data);
@@ -69,13 +74,13 @@ export function DiningTablesAdminScreen({
 
   function handleCreate(event: FormEvent) {
     event.preventDefault();
-    if (!branchId) {
-      toast({ title: "Elige una sucursal", variant: "error" });
+    if (!canCreate) {
+      toast({ title: "No hay sucursal disponible", variant: "error" });
       return;
     }
     startTransition(async () => {
+      // branch_id lo resuelve el servidor (sucursal canónica); no se envía desde el cliente.
       const result = await createDiningTableAction({
-        branchId,
         code: code.trim(),
         name: name.trim() || null,
       });
@@ -84,9 +89,10 @@ export function DiningTablesAdminScreen({
         return;
       }
       toast({ title: "Mesa creada", variant: "success" });
-      setCode("");
-      setName("");
-      showCredential(result.data, name.trim() || null);
+      const nameHint = name.trim() || null;
+      resetCreateForm();
+      setCreateOpen(false);
+      showCredential(result.data, nameHint);
       router.refresh();
     });
   }
@@ -150,15 +156,32 @@ export function DiningTablesAdminScreen({
             <QrCode aria-hidden className="size-7 text-lime" /> Mesas
           </h1>
           <p className="mt-2 max-w-xl text-sm text-muted">
-            Crea mesas, imprime QR y gestiona cuentas abiertas. Rol: {role === "owner" ? "propietario" : "administrador"}.
+            Crea mesas, imprime QR y gestiona cuentas abiertas. Rol:{" "}
+            {role === "owner" ? "propietario" : "administrador"}.
           </p>
         </div>
-        <Badge variant="lime">{tables.length} mesas</Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="lime">{tables.length} mesas</Badge>
+          <Button
+            type="button"
+            size="md"
+            disabled={!canCreate}
+            onClick={() => setCreateOpen(true)}
+          >
+            <Plus aria-hidden className="size-4" /> Crear mesa
+          </Button>
+        </div>
       </header>
 
       {loadError ? (
         <p role="alert" className="rounded-card border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">
           {loadError}
+        </p>
+      ) : null}
+
+      {!canCreate && !loadError ? (
+        <p role="status" className="rounded-card border border-warning/30 bg-warning/8 px-4 py-3 text-sm text-warning">
+          No hay sucursal activa para crear mesas. Revisa la configuración del restaurante.
         </p>
       ) : null}
 
@@ -200,58 +223,6 @@ export function DiningTablesAdminScreen({
           </div>
         </section>
       ) : null}
-
-      <section
-        aria-labelledby="crear-mesa-titulo"
-        className="rounded-card border border-border-soft bg-surface p-5"
-      >
-        <h2 id="crear-mesa-titulo" className="text-lg font-bold">
-          Nueva mesa
-        </h2>
-        <form onSubmit={handleCreate} className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <TextField
-            label="Código"
-            name="code"
-            value={code}
-            onChange={(event) => setCode(event.target.value)}
-            required
-            maxLength={32}
-            placeholder="M1"
-            autoComplete="off"
-          />
-          <TextField
-            label="Nombre (opcional)"
-            name="name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            maxLength={80}
-            placeholder="Terraza 1"
-            autoComplete="off"
-          />
-          <SelectField
-            label="Sucursal"
-            name="branchId"
-            value={branchId}
-            onChange={(event) => setBranchId(event.target.value)}
-            required
-          >
-            {branchOptions.length === 0 ? (
-              <option value="">Sin sucursales</option>
-            ) : (
-              branchOptions.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.label}
-                </option>
-              ))
-            )}
-          </SelectField>
-          <div className="flex items-end">
-            <Button type="submit" size="md" fullWidth loading={isPending} disabled={!branchId || isPending}>
-              Crear mesa
-            </Button>
-          </div>
-        </form>
-      </section>
 
       {tables.length === 0 && !loadError ? (
         <EmptyState
@@ -349,6 +320,57 @@ export function DiningTablesAdminScreen({
           Vista operativa de mesas
         </Link>
       </p>
+
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          if (!open && !isPending) {
+            setCreateOpen(false);
+            resetCreateForm();
+          }
+        }}
+        title="Crear mesa"
+        description="Asigna un código y, si quieres, un nombre visible para el equipo."
+      >
+        <form onSubmit={handleCreate} className="grid gap-4">
+          <TextField
+            label="Código"
+            name="code"
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+            required
+            maxLength={32}
+            placeholder="M1"
+            autoComplete="off"
+          />
+          <TextField
+            label="Nombre (opcional)"
+            name="name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            maxLength={80}
+            placeholder="Terraza 1"
+            autoComplete="off"
+          />
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="secondary"
+              size="md"
+              disabled={isPending}
+              onClick={() => {
+                setCreateOpen(false);
+                resetCreateForm();
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" size="md" loading={isPending} disabled={!canCreate || isPending}>
+              Crear mesa
+            </Button>
+          </div>
+        </form>
+      </Dialog>
 
       <Dialog
         open={rotateTarget !== null}

@@ -8,6 +8,7 @@ import {
 } from "@/lib/admin/authorization";
 import { getResolvedDataMode } from "@/lib/env/server";
 import { resolveServerSession } from "@/lib/session/server-resolver";
+import { resolveCanonicalDiningBranchId } from "@/server/dining-tables/canonical-branch";
 import { DiningTablesError } from "@/server/dining-tables/errors";
 import {
   LocalDiningTablesRepository,
@@ -32,7 +33,8 @@ const READ_ROLES = new Set<AdminRole>(["owner", "admin", "manager", "cashier"]);
 const uuid = z.string().uuid("Identificador inválido.");
 
 const createTableSchema = z.object({
-  branchId: uuid,
+  /** Ignorado: la sucursal canónica se resuelve en servidor. */
+  branchId: uuid.optional(),
   code: z.string().trim().min(1, "Escribe el código de la mesa.").max(32),
   name: z.string().trim().max(80).optional().nullable(),
 });
@@ -135,7 +137,15 @@ export async function createDiningTable(raw: unknown): Promise<DiningTableQrCred
       "validation",
     );
   }
-  return getDiningTablesRepository().createDiningTable(parsed.data);
+  const branchId = await resolveCanonicalDiningBranchId();
+  if (!branchId) {
+    throw new DiningTablesError("No hay sucursal activa disponible.", "validation");
+  }
+  return getDiningTablesRepository().createDiningTable({
+    branchId,
+    code: parsed.data.code,
+    name: parsed.data.name ?? null,
+  });
 }
 
 export async function setDiningTableActive(raw: unknown): Promise<void> {

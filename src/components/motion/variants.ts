@@ -59,6 +59,13 @@ export const reducedFade: Variants = {
   exit: { opacity: 0, transition: { duration: 0.1 } },
 };
 
+/** Revelado corto de paneles (filtros): opacity + translate pequeño, sin height. */
+export const filterReveal: Variants = {
+  hidden: { opacity: 0, y: -6 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.2, ease: EASE_OUT } },
+  exit: { opacity: 0, y: -4, transition: { duration: 0.16, ease: EASE_IN } },
+};
+
 /** Selecciona variantes según la preferencia de movimiento. */
 export function pickVariants(reduced: boolean, full: Variants): Variants {
   return reduced ? reducedFade : full;

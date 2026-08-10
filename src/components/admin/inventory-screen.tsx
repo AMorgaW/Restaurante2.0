@@ -98,7 +98,7 @@ export function InventoryScreen({
       closeDialog();
       toast({
         title: action === "receive" ? "Cantidad ingresada" : action === "waste" ? "Merma registrada" : "Cantidad ajustada",
-        description: "Movimiento registrado en PostgreSQL.",
+        description: "Movimiento registrado en el inventario del restaurante.",
         variant: "success",
       });
       router.refresh();
@@ -116,21 +116,23 @@ export function InventoryScreen({
             <ArrowLeft aria-hidden className="size-4" /> Volver al dashboard
           </Link>
           <p className="mt-5 text-xs font-extrabold uppercase tracking-[0.16em] text-lime">
-            Brisas del Sinú · Panel administrativo
+            Brisas del Sinú · Administración
           </p>
           <h1 className="mt-1 flex items-center gap-2 text-3xl font-extrabold tracking-tight">
             <PackageSearch aria-hidden className="size-7 text-lime" /> Inventario
           </h1>
           <p className="mt-2 max-w-xl text-sm text-muted">
             {mode === "supabase"
-              ? "Insumos y existencias reales de PostgreSQL. Recepción, ajuste y merma usan apply_inventory_movement; el alta/edición de insumos no tiene RPC segura aún."
+              ? "Insumos y existencias del restaurante. Registra entradas, ajustes y mermas."
               : "Control de insumos y existencias. Las operaciones de esta etapa son locales y demostrativas."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-lime/40 bg-lime/10 px-3 py-1.5 text-xs font-bold text-lime">
-            {mode === "supabase" ? "Supabase" : "Demo local"}
-          </span>
+          {mode === "local" ? (
+            <span className="rounded-full border border-border-soft bg-white/6 px-3 py-1.5 text-xs font-bold text-muted">
+              Demo local
+            </span>
+          ) : null}
           {mode === "local" ? (
             <Button size="md" onClick={() => open("add")}>
               <Plus aria-hidden className="size-4" /> Agregar insumo
@@ -191,7 +193,7 @@ export function InventoryScreen({
                 <h3 className="font-bold">No encontramos insumos</h3>
                 <p className="mt-1 text-sm text-muted">
                   {mode === "supabase"
-                    ? "La base no tiene insumos visibles para tu sucursal, o el filtro no coincide."
+                    ? "No hay insumos visibles para tu sucursal, o el filtro no coincide."
                     : "Prueba otro filtro o agrega un insumo local."}
                 </p>
               </div>
@@ -200,7 +202,7 @@ export function InventoryScreen({
 
           <p className="rounded-2xl border border-border-soft bg-white/4 px-4 py-3 text-xs leading-relaxed text-muted">
             {mode === "supabase"
-              ? "El consumo por entrega ocurre solo al pasar un pedido a delivered en PostgreSQL. No hay motor de inventario en Node/React. La creación/edición de insumos y la reversión de consumos quedan fuera de esta UI hasta existir primitiva/UX dedicada."
+              ? "El stock se descuenta al entregar un pedido. La creación y edición de insumos aún no está disponible en esta pantalla."
               : "Los movimientos compactos se conservan como demostración local. No hay sincronización remota en modo local."}
           </p>
         </>
@@ -260,7 +262,7 @@ export function InventoryScreen({
         title={dialog === "receive" ? "Ingresar cantidad" : dialog === "waste" ? "Registrar merma" : "Ajustar cantidad"}
         description={
           mode === "supabase"
-            ? "Confirma el movimiento; PostgreSQL aplica el ledger vía apply_inventory_movement."
+            ? "Confirma el movimiento para actualizar el inventario del restaurante."
             : "Confirma la operación para conservar el historial demo."
         }
       >
