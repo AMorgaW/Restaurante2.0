@@ -5,14 +5,20 @@ import { cn } from "@/lib/utils";
 /**
  * Identidad tipográfica de la marca (sin logotipo externo): icono de
  * llama + nombre configurable del restaurante.
+ * `name` opcional solo sobreescribe la etiqueta visible (p. ej. admin);
+ * el default de cara al cliente sigue siendo `restaurantConfig.name`.
  */
 export function BrandMark({
   size = "md",
   className,
+  name,
 }: {
   size?: "sm" | "md" | "lg";
   className?: string;
+  /** Etiqueta visible opcional; no altera `restaurantConfig`. */
+  name?: string;
 }) {
+  const label = name ?? restaurantConfig.name;
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
       <span
@@ -37,7 +43,7 @@ export function BrandMark({
           size === "lg" && "text-3xl",
         )}
       >
-        {restaurantConfig.name}
+        {label}
       </span>
     </span>
   );

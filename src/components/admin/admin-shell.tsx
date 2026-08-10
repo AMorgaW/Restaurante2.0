@@ -19,6 +19,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { BrandMark } from "@/components/layout/brand-mark";
+import { AdminNavScroller } from "@/components/admin/admin-nav-scroller";
 import { AdminRoleProvider } from "@/components/admin/admin-role-context";
 import { OperationalOrderAlerts } from "@/components/orders/operational-order-alerts";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +31,8 @@ import { cn } from "@/lib/utils";
 import { useAdminStore, type AdminRole } from "@/stores/admin";
 import { resetStaffDemo } from "@/stores/staff";
 import { resetPensionDemo } from "@/stores/pension";
+
+const ADMIN_BRAND_NAME = "Brisas del Sinú";
 
 const NAV = [
   { href: "/admin", label: "Resumen", icon: LayoutDashboard, exact: true },
@@ -88,6 +91,8 @@ export function AdminShell({
     resetPensionDemo();
   }
   const canAccessCurrentPath = canAccessAdminPath(activeRole, pathname);
+  const showOrderBell =
+    mode === "supabase" && dataMode === "supabase" && canPollOperationalOrders(activeRole);
 
   if (!mounted) {
     return (
@@ -116,7 +121,7 @@ export function AdminShell({
   if (mode === "local" && !activeRole) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-6 px-5 py-10">
-        <BrandMark size="md" />
+        <BrandMark size="md" name={ADMIN_BRAND_NAME} />
         <div className="w-full max-w-md rounded-card border border-border-soft bg-surface p-5">
           <div className="flex items-center gap-2">
             <ShieldCheck aria-hidden className="size-6 text-lime" />
@@ -169,9 +174,19 @@ export function AdminShell({
       <SkipLink />
       <aside className="border-b border-border-soft bg-background-secondary/70 md:sticky md:top-0 md:h-dvh md:w-64 md:shrink-0 md:border-b-0 md:border-r">
         <div className="flex items-center justify-between gap-2 px-4 py-3 md:flex-col md:items-start md:gap-4 md:py-5">
-          <Link href="/admin" aria-label="Resumen del panel">
-            <BrandMark size="sm" />
-          </Link>
+          <div className="flex min-w-0 items-center gap-2">
+            <Link href="/admin" aria-label="Resumen del panel" className="min-w-0">
+              <BrandMark size="sm" name={ADMIN_BRAND_NAME} />
+            </Link>
+            {showOrderBell ? (
+              <OperationalOrderAlerts
+                role={activeRole}
+                enabled
+                ordersHref="/admin/pedidos"
+                variant="bell"
+              />
+            ) : null}
+          </div>
           <div className="flex items-center gap-2 md:w-full md:justify-between">
             <Badge variant="lime">
               {mode === "local" ? "Demo · " : "Supabase · "}
@@ -197,7 +212,7 @@ export function AdminShell({
           </div>
         </div>
         <nav aria-label="Secciones de administración" className="px-2 pb-2 md:px-3">
-          <ul className="no-scrollbar flex gap-1 overflow-x-auto md:flex-col md:overflow-visible">
+          <AdminNavScroller>
             {NAV.filter((item) => canAccessAdminPath(activeRole, item.href)).map((item) => {
               const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
               const Icon = item.icon;
@@ -217,24 +232,10 @@ export function AdminShell({
                 </li>
               );
             })}
-          </ul>
+          </AdminNavScroller>
         </nav>
       </aside>
       <main id="contenido" className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 md:px-8">
-        {mode === "supabase" ? (
-          <p role="status" className="mb-4 rounded-xl border border-border-soft bg-white/4 px-3 py-2 text-xs font-semibold text-muted">
-            {dataMode === "local"
-              ? "Auth verificada con Supabase; los datos operativos de este panel siguen siendo demo locales."
-              : "Auth verificada con Supabase; las mutaciones remotas no habilitadas fallan de forma cerrada."}
-          </p>
-        ) : null}
-        {mode === "supabase" && dataMode === "supabase" && canPollOperationalOrders(activeRole) ? (
-          <OperationalOrderAlerts
-            role={activeRole}
-            enabled
-            ordersHref="/admin/pedidos"
-          />
-        ) : null}
         {children}
       </main>
       </div>
