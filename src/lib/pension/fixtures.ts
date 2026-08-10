@@ -6,11 +6,11 @@ export const PENSION_DEMO_BRANCH_ID = "branch-centro";
 
 export const PENSION_DEMO_PLAN: PensionPlan = {
   id: "plan-pension-demo",
-  name: "Plan Pensionado Demo",
-  description: "Menú diario de demostración con selección por periodo y beneficios sujetos a activación presencial.",
-  publicPrice: 300000,
+  name: "Plan mensual",
+  description: "Plan calendario de 30 días (almuerzo y cena diarios) con activación presencial.",
+  publicPrice: 500000,
   currency: "COP",
-  modality: "hybrid",
+  modality: "calendar_period",
   lunchesIncluded: 1,
   dinnersIncluded: 1,
   totalMeals: 30,
@@ -29,11 +29,11 @@ export const PENSION_DEMO_PROFILES: PensionDemoProfile[] = [
 ];
 
 export const PENSION_DEMO_MEMBERSHIPS: PensionMembership[] = [
-  { id: "membership-pending", profileId: "customer-pending", planId: PENSION_DEMO_PLAN.id, status: "pending", publicPrice: 300000, agreedPrice: 284000, discount: 16000, paymentMethod: "in_person", paymentDate: "2026-08-03", observations: "Pago recibido presencialmente; pendiente de activación.", demoOnly: true },
-  { id: "membership-active", profileId: "customer-active", planId: PENSION_DEMO_PLAN.id, status: "active", publicPrice: 300000, agreedPrice: 284000, discount: 16000, paymentMethod: "in_person", paymentDate: "2026-08-01", startsAt: "2026-08-01", expiresAt: "2026-08-30", mealsAvailable: 22, observations: "Fixture demo: la modalidad híbrida no constituye la regla comercial definitiva.", activatedAt: "2026-08-01T09:00:00-05:00", activatedBy: "demo-jefe", demoOnly: true },
-  { id: "membership-suspended", profileId: "customer-suspended", planId: PENSION_DEMO_PLAN.id, status: "suspended", publicPrice: 300000, agreedPrice: 290000, discount: 10000, paymentMethod: "in_person", paymentDate: "2026-07-28", startsAt: "2026-07-28", expiresAt: "2026-08-26", mealsAvailable: 12, suspensionReason: "Revisión presencial pendiente.", demoOnly: true },
-  { id: "membership-expired", profileId: "customer-expired", planId: PENSION_DEMO_PLAN.id, status: "expired", publicPrice: 300000, agreedPrice: 300000, discount: 0, paymentMethod: "in_person", paymentDate: "2026-06-01", startsAt: "2026-06-01", expiresAt: "2026-06-30", mealsAvailable: 0, demoOnly: true },
-  { id: "membership-cancelled", profileId: "customer-cancelled", planId: PENSION_DEMO_PLAN.id, status: "cancelled", publicPrice: 300000, agreedPrice: 285000, discount: 15000, paymentMethod: "in_person", paymentDate: "2026-07-01", startsAt: "2026-07-01", expiresAt: "2026-07-30", mealsAvailable: 4, demoOnly: true },
+  { id: "membership-pending", profileId: "customer-pending", planId: PENSION_DEMO_PLAN.id, status: "pending", publicPrice: 500000, agreedPrice: 450000, discount: 50000, paymentMethod: "in_person", paymentDate: "2026-08-03", observations: "Pago recibido presencialmente; pendiente de activación.", demoOnly: true },
+  { id: "membership-active", profileId: "customer-active", planId: PENSION_DEMO_PLAN.id, status: "active", publicPrice: 500000, agreedPrice: 450000, discount: 50000, paymentMethod: "in_person", paymentDate: "2026-08-01", startsAt: "2026-08-01", expiresAt: "2026-08-30", modality: "calendar_period", mealsAvailable: 22, observations: "Plan mensual calendario: ends_at = starts_at + 29.", activatedAt: "2026-08-01T09:00:00-05:00", activatedBy: "demo-jefe", demoOnly: true },
+  { id: "membership-suspended", profileId: "customer-suspended", planId: PENSION_DEMO_PLAN.id, status: "suspended", publicPrice: 500000, agreedPrice: 480000, discount: 20000, paymentMethod: "in_person", paymentDate: "2026-07-28", startsAt: "2026-07-28", expiresAt: "2026-08-26", modality: "calendar_period", mealsAvailable: 12, suspensionReason: "Revisión presencial pendiente.", demoOnly: true },
+  { id: "membership-expired", profileId: "customer-expired", planId: PENSION_DEMO_PLAN.id, status: "expired", publicPrice: 500000, agreedPrice: 500000, discount: 0, paymentMethod: "in_person", paymentDate: "2026-06-01", startsAt: "2026-06-01", expiresAt: "2026-06-30", modality: "calendar_period", mealsAvailable: 0, demoOnly: true },
+  { id: "membership-cancelled", profileId: "customer-cancelled", planId: PENSION_DEMO_PLAN.id, status: "cancelled", publicPrice: 500000, agreedPrice: 470000, discount: 30000, paymentMethod: "in_person", paymentDate: "2026-07-01", startsAt: "2026-07-01", expiresAt: "2026-07-30", modality: "calendar_period", mealsAvailable: 4, demoOnly: true },
 ];
 
 const currentSoup = menuItems.find((item) => item.id === "sopa-de-maiz-con-arroz-y-frijoles");

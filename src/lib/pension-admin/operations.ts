@@ -98,3 +98,82 @@ export function cancelPensionMembership(membership: PensionMembership, actor: Pe
   if (!reason.trim()) throw new PensionAdminDomainError("reason_required", "La razón de cancelación es obligatoria.");
   return { ...membership, status: "cancelled", observations: `${membership.observations ?? ""} Cancelada: ${reason.trim()}`.trim() };
 }
+
+/** Calendar period: ends_at = starts_at + 29 days (30 calendar days inclusive). */
+export function calendarPeriodEndsAt(startsAt: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startsAt)) {
+    throw new PensionAdminDomainError("invalid_dates", "La fecha de inicio es inválida.");
+  }
+  const date = new Date(`${startsAt}T12:00:00`);
+  date.setDate(date.getDate() + 29);
+  return date.toISOString().slice(0, 10);
+}
+
+export function createAndActivatePensionMembership(
+  profile: PensionDemoProfile | null,
+  plan: PensionPlan,
+  actor: PensionAdminActor,
+  input: PensionCycleInput,
+  existing: PensionMembership[],
+): PensionMembership {
+  requireOwner(actor);
+  if (!profile || profile.role !== "customer") {
+    throw new PensionAdminDomainError("profile_invalid", "La membresía debe pertenecer a un customer válido.");
+  }
+  if (!plan.isActive) throw new PensionAdminDomainError("plan_invalid", "El plan no está activo.");
+  const blocking = existing.find(
+    (membership) =>
+      membership.profileId === profile.id &&
+      (membership.status === "pending" ||
+        membership.status === "active" ||
+        membership.status === "suspended"),
+  );
+  if (blocking) {
+    throw new PensionAdminDomainError(
+      "invalid_state",
+      "Ese cliente ya tiene una membresía pendiente, activa o suspendida.",
+    );
+  }
+  const startsAt = input.startsAt;
+  const expiresAt = calendarPeriodEndsAt(startsAt);
+  const cycleInput: PensionCycleInput = {
+    ...input,
+    modality: "calendar_period",
+    expiresAt,
+    publicPrice: plan.publicPrice,
+    agreedPrice: input.agreedPrice,
+    confirmed: true,
+  };
+  validateDates(cycleInput, plan);
+  const payment = paymentPatch({ ...cycleInput, publicPrice: plan.publicPrice });
+  const id = `membership-${profile.id}-${actor.now.slice(0, 10)}`;
+  const cycle: PensionMembershipCycle = {
+    id: `cycle-${id}-1`,
+    startsAt,
+    modality: "calendar_period",
+    expiresAt,
+    ...payment,
+    createdAt: actor.now,
+    createdBy: actor.id,
+    demoOnly: true,
+  };
+  return {
+    id,
+    profileId: profile.id,
+    planId: plan.id,
+    status: "active",
+    modality: "calendar_period",
+    startsAt,
+    expiresAt,
+    activatedAt: actor.now,
+    activatedBy: actor.id,
+    demoOnly: true,
+    paymentMethod: payment.paymentMethod,
+    paymentDate: payment.paymentDate,
+    publicPrice: payment.publicPrice,
+    agreedPrice: payment.agreedPrice,
+    discount: payment.discount,
+    ...(payment.paymentReference ? { paymentReference: payment.paymentReference } : {}),
+    cycles: [cycle],
+  };
+}

@@ -34,21 +34,33 @@ describe("gestión administrativa local", () => {
     renderAdmin(<PensionAdminScreen />);
     expect(screen.getByRole("heading", { name: "Pensionados" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Activar pensionado" })).not.toBeInTheDocument();
-    expect(screen.getByText(/Consulta operativa/)).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Crear pensionado" })).not.toBeInTheDocument();
   });
 
   it("permite activación a admin (misma capacidad que owner en contrato DB)", () => {
     useAdminStore.setState({ demoRole: "admin" });
     renderAdmin(<PensionAdminScreen />);
-    expect(screen.getByRole("button", { name: "Activar pensionado" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Crear pensionado" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Crear pensionado" }));
+    expect(screen.getByRole("heading", { name: "Crear pensionado" })).toBeVisible();
   });
 
   it("presenta el flujo de pago y activación al owner", () => {
     renderAdmin(<PensionAdminScreen />);
+    expect(screen.getByRole("button", { name: "Crear pensionado" })).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Registrar pago" }));
     expect(screen.getByRole("heading", { name: "Registrar pago presencial" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Guardar pago presencial" })).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Cerrar" }));
     expect(screen.getByRole("button", { name: "Activar pensionado" })).toBeVisible();
+  });
+
+  it("abre Crear empleado con bloqueo Auth y sin alta simulada", () => {
+    renderAdmin(<StaffScreen />);
+    fireEvent.click(screen.getByRole("button", { name: "Crear empleado" }));
+    expect(screen.getByRole("heading", { name: "Crear empleado" })).toBeVisible();
+    expect(screen.getByText(/aún no está disponible desde este panel/i)).toBeVisible();
+    const createButtons = screen.getAllByRole("button", { name: "Crear empleado" });
+    expect(createButtons.some((button) => (button as HTMLButtonElement).disabled)).toBe(true);
   });
 });

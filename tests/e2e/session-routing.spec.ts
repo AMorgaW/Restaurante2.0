@@ -31,7 +31,7 @@ test.describe("login demo y destinos canónicos", () => {
     await expect(customer).toBeEnabled();
     await Promise.all([page.waitForURL(/\/pensionado$/), customer.click()]);
     await expect(page.getByText("Perfil demo local")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Plan Pensionado Demo" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Plan mensual" })).toBeVisible();
   });
 
   test("el siguiente destino no acepta un host externo", async ({ page }) => {

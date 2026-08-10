@@ -14,7 +14,8 @@ const dateOnly = z
 export const createAndActivatePensionMembershipSchema = z.object({
   customerId: uuid,
   planId: uuid,
-  branchId: z.string().trim().min(1, "La sucursal es obligatoria."),
+  /** Optional: injected server-side from canonical branch when omitted. */
+  branchId: z.string().trim().min(1, "La sucursal es obligatoria.").optional(),
   agreedPrice: z.number().int().min(0, "El precio acordado no puede ser negativo."),
   paymentMethod,
   paymentReference: z.string().trim().max(120).optional(),

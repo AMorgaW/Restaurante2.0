@@ -4,6 +4,7 @@ import { restaurantConfig } from "@/config/restaurant";
 import { adminRoleCan, isAdminRole } from "@/lib/admin/authorization";
 import { getResolvedDataMode } from "@/lib/env/server";
 import { resolveServerSession } from "@/lib/session/server-resolver";
+import { resolveCanonicalDiningBranchId } from "@/server/dining-tables/canonical-branch";
 import { PensionPersistenceError } from "@/server/pension/errors";
 import { SupabasePensionRepository } from "@/server/pension/repository";
 import {
@@ -201,7 +202,21 @@ export async function loadAdminPensionSnapshot(options?: {
 export async function createAndActivatePensionMembership(input: unknown): Promise<string> {
   await requirePensionManager();
   const parsed = parseOrThrow(createAndActivatePensionMembershipSchema, input);
-  return new SupabasePensionRepository().createAndActivateMembership(parsed);
+  const branchId =
+    parsed.branchId ??
+    (await resolveCanonicalDiningBranchId()) ??
+    restaurantConfig.defaultBranchId;
+  if (!branchId) {
+    throw new PensionPersistenceError(
+      "No hay sucursal activa para crear la membresía.",
+      "validation",
+      400,
+    );
+  }
+  return new SupabasePensionRepository().createAndActivateMembership({
+    ...parsed,
+    branchId,
+  });
 }
 
 export async function activatePensionMembership(input: unknown): Promise<string> {

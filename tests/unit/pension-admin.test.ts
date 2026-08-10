@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { PENSION_DEMO_MEMBERSHIPS, PENSION_DEMO_PLAN, PENSION_DEMO_PROFILES, PENSION_DEMO_NOW } from "@/lib/pension/fixtures";
-import { activatePensionMembership, calculateNegotiatedPrice, cancelPensionMembership, recordPensionPayment, reactivatePensionMembership, renewPensionMembership, suspendPensionMembership, PensionAdminDomainError } from "@/lib/pension-admin/operations";
+import { activatePensionMembership, calculateNegotiatedPrice, calendarPeriodEndsAt, cancelPensionMembership, recordPensionPayment, reactivatePensionMembership, renewPensionMembership, suspendPensionMembership, PensionAdminDomainError } from "@/lib/pension-admin/operations";
+import { getDerivedPensionStatus } from "@/lib/pension-admin/selectors";
 
 const owner = { role: "owner" as const, id: "demo-jefe", now: PENSION_DEMO_NOW };
 const admin = { role: "admin" as const, id: "demo-admin", now: PENSION_DEMO_NOW };
-const payment = { publicPrice: 300000, agreedPrice: 284000, paymentMethod: "cash" as const, paymentDate: "2026-08-04" };
+const payment = { publicPrice: 500000, agreedPrice: 450000, paymentMethod: "cash" as const, paymentDate: "2026-08-04" };
 
 describe("administración local de pensionados", () => {
   it("calcula precio negociado sin aceptar negativos ni recargos silenciosos", () => {
-    expect(calculateNegotiatedPrice(300000, 284000)).toEqual({ publicPrice: 300000, agreedPrice: 284000, discount: 16000 });
-    expect(() => calculateNegotiatedPrice(300000, 0 - 1)).toThrowError(PensionAdminDomainError);
-    expect(() => calculateNegotiatedPrice(300000, 301000)).toThrowError(PensionAdminDomainError);
+    expect(calculateNegotiatedPrice(500000, 450000)).toEqual({ publicPrice: 500000, agreedPrice: 450000, discount: 50000 });
+    expect(() => calculateNegotiatedPrice(500000, 0 - 1)).toThrowError(PensionAdminDomainError);
+    expect(() => calculateNegotiatedPrice(500000, 501000)).toThrowError(PensionAdminDomainError);
   });
 
   it("exige jefe y pago antes de activar, con modalidad explícita", () => {
@@ -36,5 +37,12 @@ describe("administración local de pensionados", () => {
     expect(reactivated.status).toBe("active");
     expect(cancelPensionMembership(reactivated, owner, "Finalización solicitada").status).toBe("cancelled");
     expect(() => suspendPensionMembership(renewed, owner, "")).toThrowError(PensionAdminDomainError);
+  });
+
+  it("deriva VENCIDO por fecha sin mutar suspended y calcula ends_at +29", () => {
+    expect(calendarPeriodEndsAt("2026-08-01")).toBe("2026-08-30");
+    expect(getDerivedPensionStatus("active", "2026-08-30", "2026-08-04")).toBe("active");
+    expect(getDerivedPensionStatus("active", "2026-08-01", "2026-08-02")).toBe("expired");
+    expect(getDerivedPensionStatus("suspended", "2026-07-01", "2026-08-04")).toBe("suspended");
   });
 });

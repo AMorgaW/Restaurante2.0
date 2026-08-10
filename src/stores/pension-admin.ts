@@ -4,7 +4,15 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { createAdminAuditEntry, type AdminAuditEntry } from "@/lib/admin/audit";
 import { PENSION_DEMO_MEMBERSHIPS, PENSION_DEMO_PLAN, PENSION_DEMO_PROFILES } from "@/lib/pension/fixtures";
-import { activatePensionMembership, cancelPensionMembership, reactivatePensionMembership, recordPensionPayment, renewPensionMembership, suspendPensionMembership } from "@/lib/pension-admin/operations";
+import {
+  activatePensionMembership,
+  cancelPensionMembership,
+  createAndActivatePensionMembership,
+  reactivatePensionMembership,
+  recordPensionPayment,
+  renewPensionMembership,
+  suspendPensionMembership,
+} from "@/lib/pension-admin/operations";
 import type { PensionCycleInput, PensionPaymentInput } from "@/lib/pension-admin/types";
 import type { PensionMembership } from "@/lib/pension/types";
 import type { AdminRole } from "@/lib/admin/authorization";
@@ -14,6 +22,7 @@ interface PensionAdminState {
   audit: AdminAuditEntry[];
   recordPayment: (membershipId: string, input: PensionPaymentInput, actor: { role: AdminRole | null | undefined; id: string; now: string }) => void;
   activate: (membershipId: string, input: PensionCycleInput, actor: { role: AdminRole | null | undefined; id: string; now: string }) => void;
+  createAndActivate: (profileId: string, input: PensionCycleInput, actor: { role: AdminRole | null | undefined; id: string; now: string }) => void;
   renew: (membershipId: string, input: PensionCycleInput, actor: { role: AdminRole | null | undefined; id: string; now: string }) => void;
   suspend: (membershipId: string, reason: string, actor: { role: AdminRole | null | undefined; id: string; now: string }) => void;
   reactivate: (membershipId: string, reason: string, actor: { role: AdminRole | null | undefined; id: string; now: string }) => void;
@@ -56,6 +65,20 @@ export const usePensionAdminStore = create<PensionAdminState>()(
         const profile = PENSION_DEMO_PROFILES.find((candidate) => candidate.id === current.profileId) ?? null;
         const updated = activatePensionMembership(current, profile, PENSION_DEMO_PLAN, actor, input);
         return { memberships: replace(state.memberships, updated), audit: [...state.audit, audit("pension_activated", actor, membershipId, "Membresía activada por el jefe.")] };
+      }),
+      createAndActivate: (profileId, input, actor) => set((state) => {
+        const profile = PENSION_DEMO_PROFILES.find((candidate) => candidate.id === profileId) ?? null;
+        const created = createAndActivatePensionMembership(
+          profile,
+          PENSION_DEMO_PLAN,
+          actor,
+          input,
+          state.memberships,
+        );
+        return {
+          memberships: [...state.memberships, created],
+          audit: [...state.audit, audit("pension_activated", actor, created.id, "Membresía creada y activada por el jefe.")],
+        };
       }),
       renew: (membershipId, input, actor) => set((state) => {
         const current = findMembership(state.memberships, membershipId);
