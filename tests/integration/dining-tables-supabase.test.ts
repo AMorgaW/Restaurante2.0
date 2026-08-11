@@ -3,22 +3,24 @@
  * Service_role solo para Auth fixtures; sin service_role en el camino de app.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { getLocalSupabaseServerEnv } from "../helpers/local-supabase-env";
 import { execFileSync } from "node:child_process";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const LOCAL_URL = "http://127.0.0.1:54321";
-const LOCAL_ANON =
-  "[REDACTED_LOCAL_KEY]";
-const LOCAL_SERVICE =
-  "[REDACTED_LOCAL_SERVICE_ROLE]";
+const {
+  url: LOCAL_URL,
+  anonKey: LOCAL_ANON,
+  serviceRoleKey: LOCAL_SERVICE,
+  testPassword: LOCAL_TEST_PASSWORD,
+} = getLocalSupabaseServerEnv();
 
 const PREFIX = "e11b6i";
 const RESTAURANT_ID = "61111111-1111-4111-8111-111111111101";
 const BRANCH_ID = "61111111-1111-4111-8111-111111111102";
 const ITEM_ID = `${PREFIX}-plato`;
-const PASSWORD = "[REDACTED_LOCAL_PASSWORD]";
+const PASSWORD = LOCAL_TEST_PASSWORD;
 
 type Actor = { id: string; email: string };
 

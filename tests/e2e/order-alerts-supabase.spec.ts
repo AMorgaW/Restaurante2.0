@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { getLocalSupabaseServerEnv } from "../helpers/local-supabase-env";
 import { execFileSync } from "node:child_process";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
@@ -8,11 +9,12 @@ import { expectNoHorizontalScroll, skipOnboarding } from "./helpers";
  * E2E 11B-7: polling in-web de pedidos nuevos (staff + owner supervisión).
  */
 
-const LOCAL_URL = "http://127.0.0.1:54321";
-const LOCAL_ANON =
-  "[REDACTED_LOCAL_KEY]";
-const LOCAL_SERVICE =
-  "[REDACTED_LOCAL_SERVICE_ROLE]";
+const {
+  url: LOCAL_URL,
+  anonKey: LOCAL_ANON,
+  serviceRoleKey: LOCAL_SERVICE,
+  testPassword: LOCAL_TEST_PASSWORD,
+} = getLocalSupabaseServerEnv();
 
 // IDs propios (no reutilizar 6111… de pension-supabase) para aislamiento entre suites.
 const RESTAURANT_ID = "81111111-1111-4111-8111-111111111101";
@@ -21,7 +23,7 @@ const BRANCH_B = "81111111-1111-4111-8111-111111111103";
 const ITEM_ID = "e11b7e2e-plato";
 const GROUP_ID = "e11b7e2e-group";
 const OPTION_ID = "e11b7e2e-option";
-const PASSWORD = "[REDACTED_LOCAL_PASSWORD]";
+const PASSWORD = LOCAL_TEST_PASSWORD;
 
 const users = {
   cashierA: { id: "", email: "" },

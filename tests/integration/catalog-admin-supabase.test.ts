@@ -4,14 +4,16 @@
  * usuarios de prueba (nunca en la aplicación).
  */
 import { createClient } from "@supabase/supabase-js";
+import { getLocalSupabaseServerEnv } from "../helpers/local-supabase-env";
 import { execFileSync } from "node:child_process";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-const API = "http://127.0.0.1:54321";
-const ANON =
-  "[REDACTED_LOCAL_KEY]";
-const SERVICE =
-  "[REDACTED_LOCAL_SERVICE_ROLE]";
+const {
+  url: API,
+  anonKey: ANON,
+  serviceRoleKey: SERVICE,
+  testPassword: LOCAL_TEST_PASSWORD,
+} = getLocalSupabaseServerEnv();
 
 const RESTAURANT_ID = "22222222-2222-4222-8222-222222222201";
 const OWNER_ID = "22222222-2222-4222-8222-222222222211";
@@ -21,7 +23,7 @@ const KITCHEN_ID = "22222222-2222-4222-8222-222222222214";
 const ITEM_ID = "e11b1b-plato-admin";
 const GROUP_ID = "e11b1b-group";
 const OPTION_ID = "e11b1b-option";
-const PASSWORD = "[REDACTED_LOCAL_PASSWORD]";
+const PASSWORD = LOCAL_TEST_PASSWORD;
 
 let branchId = "";
 

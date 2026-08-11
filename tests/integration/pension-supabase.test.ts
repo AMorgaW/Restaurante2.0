@@ -3,16 +3,19 @@
  * Requiere Supabase local; service_role solo para crear Auth users; sin service_role en app path.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { getLocalSupabaseServerEnv } from "../helpers/local-supabase-env";
 import { execFileSync } from "node:child_process";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const LOCAL_URL = "http://127.0.0.1:54321";
-const LOCAL_ANON =
-  "[REDACTED_LOCAL_KEY]";
-const LOCAL_SERVICE =
-  "[REDACTED_LOCAL_SERVICE_ROLE]";
+const {
+  url: LOCAL_URL,
+  anonKey: LOCAL_ANON,
+  publishableKey: LOCAL_PUBLISHABLE,
+  serviceRoleKey: LOCAL_SERVICE,
+  testPassword: LOCAL_TEST_PASSWORD,
+} = getLocalSupabaseServerEnv();
 
 const PREFIX = "e11b5";
 const RESTAURANT_ID = "51111111-1111-4111-8111-111111111101";
@@ -21,7 +24,7 @@ const PLAN_ID = "51111111-1111-4111-8111-111111111201";
 const ITEM_INCLUDED = `${PREFIX}-included`;
 const ITEM_SUB = `${PREFIX}-sub`;
 const ITEM_STD = `${PREFIX}-std`;
-const PASSWORD = "[REDACTED_LOCAL_PASSWORD]";
+const PASSWORD = LOCAL_TEST_PASSWORD;
 
 type Actor = { id: string; email: string };
 
@@ -243,8 +246,7 @@ describe("11B-5 pension web → Supabase (integración local)", () => {
 
     process.env.DATA_MODE = "supabase";
     process.env.NEXT_PUBLIC_SUPABASE_URL = LOCAL_URL;
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY =
-      "[REDACTED_LOCAL_KEY]";
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = LOCAL_PUBLISHABLE;
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = LOCAL_ANON;
 
     seedCatalog();

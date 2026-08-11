@@ -25,8 +25,34 @@ STATUS for all listed: **accepted/active**.
 | D-016 | DATA_MODE strict, no fallback | Fail closed beats silent hybrid | `supabase` empty → empty UI; errors are real | #9, #92 |
 | D-017 | Stripe dormant in product flow | Manual payments cover MVP | Coexistence in SQL; no active Stripe checkout path | #74, #99 |
 | D-018 | Remote migrations remain `0001`–`0009` until Compuerta B | Local `0010`–`0014` not pushed | No `db push` of 0010–0014 without explicit gate | migrations section |
-| D-019 | Admin single-branch chrome + hide Promociones nav | One active sede; no redundant branch/promo choice in Admin | Keep `branch_id`/RLS/`staff_branch_permissions`/promotions config; inject canonical branch server-side | Admin UX 2026-08-10 |
+| D-019 | Admin Brisas single-branch chrome + commercial presentation | One active sede; no redundant branch/promo choice; operational pricing/status must be unambiguous | Keep `branch_id`/RLS/`staff_branch_permissions`/promotions domain; hide Promociones only from nav; public plan = 500000 COP, `agreed_price` separate, VENCIDO derived by date | #104 |
 | D-020 | Employee Auth create blocked in product UI | No safe Auth invite path without privileged server architecture | CTA may disclose form; submit disabled; no Zustand fake create | EMPLOYEE CREATION AUTH BLOCKER |
+| D-021 | Post-gate navigation favors reliable interaction over decorative soft-nav | View-transition soft navigation produced reproducible dead clicks after the 11C remediation | Auth/onboarding/user entry use full loads at affected boundaries; preserve motion/reduced-motion without blocking clicks | #105 |
+| D-022 | Credenciales Supabase locales fuera del código tracked | Una publicación pública no necesita fixtures funcionales versionados | Helper test-only: `SUPABASE_LOCAL_*` o CLI local; `service_role` server-only; passwords efímeros | #106 |
+| D-023 | Media de referencia sin licencia queda en revisión | No hay metadata ni archivo de licencia que demuestre redistribución | No borrar sin autorización, pero bloquear publicación pública | #107 |
+
+107. **Revisión de artefactos para publicación (2026-08-11)** — `references/analysis/**`
+contiene 9 documentos fuente útiles, 2 JSON de metadata generada, 23 medios reproducibles de la
+propia app y 265 imágenes derivadas del video de referencia. El MP4 no tiene autor/título/licencia
+en metadata ni una procedencia redistribuible documentada. Se conservan sin borrado automático,
+pero el MP4 y sus derivados quedan **PUBLICATION REVIEW REQUIRED** y bloquean la publicación
+pública hasta que el propietario confirme derechos o autorice su retiro del árbol e historial.
+
+106. **Sanitización pre-publicación de credenciales locales (2026-08-11)** — Los harnesses
+Supabase dejan de versionar claves funcionales y contraseñas reutilizables. Un helper central
+valida loopback, toma overrides `SUPABASE_LOCAL_*` o consulta en silencio `supabase status -o
+json`; solo entrega valores publicables al web server de Playwright y conserva `service_role` en
+el proceso Node de fixtures. Las contraseñas se generan por proceso salvo override local. No se
+tocó Supabase remoto, no hubo reset ni se habilitó Compuerta B.
+
+105. **Cierre 11C y corrección de interacción post-gate (2026-08-09)** — La auditoría
+read-only inicial encontró CRITICAL 0 y un HIGH estructural en el formulario de pedido
+pensionado. `d365ee4` convirtió el flujo en un formulario accesible con recuperación por campo y
+prueba dirigida; 11C-4 quedó cerrado sin presentar una nueva regresión completa. Después,
+`56c82a1` eliminó los dead clicks reproducibles de soft navigation en Auth/onboarding/entrada de
+usuario usando cargas completas en esos límites. La identidad visual, las transiciones seguras y
+`prefers-reduced-motion` se conservan, pero nunca tienen prioridad sobre un click/navegación
+fiable. Compuerta B continúa pendiente.
 
 104. **Admin UX refinement (2026-08-10)** — Local commits `46ab302`…`a8b3850`. Brand Admin = Brisas del Sinú; avisos en campana (cerrar ≠ atender); mesas/inventario/empleados/pensionados progressive disclosure; plan mensual demo public price 500000 COP (provision `.codex/demo/` + plan upsert); VENCIDO derivado por fecha sin auto-suspend; sin nav Sucursales/Promociones en Admin. Sin migrations nuevas. Customer checkout P7 deferred.
 

@@ -1,13 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
+import { getLocalSupabaseWebServerEnv } from "./tests/helpers/local-supabase-env";
 
-/**
- * E2E 11B-7: avisos in-web de pedidos (polling) staff + owner.
- * Puerto 3112 para no chocar con staff-orders (3111) ni pension/dining.
- */
-const LOCAL_PUBLISHABLE = "[REDACTED_LOCAL_KEY]";
-const LOCAL_ANON_JWT =
-  "[REDACTED_LOCAL_KEY]";
-
+/** E2E 11B-7: avisos in-web de pedidos para staff y owner contra Supabase local. */
 export default defineConfig({
   testDir: "./tests/e2e",
   testMatch: ["**/order-alerts-supabase.spec.ts"],
@@ -30,27 +24,10 @@ export default defineConfig({
     url: "http://localhost:3112",
     timeout: 180_000,
     reuseExistingServer: false,
-    env: (() => {
-      const { NODE_ENV: _nodeEnv, ...rest } = process.env;
-      return {
-        ...rest,
-        AUTH_MODE: "supabase",
-        DATA_MODE: "supabase",
-        NEXT_PUBLIC_SITE_URL: "http://localhost:3112",
-        NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
-        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: LOCAL_PUBLISHABLE,
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: LOCAL_ANON_JWT,
-      };
-    })(),
+    env: getLocalSupabaseWebServerEnv({ siteUrl: "http://localhost:3112" }),
   },
   projects: [
-    {
-      name: "mobile-chromium",
-      use: { ...devices["Pixel 7"] },
-    },
-    {
-      name: "mobile-webkit",
-      use: { ...devices["iPhone 13"] },
-    },
+    { name: "mobile-chromium", use: { ...devices["Pixel 7"] } },
+    { name: "mobile-webkit", use: { ...devices["iPhone 13"] } },
   ],
 });

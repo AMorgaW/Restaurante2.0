@@ -3,17 +3,20 @@
  * Requiere Supabase local; no producción; sin service_role en la app.
  */
 import { createClient } from "@supabase/supabase-js";
+import { getLocalSupabaseServerEnv } from "../helpers/local-supabase-env";
 import { execFileSync } from "node:child_process";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { Order } from "@/types/order";
 
 vi.mock("server-only", () => ({}));
 
-const LOCAL_URL = "http://127.0.0.1:54321";
-const LOCAL_ANON =
-  "[REDACTED_LOCAL_KEY]";
-const LOCAL_SERVICE =
-  "[REDACTED_LOCAL_SERVICE_ROLE]";
+const {
+  url: LOCAL_URL,
+  anonKey: LOCAL_ANON,
+  publishableKey: LOCAL_PUBLISHABLE,
+  serviceRoleKey: LOCAL_SERVICE,
+  testPassword: LOCAL_TEST_PASSWORD,
+} = getLocalSupabaseServerEnv();
 
 const RESTAURANT_ID = "21111111-1111-4111-8111-111111111101";
 const BRANCH_ID = "21111111-1111-4111-8111-111111111102";
@@ -155,8 +158,7 @@ describe("pedidos Supabase local (RPC)", () => {
 
     process.env.DATA_MODE = "supabase";
     process.env.NEXT_PUBLIC_SUPABASE_URL = LOCAL_URL;
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY =
-      "[REDACTED_LOCAL_KEY]";
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = LOCAL_PUBLISHABLE;
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = LOCAL_ANON;
 
     seed();
@@ -182,7 +184,7 @@ describe("pedidos Supabase local (RPC)", () => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
     const email = `orders-auth-${Date.now()}@test.local`;
-    const password = "[REDACTED_LOCAL_PASSWORD]";
+    const password = LOCAL_TEST_PASSWORD;
     const created = await admin.auth.admin.createUser({
       email,
       password,
@@ -359,13 +361,13 @@ describe("pedidos Supabase local (RPC)", () => {
     });
     const email = (await admin.auth.admin.getUserById(authUserId)).data.user?.email;
     if (!email) throw new Error("email Auth ausente");
-    await admin.auth.admin.updateUserById(authUserId, { password: "[REDACTED_LOCAL_PASSWORD]" });
+    await admin.auth.admin.updateUserById(authUserId, { password: LOCAL_TEST_PASSWORD });
     const userClient = createClient(LOCAL_URL, LOCAL_ANON, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
     const signed = await userClient.auth.signInWithPassword({
       email,
-      password: "[REDACTED_LOCAL_PASSWORD]",
+      password: LOCAL_TEST_PASSWORD,
     });
     if (signed.error) throw new Error(signed.error.message);
 

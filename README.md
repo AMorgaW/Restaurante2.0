@@ -1,251 +1,141 @@
-# Casa Brasa — Restaurante 2.0
+# Brisas del Sinú
 
-Aplicación web **mobile-first** para restaurante: menú generado automáticamente desde fotografías locales, carrito, checkout de demostración, pedidos para consumo local y domicilios, panel de administración, PWA y SEO técnico. Construida con Next.js 15 (App Router), React 19, TypeScript estricto, Tailwind CSS v4 y Motion.
+Brisas del Sinú es un sistema web responsive para la operación de un restaurante. Desde una URL en el navegador ofrece catálogo, carrito, pedidos para mesa/local, recogida y domicilio, espacios para clientes y pensionados, operación de empleados y panel administrativo.
 
-> **Modo demo sin credenciales**: la aplicación funciona completa sin Supabase, pagos ni correo. Todo el contenido comercial (nombre, precios, direcciones, horarios) es de demostración y debe validarse antes de producción — ver [Contenido que necesita validación](#contenido-que-necesita-validación).
+No es una aplicación nativa, APK/IPA ni un producto que requiera instalación como PWA. Puede existir infraestructura web legacy, pero la experiencia de producto se usa directamente en el navegador.
 
-## Capturas
+## Estado del proyecto
 
-Las capturas de revisión visual (320→1440 px) se generan en `artifacts/screenshots/` al ejecutar `npm run test:e2e`.
+El entorno local/preproducción está implementado y validado. Las etapas funcionales 11B y la auditoría 11C están cerradas; la validación histórica completa se conserva en `TEST_REPORT.md`.
 
-## Stack
+La producción todavía no está habilitada. La Compuerta B, la configuración Auth productiva, el bootstrap del primer owner, las migraciones remotas posteriores a `0009` y el despliegue siguen pendientes. Por tanto, este repositorio no se declara “Production Ready”.
+
+## Funcionalidades
+
+- Catálogo, búsqueda, favoritos, carrito y checkout guest.
+- Pedidos para mesa/local, pickup y delivery.
+- Operación staff de pedidos con estados controlados en PostgreSQL.
+- Inventario con recetas, movimientos auditables y consumo al entregar.
+- Pensionados como clientes con membresía comercial y menú diario.
+- Mesas físicas, sesiones de cuenta y QR opacos.
+- Cobros manuales en efectivo o transferencia bancaria verificada.
+- Avisos web internos mediante polling, toast, señal persistente y sonido opcional.
+- Administración de catálogo, inventario, mesas, personal y pensionados.
+- Interfaz responsive, navegación por teclado y soporte para reduced motion.
+
+No hay reservaciones y Stripe permanece inactivo en el flujo MVP.
+
+## Roles y acceso
+
+Existe un único login. Los roles técnicos son `owner`, `admin`, `manager`, `kitchen`, `cashier`, `editor`, `support` y `customer`; no existe un rol genérico `employee`.
+
+- `owner` / `admin` → `/admin`
+- personal técnico activo → `/empleado`
+- `manager` / `editor` gestionan catálogo en `/empleado/catalogo`
+- `customer` con membresía → `/pensionado`
+- `customer` sin membresía → `/cuenta`
+
+El registro público crea siempre `customer`. Pensionado no es un rol Auth: es un cliente con una membresía comercial.
+
+## Arquitectura
 
 | Capa | Tecnología |
 |---|---|
-| Framework | Next.js 15.5 (App Router, RSC) + React 19 |
-| Lenguaje | TypeScript 5 en modo estricto |
-| Estilos | Tailwind CSS v4 (tokens en `src/styles/globals.css`) |
-| Animación | Motion 12 (`LazyMotion`) + View Transitions (`next-view-transitions`) |
-| Formularios | React Hook Form + Zod (esquemas compartidos cliente/servidor) |
-| Estado | Zustand 5 con persistencia (carrito, favoritos y pedidos demo) |
-| Datos producción | Supabase (PostgreSQL + Auth + RLS), migraciones en `supabase/` |
-| Imágenes | sharp (manifiesto, blur placeholders, iconos PWA) + `next/image` |
-| Pruebas | Vitest + Testing Library · Playwright + axe-core |
+| Web | Next.js 15.5 (App Router) y React 19 |
+| Lenguaje | TypeScript estricto |
+| UI | Tailwind CSS 4, Motion y View Transitions |
+| Formularios | React Hook Form y Zod |
+| Estado local | Zustand |
+| Datos y Auth | Supabase JS, `@supabase/ssr` y PostgreSQL 17 |
+| Pruebas | Vitest, Testing Library, Playwright, axe-core y pgTAP |
 
-## Requisitos
+El código se organiza en `src/app`, `src/components`, `src/lib`, `src/server` y `src/stores`. El esquema vive en `supabase/migrations`; las pruebas SQL están separadas en `supabase/tests`.
 
-- Node.js ≥ 18.18 (probado con 22.x)
-- npm (hay `package-lock.json`)
+`AUTH_MODE` y `DATA_MODE` son independientes:
 
-## Instalación y arranque
+- `AUTH_MODE=disabled` y `DATA_MODE=local` habilitan el demo explícito solo en desarrollo/pruebas.
+- `DATA_MODE=supabase` usa PostgreSQL sin fallback silencioso a fixtures.
+- En producción únicamente es válido `AUTH_MODE=supabase` correctamente configurado.
 
-```bash
-npm install
-npm run dev        # genera el manifiesto y arranca en http://localhost:3000
+## Reglas de negocio relevantes
+
+- Inventario: unidades canónicas `g`, `ml` y `unidad`. Crear o pagar un pedido no consume stock. Solo una transición válida a `delivered` descuenta inventario, dentro de la misma transacción, exactamente una vez, con receta completa y sin saldo negativo.
+- Pagos: el estado financiero es independiente del estado operativo. El MVP admite `cash`, `bank_transfer` y `zero_balance` cuando corresponda; no hay pagos parciales, split ni conciliación bancaria automática.
+- Mesas: `dining_table` representa la mesa física y `table_session` la ocupación/cuenta. Solo puede existir una sesión abierta por mesa y una sesión admite varios pedidos. Pagar cierra la sesión y libera la mesa.
+- QR: el QR de mesa y el QR bancario son distintos. El token de mesa es impredecible; PostgreSQL conserva únicamente su SHA-256 y el valor raw solo se entrega al crear o rotar.
+- Pensionados: plan `calendar_period` de 30 días inclusivos (`ends_at = starts_at + 29`), con un almuerzo y una cena por día. No son 60 comidas intercambiables. Precio público y `agreed_price` son conceptos separados.
+
+## Desarrollo local
+
+Requisitos: Node.js 18.18 o superior, npm, y Docker Desktop/WSL 2 + Supabase CLI si se trabajará contra PostgreSQL local.
+
+```powershell
+npm.cmd install
+npm.cmd run dev
 ```
 
-Producción local:
+La configuración local se copia desde `.env.example` a `.env.local`, que está ignorado por Git. No publique credenciales, tokens, cookies ni archivos de entorno.
 
-```bash
-npm run build
-npm run start
-```
+Las suites dedicadas contra Supabase local no contienen claves ni contraseñas funcionales en el repositorio. `tests/helpers/local-supabase-env.ts` acepta overrides `SUPABASE_LOCAL_*` del proceso y, si faltan, obtiene URL y claves del stack activo mediante `supabase status -o json` sin mostrarlas. `service_role` permanece exclusivamente en el proceso Node de fixtures; nunca se propaga como `NEXT_PUBLIC_*`. La contraseña de usuarios efímeros se genera en runtime salvo override local explícito.
 
-## Comandos
-
-| Comando | Descripción |
-|---|---|
-| `npm run dev` | Desarrollo (con regeneración previa del menú) |
-| `npm run build` / `npm run start` | Build y servidor de producción |
-| `npm run generate:menu` | Regenera manifiesto, copias públicas, iconos y OG image (idempotente) |
-| `npm run validate:images` | Valida coherencia entre `images/`, copias y manifiesto |
-| `npm run lint` / `npm run typecheck` | Calidad estática |
-| `npm run test` / `npm run test:watch` | Pruebas unitarias y de componentes |
-| `npm run test:e2e` / `npm run test:e2e:ui` | Build + Playwright (móvil/escritorio, axe, capturas) |
-| `npm run format` / `npm run format:check` | Prettier |
-| `npm run check` | Cadena completa: generate → lint → typecheck → test → build |
-
-## El menú y las imágenes
-
-**En `DATA_MODE=local`**, la carpeta `images/` alimenta el manifiesto demo del menú.
-Cada archivo es un plato y su nombre de archivo es el nombre del plato.
-
-**En `DATA_MODE=supabase`**, el catálogo comercial (nombres, precios, disponibilidad,
-categorías, modificadores) procede de PostgreSQL vía `SupabaseMenuRepository`.
-`src/data/menu` **no** aporta autoridad comercial en ese modo; las imágenes usan
-`image_path` remoto o un placeholder seguro.
-
-- `scripts/generate-menu-manifest.ts` valida cada archivo por firma binaria (no solo extensión), extrae dimensiones, genera un placeholder blur, copia la imagen a `public/generated/menu/<slug>.<ext>` (byte a byte, sin recomprimir) y emite el manifiesto tipado `src/data/generated/menu-manifest.ts`.
-- Los originales **nunca** se modifican, renombran ni eliminan.
-- Archivos corruptos o no-imagen se excluyen con motivo en `artifacts/image-report.json` sin frenar la generación.
-- Nombres difíciles soportados: espacios, tildes/eñes, comas, paréntesis, múltiples puntos, guiones y nombres de más de 100 caracteres.
-- Interpretación de nombres: `_`/`-` → espacios; un punto pegado (`hamburguesa.doble`) separa palabras; un punto con espacio (`Plato de carne. Vistas…`) separa nombre y descripción.
-
-### Cómo añadir un plato
-
-1. Copia la fotografía a `images/` con el nombre del plato como nombre de archivo (p. ej. `Cazuela de mariscos.jpg`).
-2. Ejecuta `npm run generate:menu` (o simplemente `npm run dev`).
-3. Ajusta detalles en `src/data/menu-overrides.ts` si lo necesitas.
-
-### Cómo corregir nombre, categoría, precio, descripción…
-
-Edita `src/data/menu-overrides.ts` usando el `slug` del plato (visible en `artifacts/image-report.json`):
-
-```ts
-"mi-plato": {
-  fullName: "Nombre corregido",
-  categorySlug: "carnes",          // ver src/lib/menu/categories.ts
-  price: 42000,                     // unidades menores (COP)
-  shortDescription: "Descripción real del plato…",
-  available: true,
-  featured: true,
-  ingredients: ["Res", "Arroz"],
-  allergens: ["Gluten"],
-  modifierGroups: [ /* término, extras… */ ],
-},
-```
-
-## Configuración central
-
-| Qué cambiar | Dónde |
-|---|---|
-| Marca, contacto, sucursales, horarios, impuestos, propinas, cupones | `src/config/restaurant.ts` |
-| Moneda (código/locale/decimales) | `currencyConfig` en `src/config/restaurant.ts` |
-| Colores y radios (paleta navy/cobalto/amarillo) | `@theme` en `src/styles/globals.css` |
-| Características on/off (delivery, analítica, PWA) | `src/config/features.ts` |
-| Categorías y reglas de inferencia | `src/lib/menu/categories.ts` |
-| Precios/descripciones demo | `src/lib/demo/pricing.ts` |
-
-## Modos independientes
-
-### Modo local (desarrollo explícito)
-
-Requiere `AUTH_MODE=disabled` y `DATA_MODE=local` **explícitos** (p. ej. vía
-`.env.local`). Sin `AUTH_MODE` el estado es inválido en todos los entornos.
-El menú sale del manifiesto; los pedidos se validan en el servidor y se
-persisten en el navegador. El panel `/admin` usa accesos demo etiquetados.
-
-### Catálogo con DATA_MODE=supabase
-
-Con URL y clave publicable válidas, las páginas públicas (`/menu`, búsqueda, detalle,
-carrito/favoritos) y `POST /api/orders` leen el mismo repositorio remoto. No hay
-fallback a fixtures. El carrito solo guarda selecciones; precios y totales se
-recalculan en servidor. Con `DATA_MODE=supabase`, el checkout persiste vía RPC
-`create_customer_order` (migración local `0010`, no desplegada en remoto) y las
-operaciones staff leen/actualizan `orders.status` (11B-3; `delivered` bloqueado
-hasta 11B-4). Local sigue demo/Zustand. La administración del catálogo con Auth+DATA supabase
-persiste en PostgreSQL vía Server Actions + RLS (roles owner/admin en `/admin`; manager/editor en `/empleado/catalogo`);
-en demo local (`AUTH_MODE=disabled`) el panel sigue usando ajustes en el navegador.
-
-En **producción** (`NODE_ENV=production`) solo es válido `AUTH_MODE=supabase` con
-`NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` válidas.
-`AUTH_MODE` ausente, `disabled`, `demo` u otros valores → inválido (sin demo).
-En **development/test**, el harness demo exige `AUTH_MODE=disabled` **explícito**
-(ausente también es inválido). Las E2E demo usan `next dev` + `AUTH_MODE=disabled`,
-nunca `next start` con demo.
-
-`AUTH_MODE=supabase` habilita Auth real, cookies SSR (`@supabase/ssr`), cuenta y protección de `/admin`, `/empleado`, `/pensionado` y `/cuenta`. Puede combinarse con `DATA_MODE=local` para conservar carrito/checkout locales.
-
-### Supabase Auth (Compuerta A — código listo)
-
-Migraciones remotas `0001`–`0009` (local `0001`–`0011`: pedidos RPC + grant `staff_status`; sin db push). Bootstrap del primer **owner**: procedimiento manual en [`references/runbooks/FIRST_OWNER_BOOTSTRAP.md`](references/runbooks/FIRST_OWNER_BOOTSTRAP.md) (promoción serializada con lock de tabla; sin reversión automática). **Aún no ejecutado** (cero usuarios Auth remotos en esta compuerta). URL productiva pendiente. Compuerta B bloqueada hasta auditoría independiente final. No compartir credenciales en el chat.
-
-Rutas Auth: `/login`, `/registro`, `/recuperar-contrasena`, `/actualizar-contrasena`, `/auth/callback`, `/auth/resolve`, `/auth/signout`, `/auth/update-password`. El registro crea siempre `customer` (trigger PostgreSQL); no envía rol en metadata. URL productiva de la app: **pendiente** de dominio de despliegue; Site URL / Redirect URLs se configuran en Compuerta B.
-
-### Supabase local e integración
-
-El backend `0001`–`0009` se valida en Docker/Supabase local:
+Para levantar el backend local:
 
 ```powershell
 supabase start -x edge-runtime,logflare,vector
+supabase status
+```
+
+El reset seguro del proyecto es:
+
+```powershell
 supabase db reset --local --no-seed
-npm.cmd run test:db
-npm.cmd run test:db:concurrency
 ```
 
-`[db.seed].enabled` debe permanecer en `false`. `supabase link`, `db push` y `--linked` de escritura requieren autorización explícita.
+Este comando destruye y recrea el estado de la base local; ejecútelo únicamente de forma intencional. Para conservar una demo persistente, no haga reset. `[db.seed].enabled` debe permanecer en `false`.
 
-Para desarrollo Auth, copia `.env.example` → `.env.local` (ignorado) y completa:
+## Pruebas
 
-```
-AUTH_MODE=supabase
-DATA_MODE=local
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
-```
+Comandos principales:
 
-`SUPABASE_SERVICE_ROLE_KEY` es opcional y **solo** para webhooks firmados (Stripe), nunca para Auth SSR ni para crear el owner. En Recovery usa `{{ .RedirectTo }}?token_hash={{ .TokenHash }}`.
-
-Si `AUTH_MODE=supabase` o `DATA_MODE=supabase` faltan variables, la operación falla cerrado; no hay escrituras remotas inseguras.
-
-### Pagos (Stripe / Mercado Pago)
-
-El proveedor demo confirma pedidos sin cobro real. Para activar uno real:
-
-```
-PAYMENT_PROVIDER=stripe
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...      # endpoint: /api/webhooks/stripe
-```
-o
-```
-PAYMENT_PROVIDER=mercadopago
-MERCADOPAGO_ACCESS_TOKEN=APP_USR-...
-MERCADOPAGO_WEBHOOK_SECRET=...       # endpoint: /api/webhooks/mercadopago
+```powershell
+npm.cmd run typecheck
+npm.cmd run lint
+npm.cmd run test
+npm.cmd run build
+npm.cmd run test:e2e
 ```
 
-Los adaptadores (`src/lib/payments/`) verifican la firma del webhook sobre el cuerpo original. PostgreSQL persiste los eventos Stripe de forma idempotente por identificador y digest, y exige actualizar coherentemente el pedido. **Pagos reales no están habilitados:** todavía requieren secretos externos, conciliación operativa, revisión y despliegue autorizados. Sin credenciales completas se mantiene el proveedor demo.
+Con Supabase local, `npm.cmd run test:db` y `npm.cmd run test:db:concurrency` se ejecutan en serie porque comparten la misma base.
 
-### Correo transaccional
+La validación histórica aprobada incluye pgTAP 456/456, concurrencia 28 escenarios/36 aserciones en dos pasadas, Vitest 552/552, typecheck, lint, build y Playwright en Chromium/WebKit/escritorio. El refinamiento Admin posterior tuvo validación dirigida; no se presenta como repetición de la regresión completa. Consulte `TEST_REPORT.md` para el detalle y las fechas.
 
-```
-EMAIL_PROVIDER=resend
-RESEND_API_KEY=re_...
-EMAIL_FROM="Casa Brasa <noreply@tudominio.com>"
-```
+## Migraciones
 
-Sin configurar, el adaptador nulo no envía nada y la app funciona igual.
+| Alcance | Estado |
+|---|---|
+| Archivos locales | `0001`–`0014` (14 migraciones) |
+| Base local esperada | aplicada hasta `0014` |
+| Remoto documentado | `0001`–`0009` (9 migraciones) |
+| Pendientes de remoto | `0010`–`0014` |
 
-## Desplegar en Vercel
+Los archivos `supabase/tests/0014_*` y `0015_*` son pruebas pgTAP, no migraciones. No ejecute `supabase link`, `db push`, operaciones `--linked` ni cambios remotos sin autorización y una compuerta específica.
 
-1. Sube el repositorio a GitHub/GitLab.
-2. Importa el proyecto en Vercel (framework autodetectado).
-3. Define en Project Settings → Environment Variables las variables de `.env.example` que uses (mínimo `NEXT_PUBLIC_SITE_URL=https://tudominio.com`).
-4. Deploy. El `prebuild` regenera el manifiesto en cada build.
+## Seguridad
 
-## Estructura del proyecto
+- Sesión e identidad se resuelven en servidor; PostgreSQL/RLS es la autoridad final.
+- El registro público no acepta rol, cargo, sucursal, membresía ni permisos.
+- Las operaciones sensibles usan grants mínimos, funciones transaccionales e idempotencia.
+- No se utiliza una clave privilegiada para la sesión de usuario ni para operaciones normales de la aplicación.
+- Los cobros manuales y sus voids forman un ledger append-only.
+- La rotación del QR de mesa invalida el token anterior sin borrar historial.
 
-```
-images/                  ← fotografías originales (NO tocar)
-public/generated/menu/   ← copias normalizadas servidas por next/image
-public/icons/ · sw.js    ← PWA (iconos generados + service worker manual)
-scripts/                 ← generate-menu-manifest.ts · validate-images.ts
-src/
-  app/(shell)/           ← páginas con navegación inferior (inicio, menú, carrito…)
-  app/(flow)/            ← detalle de plato, checkout, confirmación (CTA propio)
-  app/admin/             ← panel de administración
-  app/api/               ← health, orders, webhooks
-  components/            ← ui, layout, menu, cart, checkout, admin…
-  config/                ← restaurant.ts (contenido comercial) · features.ts
-  data/                  ← menu.ts (fusión) · menu-overrides.ts · generated/
-  features/              ← cálculos de carrito, filtrado, esquemas Zod
-  lib/                   ← naming, categorías, moneda, horarios, pagos, seo, env
-  server/                ← repositorios (local/supabase) y servicios de negocio
-  stores/                ← Zustand persistido
-supabase/                ← migración inicial con RLS + seed
-tests/                   ← unit · components · e2e (Playwright + axe + capturas)
-```
+El bootstrap del primer owner solo puede seguir `references/runbooks/FIRST_OWNER_BOOTSTRAP.md` tras autorización explícita. No se ejecuta desde la app ni mediante credenciales compartidas por chat.
 
-## Accesibilidad y rendimiento
+## Limitaciones y pendientes
 
-- Objetivo WCAG 2.2 AA: navegación por teclado completa, focus visible, labels reales, `aria-live` en confirmaciones, contraste verificado sobre navy, touch targets ≥ 44 px, `prefers-reduced-motion` en todas las animaciones (incluidas View Transitions).
-- Rendimiento móvil: Server Components por defecto, `next/image` con blur placeholders y dimensiones estables (sin CLS), `LazyMotion`, búsqueda con `useDeferredValue`, First Load JS ~102 kB compartido.
+- Alta real de empleados: la UI informa el bloqueo y mantiene el submit deshabilitado porque aún no existe una vía segura de invitación/creación Auth desde producto.
+- Checkout customer: delivery ya recoge dirección, teléfono y referencia opcional; la selección real de forma de pago sigue diferida a la fase customer. Pickup y mesa no exigen dirección.
+- Compuerta B: pendiente; no se han desplegado `0010`–`0014`, creado usuarios Auth productivos ni configurado el despliegue final.
+- Contenido comercial, imágenes, precios, horarios, recetas y textos legales deben validarse antes del uso real.
 
-## Limitaciones conocidas
-
-- **Persistencia demo por navegador**: pedidos, favoritos y ajustes del panel viven en localStorage del dispositivo; no se comparten entre navegadores (por diseño en modo local).
-- La transición compartida tarjeta→detalle usa View Transitions (Chromium/Safari); Firefox navega sin morph (fallback estable).
-- El webhook de Mercado Pago verifica la firma y responde, pero la conciliación fina de estados de pago requiere completar la consulta a su API con credenciales reales.
-- `next/font` descarga Manrope en build (necesita red la primera vez, igual que `npm install`).
-
-## Contenido que necesita validación
-
-Antes de usar comercialmente, el restaurante debe revisar/reemplazar:
-
-- **Precios** (generados de forma determinista como demo) → `menu-overrides.ts` o panel/Supabase.
-- **Descripciones e ingredientes** de los platos.
-- **Nombre, razón social, teléfonos, correos, direcciones y coordenadas** (`src/config/restaurant.ts`).
-- **Horarios** y tarifas de domicilio; **impuestos** (`taxRate`) con contabilidad.
-- **Páginas legales** (privacidad, términos, cookies, alérgenos): son plantillas marcadas que requieren revisión legal.
-- **Fotografías**: se recomienda ≥ 1200 px de ancho, iluminación uniforme y encuadre del plato completo; el nombre del archivo debe ser el nombre comercial del plato.
+Graphify genera un mapa auxiliar en `graphify-out/`; esa salida está ignorada por Git y nunca sustituye al código, las migraciones ni las pruebas.

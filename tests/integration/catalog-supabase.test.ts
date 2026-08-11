@@ -3,6 +3,7 @@
  * Requiere Supabase local; no usa producción.
  */
 import { execFileSync } from "node:child_process";
+import { getLocalSupabaseBrowserEnv } from "../helpers/local-supabase-env";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -36,12 +37,11 @@ describe("catálogo Supabase local", () => {
       throw new Error("Supabase local (54322) no disponible para integración de catálogo.");
     }
 
+    const localSupabase = getLocalSupabaseBrowserEnv();
     process.env.DATA_MODE = "supabase";
-    process.env.NEXT_PUBLIC_SUPABASE_URL = "http://127.0.0.1:54321";
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY =
-      "[REDACTED_LOCAL_KEY]";
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY =
-      "[REDACTED_LOCAL_KEY]";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = localSupabase.url;
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = localSupabase.publishableKey;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = localSupabase.anonKey;
 
     psql(`
       delete from public.modifier_options where id in ('${OPTION_ID}', '${OPTION_INACTIVE}');

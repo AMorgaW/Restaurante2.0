@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { getLocalSupabaseServerEnv } from "../helpers/local-supabase-env";
 import { execFileSync } from "node:child_process";
 import { expect, test, type Page } from "@playwright/test";
 import { skipOnboarding } from "./helpers";
@@ -8,18 +9,19 @@ import { skipOnboarding } from "./helpers";
  * Requiere AUTH_MODE=supabase + DATA_MODE=supabase (playwright.dining-tables-supabase.config.ts).
  */
 
-const LOCAL_URL = "http://127.0.0.1:54321";
-const LOCAL_ANON =
-  "[REDACTED_LOCAL_KEY]";
-const LOCAL_SERVICE =
-  "[REDACTED_LOCAL_SERVICE_ROLE]";
+const {
+  url: LOCAL_URL,
+  anonKey: LOCAL_ANON,
+  serviceRoleKey: LOCAL_SERVICE,
+  testPassword: LOCAL_TEST_PASSWORD,
+} = getLocalSupabaseServerEnv();
 
 const RESTAURANT_ID = "71111111-1111-4111-8111-111111111101";
 const BRANCH_A = "71111111-1111-4111-8111-111111111102";
 const ITEM_ID = "e11b6e2e-plato";
 const GROUP_ID = "e11b6e2e-group";
 const OPTION_ID = "e11b6e2e-option";
-const PASSWORD = "[REDACTED_LOCAL_PASSWORD]";
+const PASSWORD = LOCAL_TEST_PASSWORD;
 
 const users = {
   owner: { id: "", email: "" },

@@ -3,16 +3,18 @@
  * Sin service_role en el camino de app; fixtures Auth solo para armar roles.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { getLocalSupabaseServerEnv } from "../helpers/local-supabase-env";
 import { execFileSync } from "node:child_process";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const LOCAL_URL = "http://127.0.0.1:54321";
-const LOCAL_ANON =
-  "[REDACTED_LOCAL_KEY]";
-const LOCAL_SERVICE =
-  "[REDACTED_LOCAL_SERVICE_ROLE]";
+const {
+  url: LOCAL_URL,
+  anonKey: LOCAL_ANON,
+  serviceRoleKey: LOCAL_SERVICE,
+  testPassword: LOCAL_TEST_PASSWORD,
+} = getLocalSupabaseServerEnv();
 
 const RESTAURANT_ID = "31111111-1111-4111-8111-111111111101";
 const BRANCH_A = "31111111-1111-4111-8111-111111111102";
@@ -32,7 +34,7 @@ type StaffFixture = {
   staffStatus: string;
 };
 
-const passwords = "[REDACTED_LOCAL_PASSWORD]";
+const passwords = LOCAL_TEST_PASSWORD;
 const staff = {
   kitchenA: { id: "", email: "", password: passwords, role: "kitchen", branchId: BRANCH_A, staffStatus: "active" },
   kitchenB: { id: "", email: "", password: passwords, role: "kitchen", branchId: BRANCH_B, staffStatus: "active" },

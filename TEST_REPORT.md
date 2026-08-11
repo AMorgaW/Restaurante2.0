@@ -3,19 +3,42 @@
 ## Current checkpoint
 
 - Functional baseline: `79ebd2b` — `test: estabiliza regresion e2e preproduccion`
-- Branch: `master` (clean at that commit before docs sync)
+- Branch: `master`; publication task started clean at `c56d138`
 - Migrations: local files `0001`–`0014`; local DB through `0014`; remote documented `0001`–`0009`; `0010`–`0014` **not** remote
-- Stages: 11B CLOSED · 11C-1 CLOSED · 11C-2 CLOSED · 11C-3 CLOSED · **11C-4 PENDING** · **Compuerta B PENDING**
+- Stages: 11B CLOSED · 11C-1…11C-4 CLOSED · **Compuerta B PENDING**
 - Product: responsive web system (not native / not installable-PWA requirement)
 
 **Do not rerun full regression automatically during read-only audit unless a new CRITICAL/HIGH requires directed proof.**
 
+## Sanitización pre-publicación (2026-08-11)
+
+- Credenciales funcionales Supabase locales retiradas de configs/tests tracked; sin secreto productivo detectado.
+- Helper central test-only con separación browser-safe/server-only, validación loopback y fail-fast sin imprimir valores.
+- `service_role` no se expone como `NEXT_PUBLIC_*`; passwords de fixtures efímeros por defecto.
+- Evidencia dirigida: helper/env 58/58, cinco configs Playwright cargan con placeholders runtime, fail-fast sin stack no imprime valores, typecheck y ESLint dirigido PASS.
+- `CURRENT TRACKED SECRET SCAN = PASS`; no se detectaron secretos productivos ni raw QR funcional tracked.
+- `PUBLICABLE HISTORY SECRET SCAN = FAIL`: 26/40 commits y 16 rutas conservan credenciales locales; reescritura no ejecutada porque `git-filter-repo`/BFG no están instalados.
+- Artefactos: 9 docs KEEP; 2 metadata JSON y 23 medios de app reproducibles REVIEW/REMOVE-IGNORE; MP4 + 265 derivados `PUBLICATION REVIEW REQUIRED` por licencia/procedencia no demostrada.
+- Sin Supabase remoto, reset, migration push, deploy ni Compuerta B.
+
 ## Admin UX refinement (2026-08-10)
 
-- HEAD: `a8b3850` — `fix: estabiliza experiencia admin refinada` (after waves 1–4)
-- Directed: typecheck PASS · eslint touched PASS · inventory/admin-management/pension-admin/authorization Vitest PASS · browser smoke desktop+375 PASS (brand, nav chevrons, bell, mesas, filtros, empleados BLOCKER, pensionados $500.000, no Sucursales/Promociones)
+- Implementation HEAD: `a8b3850` — `fix: estabiliza experiencia admin refinada` (after waves 1–4); docs continued through `c56d138`
+- Directed static/component: typecheck PASS · ESLint on touched files PASS · inventory/admin-management/pension-admin/authorization Vitest PASS
+- Directed browser: desktop and 375 px mobile PASS; keyboard and reduced-motion checks PASS. Scope covered brand, nav chevrons, bell, mesas, inventory filters, employee Auth blocker, pensionados $500.000 and absence of Sucursales/Promociones from visible Admin nav.
 - EMPLOYEE CREATION AUTH BLOCKER: documented; no fake Auth create
 - No full e2e / pgTAP / db reset / remote
+
+## 11C-4 focused closure (2026-08-09)
+
+The initial read-only audit at `4189559` reported **CRITICAL 0 · HIGH 1**. The HIGH was structural accessibility in the primary pension order form; no backend/RLS/inventory/payment invariant failed.
+
+- `d365ee4` remedied the pension form with semantic submit, recoverable field validation/focus behavior and directed component coverage.
+- 11C-4 was closed after that focused remediation. No new full pgTAP/concurrency/Vitest/Playwright marathon is claimed for this closure.
+- `56c82a1` was a post-gate interaction fix: affected Auth/onboarding/user-entry boundaries stopped relying on the soft-navigation path that produced dead clicks. Motion and reduced-motion behavior remained, but navigation reliability became authoritative.
+- Compuerta B was not started and the remote was not modified.
+
+The checkout customer follow-up is partial: delivery already captures address, phone and an optional reference/details field. Real customer payment-method selection remains **DEFERRED / CUSTOMER PHASE**; pickup and table/local do not require an address.
 
 ## 11C-1 Precheck
 
@@ -79,7 +102,7 @@ Evidence from the approved 11C-2 closure at commit `79ebd2b` (after fixing HIGH 
 
 ## 11C-3 Real restaurant flows
 
-Verdict: **11C-3 FLUJOS REALES APROBADOS** (HEAD `79ebd2b`; no product code changes).
+Verdict: **11C-3 FLUJOS REALES APROBADOS** (same `79ebd2b` baseline; no additional product changes were introduced during the flow-approval pass).
 
 ### CRITICAL / HIGH status
 
@@ -119,7 +142,7 @@ Full pgTAP (456), full concurrency ×2, full Vitest (552), full Playwright matri
 | 11C-1 | OK |
 | 11C-2 | APPROVED (`79ebd2b`) |
 | 11C-3 | APPROVED (CRITICAL 0 / HIGH 0) |
-| 11C-4 | PENDING |
+| 11C-4 | CLOSED (focused remediation; no full rerun claimed) |
 | Compuerta B | PENDING |
 
 ---

@@ -4,9 +4,13 @@ Brisas del Sinú es un **sistema web responsive** (URL en navegador: móvil, tab
 
 **No es** app nativa, APK/IPA, producto de Play/App Store ni PWA instalable obligatoria. Un service worker legacy puede existir; `InstallPwaPrompt` no debe promoverse en producto.
 
-**Estado de etapa (baseline funcional `79ebd2b`):** 11B-1…11B-7 **CLOSED** · 11C-1 **CLOSED** · 11C-2 **CLOSED** · 11C-3 **CLOSED** · **11C-4 PENDING** · **Compuerta B PENDING** (no iniciada).
+**Estado de etapa (baseline funcional `79ebd2b`):** 11B-1…11B-7 **CLOSED** · 11C-1…11C-4 **CLOSED** · **Compuerta B PENDING** (no iniciada). La regresión completa pertenece al baseline; el cierre 11C posterior fue dirigido y no implica que pgTAP/E2E completos se hayan repetido.
 
-**Admin UX (2026-08-10, local):** refinamiento de chrome Admin cerrado en `a8b3850` (marca Brisas del Sinú, nav scroller, avisos en campana, progressive disclosure mesas/empleados/pensionados, inventario con filtros colapsables, UI de una sola sede sin Promociones en nav). `branch_id`/RLS/promotions domain se conservan. **EMPLOYEE CREATION AUTH BLOCKER:** no hay invite Auth seguro en producto; CTA visible con submit deshabilitado (sin fingir Zustand). Checkout customer P7 deferred.
+**Checkpoint local previo a esta publicación:** `c56d138`. Después de la auditoría 11C, `d365ee4` cerró el HIGH del formulario pensionado y `56c82a1` corrigió la interactividad de navegación post-gate. El refinamiento Admin cerró en `a8b3850`: marca Brisas del Sinú, nav scroller, avisos en campana, progressive disclosure de mesas/empleados/pensionados, inventario con filtros colapsables y UI de una sola sede sin Promociones en nav. `branch_id`/RLS/promotions domain se conservan.
+
+**Bloqueos vigentes:** no hay invite Auth seguro para crear empleados desde producto; CTA visible con submit deshabilitado (sin fingir Zustand). Checkout customer: delivery ya tiene dirección, teléfono y referencia opcional, pero la selección real de forma de pago sigue **DEFERRED / CUSTOMER PHASE**. Compuerta B sigue pendiente.
+
+**Publicación GitHub:** el árbol actual ya no debe contener credenciales funcionales locales, pero la primera publicación sigue bloqueada mientras el historial no se sanee con una herramienta aprobada y no se confirme la licencia/procedencia redistribuible de `references/restaurant-motion-reference.mp4` y sus derivados.
 
 ## Orden de lectura
 
@@ -52,6 +56,8 @@ npm.cmd run test:db:concurrency
 ```
 
 Mantener `[db.seed].enabled = false`. `supabase/seed.sql` contiene datos demo y puede permanecer versionado como referencia, pero nunca debe ejecutarse ni publicarse como datos de producción.
+
+Las pruebas Supabase locales leen `SUPABASE_LOCAL_*` mediante `tests/helpers/local-supabase-env.ts` o derivan las claves del CLI local con `supabase status -o json`. Nunca hardcodear claves/contraseñas funcionales ni exponer `service_role` como `NEXT_PUBLIC_*`; el password de fixtures es efímero por defecto.
 
 ## Rutas y sesión
 
@@ -116,10 +122,11 @@ Localmente, además de `0001`–`0009`:
 
 Evidencia consolidada de 11C: `TEST_REPORT.md`. Baseline funcional: `79ebd2b`.
 No reejecutar regresión completa automáticamente en auditoría read-only salvo nuevo CRITICAL/HIGH que exija prueba dirigida.
+Política de severidad: CRITICAL/HIGH bloquean; MEDIUM se evalúa según riesgo y alcance; LOW se registra. No iniciar bucles de reauditoría completa después de una revisión final.
 
 ## Operación segura / reset
 
-Sin autorización explícita están prohibidos `supabase link`, `supabase db push`, cualquier operación `--linked`, escrituras MCP remotas, cambios en producción, `git push` y despliegues. Nunca publicar `.env.local`, credenciales, claves locales/remotas, tokens, JWT, cookies, logs, `.codex/`, artefactos de pruebas ni `graphify-out/` generado. No usar `git reset --hard`, `clean`, `restore` o checkout destructivo sobre cambios ajenos. Resets DB: siempre `--local --no-seed`.
+Sin autorización explícita están prohibidos `supabase link`, `supabase db push`, cualquier operación `--linked`, escrituras MCP remotas, cambios en producción, `git push` y despliegues. Nunca publicar `.env.local`, credenciales, claves locales/remotas, tokens, JWT, cookies, logs, `.codex/`, artefactos de pruebas ni `graphify-out/` generado. No usar `git reset --hard`, `clean`, `restore` o checkout destructivo sobre cambios ajenos. No ejecutar `supabase db reset` sin alcance: el único reset aceptado es el destructivo local e intencional `supabase db reset --local --no-seed`.
 
 ## Graphify
 
