@@ -9,8 +9,8 @@
 
 El rediseño cerrado de escenas 1–11 se conserva como histórico. Una decisión de producto nueva sustituye la raíz por onboarding estático con `inicio.png` y entrada al menú, elimina la navegación principal inferior y convierte `/menu` en la única sección principal. Búsqueda integrada, chips, contador, Recomendados, carrito/favoritos/rutas comerciales y morph tarjeta→detalle permanecen. Las filas se recalibran a cobalto vivo y no reaniman al regresar; reduced motion conserva visibilidad inmediata.
 
-Comparación real entre el video de referencia (fotogramas en
-`references/analysis/keyframes/phone-crops/`, secuencias t1–t6) y el estado
+Comparación histórica entre fotogramas de la referencia (retirados del árbol
+e historial durante la sanitización pública) y el estado
 actual de la aplicación (build de producción, capturas de viewport en
 `artifacts/visual-comparison/before/screens/`, lado a lado en
 `.../before/side-by-side/`). Los tamaños de referencia se midieron sobre los

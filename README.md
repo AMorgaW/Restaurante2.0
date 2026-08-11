@@ -10,6 +10,8 @@ El entorno local/preproducción está implementado y validado. Las etapas funcio
 
 La producción todavía no está habilitada. La Compuerta B, la configuración Auth productiva, el bootstrap del primer owner, las migraciones remotas posteriores a `0009` y el despliegue siguen pendientes. Por tanto, este repositorio no se declara “Production Ready”.
 
+El historial publicable fue saneado con `git-filter-repo`: las credenciales funcionales del harness local se sustituyeron por marcadores inequívocos y el material audiovisual sin procedencia redistribuible se retiró del árbol y de todos los commits alcanzables. Autores, emails, fechas y asuntos de los commits preservados se mantuvieron. La publicación autorizada corresponde a `AMorgaW/Restaurante2.0` sobre la rama `master`; no implica despliegue de la aplicación ni cambios en Supabase remoto.
+
 ## Funcionalidades
 
 - Catálogo, búsqueda, favoritos, carrito y checkout guest.
@@ -139,3 +141,10 @@ El bootstrap del primer owner solo puede seguir `references/runbooks/FIRST_OWNER
 - Contenido comercial, imágenes, precios, horarios, recetas y textos legales deben validarse antes del uso real.
 
 Graphify genera un mapa auxiliar en `graphify-out/`; esa salida está ignorada por Git y nunca sustituye al código, las migraciones ni las pruebas.
+
+## Integridad de publicación
+
+- El árbol tracked y el historial alcanzable desde `master` no contienen las credenciales locales funcionales retiradas.
+- Los 9 documentos fuente propios de `references/analysis/` permanecen; 2 metadata generadas, 23 medios reproducibles, 265 derivados externos y el MP4 de referencia fueron eliminados del árbol y del historial.
+- `.env*`, logs, artefactos de prueba, `.codex/` y `graphify-out/` permanecen fuera de Git.
+- La publicación usa un push normal de `master`; no requiere force push, squash general ni fechas fabricadas.

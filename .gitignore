@@ -34,6 +34,14 @@ tmp/
 temp/
 .cache/
 
+# Material de análisis reproducible/no redistribuible
+references/analysis/contact-sheets/
+references/analysis/keyframes/
+references/analysis/reports/
+references/analysis/transitions/
+references/analysis/video-metadata*.json
+references/restaurant-motion-reference.mp4
+
 # Sistema
 .DS_Store
 Thumbs.db

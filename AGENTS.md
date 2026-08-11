@@ -4,13 +4,13 @@ Brisas del Sinú es un **sistema web responsive** (URL en navegador: móvil, tab
 
 **No es** app nativa, APK/IPA, producto de Play/App Store ni PWA instalable obligatoria. Un service worker legacy puede existir; `InstallPwaPrompt` no debe promoverse en producto.
 
-**Estado de etapa (baseline funcional `79ebd2b`):** 11B-1…11B-7 **CLOSED** · 11C-1…11C-4 **CLOSED** · **Compuerta B PENDING** (no iniciada). La regresión completa pertenece al baseline; el cierre 11C posterior fue dirigido y no implica que pgTAP/E2E completos se hayan repetido.
+**Estado de etapa (baseline funcional `7a99396`):** 11B-1…11B-7 **CLOSED** · 11C-1…11C-4 **CLOSED** · **Compuerta B PENDING** (no iniciada). La regresión completa pertenece al baseline; el cierre 11C posterior fue dirigido y no implica que pgTAP/E2E completos se hayan repetido.
 
-**Checkpoint local previo a esta publicación:** `c56d138`. Después de la auditoría 11C, `d365ee4` cerró el HIGH del formulario pensionado y `56c82a1` corrigió la interactividad de navegación post-gate. El refinamiento Admin cerró en `a8b3850`: marca Brisas del Sinú, nav scroller, avisos en campana, progressive disclosure de mesas/empleados/pensionados, inventario con filtros colapsables y UI de una sola sede sin Promociones en nav. `branch_id`/RLS/promotions domain se conservan.
+**Checkpoint local previo a esta publicación:** `750c01d`. Después de la auditoría 11C, `8eff9be` cerró el HIGH del formulario pensionado y `bfca664` corrigió la interactividad de navegación post-gate. El refinamiento Admin cerró en `41229bb`: marca Brisas del Sinú, nav scroller, avisos en campana, progressive disclosure de mesas/empleados/pensionados, inventario con filtros colapsables y UI de una sola sede sin Promociones en nav. `branch_id`/RLS/promotions domain se conservan.
 
 **Bloqueos vigentes:** no hay invite Auth seguro para crear empleados desde producto; CTA visible con submit deshabilitado (sin fingir Zustand). Checkout customer: delivery ya tiene dirección, teléfono y referencia opcional, pero la selección real de forma de pago sigue **DEFERRED / CUSTOMER PHASE**. Compuerta B sigue pendiente.
 
-**Publicación GitHub:** el árbol actual ya no debe contener credenciales funcionales locales, pero la primera publicación sigue bloqueada mientras el historial no se sanee con una herramienta aprobada y no se confirme la licencia/procedencia redistribuible de `references/restaurant-motion-reference.mp4` y sus derivados.
+**Publicación GitHub:** el historial publicable fue saneado con `git-filter-repo`. Las credenciales funcionales locales se sustituyeron por placeholders y se retiraron del árbol/historial 2 metadata, 23 medios reproducibles, 265 derivados externos y el MP4 sin procedencia redistribuible. Los 9 documentos fuente propios permanecen. Destino autorizado: repositorio público `AMorgaW/Restaurante2.0`, rama `master`; esto no habilita deploy, Supabase remoto ni Compuerta B.
 
 ## Orden de lectura
 
@@ -120,7 +120,7 @@ Localmente, además de `0001`–`0009`:
 
 ## Pruebas (punteros)
 
-Evidencia consolidada de 11C: `TEST_REPORT.md`. Baseline funcional: `79ebd2b`.
+Evidencia consolidada de 11C: `TEST_REPORT.md`. Baseline funcional: `7a99396`.
 No reejecutar regresión completa automáticamente en auditoría read-only salvo nuevo CRITICAL/HIGH que exija prueba dirigida.
 Política de severidad: CRITICAL/HIGH bloquean; MEDIUM se evalúa según riesgo y alcance; LOW se registra. No iniciar bucles de reauditoría completa después de una revisión final.
 
@@ -130,4 +130,4 @@ Sin autorización explícita están prohibidos `supabase link`, `supabase db pus
 
 ## Graphify
 
-El mapa regenerado está en `graphify-out/` y está **ignorado por Git**. Comando canónico: `graphify update .`. Consultas: `graphify query` / `path` / `explain`; contraste siempre con el código. Última regeneración documentada: **2646 nodos · 7060 aristas · 175 comunidades**. No versionar con `git add -f`.
+El mapa regenerado está en `graphify-out/` y está **ignorado por Git**. Comando canónico: `graphify update .`. Consultas: `graphify query` / `path` / `explain`; contraste siempre con el código. Última regeneración de publicación: **2801 nodos · 6703 aristas · 186 comunidades**; health check sin endpoints faltantes/colgantes, self-loops ni colapsos. No versionar con `git add -f`.

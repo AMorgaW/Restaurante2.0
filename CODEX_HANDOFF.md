@@ -16,18 +16,18 @@ Flujos comerciales: mesa/local, pickup y delivery. El checkout admite guest. Pen
 | 11C-1…11C-4 | **CLOSED** |
 | Compuerta B | **PENDING** (no iniciada) |
 
-Baseline funcional completo: `79ebd2b`. Checkpoint local al iniciar la publicación documental: `c56d138` sobre `master`.
+Baseline funcional completo: `7a99396`. Checkpoint local al iniciar la publicación documental: `750c01d` sobre `master`.
 
 Cronología posterior al baseline:
 
-- `4189559`: sincronización documental preauditoría.
+- `9a5a8ef`: sincronización documental preauditoría.
 - auditoría 11C read-only: CRITICAL 0; detectó un HIGH en el formulario pensionado.
-- `d365ee4`: cerró el HIGH con formulario/validación accesibles y prueba componente dirigida.
-- `56c82a1`: corrigió la regresión post-gate de soft navigation/dead clicks con cargas completas en los puntos afectados.
-- `46ab302`…`a8b3850`: refinamiento Admin local; marca Brisas del Sinú, nav scroller, campana de pendientes, progressive disclosure, filtros de inventario, presentación de pensionados y UI de una sede.
-- `18243c0` / `c56d138`: documentación y Graphify post-Admin.
+- `8eff9be`: cerró el HIGH con formulario/validación accesibles y prueba componente dirigida.
+- `bfca664`: corrigió la regresión post-gate de soft navigation/dead clicks con cargas completas en los puntos afectados.
+- `5a372d5`…`41229bb`: refinamiento Admin local; marca Brisas del Sinú, nav scroller, campana de pendientes, progressive disclosure, filtros de inventario, presentación de pensionados y UI de una sede.
+- `cb22c15` / `750c01d`: documentación y Graphify post-Admin.
 
-El cierre 11C no significa que la regresión completa se haya repetido después de cada cambio: la evidencia completa pertenece a `79ebd2b`; los cambios posteriores tuvieron validación dirigida documentada en `TEST_REPORT.md`.
+El cierre 11C no significa que la regresión completa se haya repetido después de cada cambio: la evidencia completa pertenece a `7a99396`; los cambios posteriores tuvieron validación dirigida documentada en `TEST_REPORT.md`.
 
 ## Estado local
 
@@ -35,7 +35,8 @@ El cierre 11C no significa que la regresión completa se haya repetido después 
 - Stack Supabase local: detenido al comprobarlo; no se inició ni se reseteó.
 - Harness local sanitizado: claves desde `SUPABASE_LOCAL_*` o `supabase status -o json`; `service_role` solo en proceso Node y passwords efímeros.
 - Demo visual: requiere `AUTH_MODE=disabled` + `DATA_MODE=local` explícitos en development/test.
-- Graphify: salida en `graphify-out/`, ignorada por Git. Métricas de esta publicación: **GRAPHIFY_METRICS_PENDING**.
+- Graphify: salida en `graphify-out/`, ignorada por Git. Métricas de esta publicación: **2801 nodos · 6703 aristas · 186 comunidades**; health check OK.
+- Publicación: historial local saneado; autores, emails, fechas y asuntos preservados. Se retiraron del árbol/historial las credenciales locales funcionales y los grupos audiovisuales autorizados. Destino autorizado: `AMorgaW/Restaurante2.0`, `master`, público.
 
 No trate residuos de E2E o `supabase/seed.sql` como dataset estable. `[db.seed].enabled = false` debe permanecer así.
 
@@ -101,7 +102,7 @@ No se conectó ni modificó el remoto durante esta publicación. No crear `0015`
 
 ## Evidencia vigente
 
-Validación completa histórica en `79ebd2b`:
+Validación completa histórica en `7a99396`:
 
 - pgTAP: 7 suites, 456/456.
 - Concurrencia: 28 escenarios, 36 aserciones, PASS ×2.
@@ -112,8 +113,8 @@ Validación completa histórica en `79ebd2b`:
 
 Validación posterior dirigida:
 
-- formulario pensionado y accesibilidad tras `d365ee4`;
-- interactividad/navegación tras `56c82a1`;
+- formulario pensionado y accesibilidad tras `8eff9be`;
+- interactividad/navegación tras `bfca664`;
 - Admin: typecheck, lint de archivos tocados, Vitest dirigido y browser desktop/móvil/teclado/reduced-motion. No hubo full E2E, pgTAP, concurrencia ni reset por el refinamiento Admin.
 
 ## Pendientes reales
@@ -121,7 +122,7 @@ Validación posterior dirigida:
 1. **EMPLOYEE CREATION AUTH BLOCKER:** no existe vía segura de invite/create Auth desde producto. `/admin/empleados` muestra el formulario, explica el bloqueo y mantiene submit deshabilitado; no simular el alta con Zustand.
 2. **CUSTOMER PHASE:** delivery ya recoge dirección, teléfono y referencia opcional. Sigue diferida la selección real de forma de pago customer; pickup y mesa no requieren dirección.
 3. **Compuerta B:** pendiente. No iniciar Auth remoto, bootstrap, migraciones, deploy ni cambios de producción desde este handoff.
-4. **PUBLICATION REVIEW REQUIRED:** el historial anterior conserva credenciales locales retiradas y este host no tiene `git-filter-repo`/BFG. El MP4 de referencia y 265 derivados no tienen licencia/procedencia redistribuible documentada; no publicar hasta resolver ambos puntos.
+4. **PUBLICATION SANITIZATION CLOSED:** `git-filter-repo` sustituyó los valores funcionales locales y retiró 2 metadata, 23 medios reproducibles, 265 derivados externos y el MP4 del árbol e historial. Los 9 documentos fuente propios se conservaron. Los scans publicables deben mantenerse verdes antes y después de cada push.
 
 ## Seguridad operativa
 

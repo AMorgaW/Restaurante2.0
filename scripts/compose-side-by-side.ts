@@ -67,6 +67,11 @@ async function compose(name: string, refFile: string, appFile: string): Promise<
 }
 
 async function main(): Promise<void> {
+  if (!fs.existsSync(REF)) {
+    throw new Error(
+      `No existe ${REF}. Los fotogramas de referencia privados se retiraron durante la sanitizacion publica; restaure un corpus autorizado fuera de Git antes de generar comparaciones.`,
+    );
+  }
   fs.mkdirSync(OUT, { recursive: true });
   for (const [name, refFile, appFile] of PAIRS) {
     await compose(name, refFile, appFile);

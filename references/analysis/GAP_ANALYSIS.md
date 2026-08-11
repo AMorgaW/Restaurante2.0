@@ -1,6 +1,6 @@
 # GAP_ANALYSIS — Referencia vs Restaurante 2.0 (build de producción)
 
-Método: grabaciones Playwright (chromium, 390×844 @2x, `next start`) en `reports/app-before/`, fotogramas a 15 fps en `contact-sheets/app-before-*.png`, comparados contra las secuencias de la referencia. Mediciones de respuesta en producción (cota superior, incluye ~20–50 ms de protocolo): chip→contador 136 ms · favorito 74 ms · carrito→toast 125 ms · sheet abrir/cerrar 157/69 ms · tarjeta→detalle 249 ms · volver 164 ms. **Sin problemas de latencia**: todos los huecos son de coreografía.
+Método histórico: grabaciones Playwright (chromium, 390×844 @2x) y fotogramas a 15 fps comparados contra las secuencias de referencia. Esos binarios fueron retirados del árbol e historial durante la sanitización pública; se conservan las conclusiones propias. Mediciones de respuesta en producción (cota superior, incluye ~20–50 ms de protocolo): chip→contador 136 ms · favorito 74 ms · carrito→toast 125 ms · sheet abrir/cerrar 157/69 ms · tarjeta→detalle 249 ms · volver 164 ms. **Sin problemas de latencia**: todos los huecos son de coreografía.
 
 | # | Diferencia | Referencia | Aplicación actual | Gravedad | Archivos implicados | Corrección | Prueba | Riesgo perf | Reduced motion |
 |---|---|---|---|---|---|---|---|---|---|
@@ -23,7 +23,7 @@ Sin cambios de color, contenido ni arquitectura: todos los ajustes son de movimi
 
 # ESTADO FINAL (2026-07-11, cierre de la calibración)
 
-Verificado con grabaciones `reports/app-after/` (hojas `app-after-*.png`) comparadas frame a frame con la referencia, suite E2E completa en verde sin reintentos y mediciones en producción.
+Verificado históricamente con grabaciones/hojas comparadas frame a frame, suite E2E completa en verde sin reintentos y mediciones en producción. Las grabaciones y hojas fueron retiradas del árbol e historial durante la sanitización pública.
 
 ## Diferencias corregidas (G1–G10)
 

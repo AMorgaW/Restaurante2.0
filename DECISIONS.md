@@ -29,14 +29,24 @@ STATUS for all listed: **accepted/active**.
 | D-020 | Employee Auth create blocked in product UI | No safe Auth invite path without privileged server architecture | CTA may disclose form; submit disabled; no Zustand fake create | EMPLOYEE CREATION AUTH BLOCKER |
 | D-021 | Post-gate navigation favors reliable interaction over decorative soft-nav | View-transition soft navigation produced reproducible dead clicks after the 11C remediation | Auth/onboarding/user entry use full loads at affected boundaries; preserve motion/reduced-motion without blocking clicks | #105 |
 | D-022 | Credenciales Supabase locales fuera del código tracked | Una publicación pública no necesita fixtures funcionales versionados | Helper test-only: `SUPABASE_LOCAL_*` o CLI local; `service_role` server-only; passwords efímeros | #106 |
-| D-023 | Media de referencia sin licencia queda en revisión | No hay metadata ni archivo de licencia que demuestre redistribución | No borrar sin autorización, pero bloquear publicación pública | #107 |
+| D-023 | Media de referencia sin licencia se retira de Git | No hay metadata ni archivo de licencia que demuestre redistribución | Conservar solo los 9 documentos propios; excluir MP4, metadata y derivados del árbol/historial | #107 |
+| D-024 | Primera publicación usa historial saneado y fechas reales | La publicación pública no debe exponer credenciales locales ni material no redistribuible | `git-filter-repo`, scans árbol/historia, metadata preservada y push normal de `master` | #108 |
 
-107. **Revisión de artefactos para publicación (2026-08-11)** — `references/analysis/**`
+108. **Sanitización definitiva para primera publicación (2026-08-11)** — Reescritura local
+autorizada con `git-filter-repo`: sustitución exclusiva de credenciales funcionales del harness
+local; retiro histórico de 2 metadata, 23 medios reproducibles, 265 derivados externos y el MP4
+sin procedencia redistribuible. Los 9 documentos fuente propios permanecen. Se compararon los 41
+commits lógicos y se preservaron autores, emails, fechas de autor/committer y asuntos; no hubo
+squash general, fechas artificiales ni commits vacíos de contribución. La publicación objetivo es
+`AMorgaW/Restaurante2.0`, público, rama `master`, mediante push normal. Esto no habilita deploy,
+Supabase remoto ni Compuerta B.
+
+107. **Revisión y retiro de artefactos para publicación (2026-08-11)** — `references/analysis/**`
 contiene 9 documentos fuente útiles, 2 JSON de metadata generada, 23 medios reproducibles de la
 propia app y 265 imágenes derivadas del video de referencia. El MP4 no tiene autor/título/licencia
-en metadata ni una procedencia redistribuible documentada. Se conservan sin borrado automático,
-pero el MP4 y sus derivados quedan **PUBLICATION REVIEW REQUIRED** y bloquean la publicación
-pública hasta que el propietario confirme derechos o autorice su retiro del árbol e historial.
+en metadata ni una procedencia redistribuible documentada. El propietario autorizó retirar B/C/D/E
+del árbol y del historial: 2 metadata, 23 medios reproducibles, 265 derivados y el MP4. Los 9
+documentos fuente propios se conservaron y los outputs regenerables quedaron ignorados.
 
 106. **Sanitización pre-publicación de credenciales locales (2026-08-11)** — Los harnesses
 Supabase dejan de versionar claves funcionales y contraseñas reutilizables. Un helper central
@@ -47,16 +57,16 @@ tocó Supabase remoto, no hubo reset ni se habilitó Compuerta B.
 
 105. **Cierre 11C y corrección de interacción post-gate (2026-08-09)** — La auditoría
 read-only inicial encontró CRITICAL 0 y un HIGH estructural en el formulario de pedido
-pensionado. `d365ee4` convirtió el flujo en un formulario accesible con recuperación por campo y
+pensionado. `8eff9be` convirtió el flujo en un formulario accesible con recuperación por campo y
 prueba dirigida; 11C-4 quedó cerrado sin presentar una nueva regresión completa. Después,
-`56c82a1` eliminó los dead clicks reproducibles de soft navigation en Auth/onboarding/entrada de
+`bfca664` eliminó los dead clicks reproducibles de soft navigation en Auth/onboarding/entrada de
 usuario usando cargas completas en esos límites. La identidad visual, las transiciones seguras y
 `prefers-reduced-motion` se conservan, pero nunca tienen prioridad sobre un click/navegación
 fiable. Compuerta B continúa pendiente.
 
-104. **Admin UX refinement (2026-08-10)** — Local commits `46ab302`…`a8b3850`. Brand Admin = Brisas del Sinú; avisos en campana (cerrar ≠ atender); mesas/inventario/empleados/pensionados progressive disclosure; plan mensual demo public price 500000 COP (provision `.codex/demo/` + plan upsert); VENCIDO derivado por fecha sin auto-suspend; sin nav Sucursales/Promociones en Admin. Sin migrations nuevas. Customer checkout P7 deferred.
+104. **Admin UX refinement (2026-08-10)** — Local commits `5a372d5`…`41229bb`. Brand Admin = Brisas del Sinú; avisos en campana (cerrar ≠ atender); mesas/inventario/empleados/pensionados progressive disclosure; plan mensual demo public price 500000 COP (provision `.codex/demo/` + plan upsert); VENCIDO derivado por fecha sin auto-suspend; sin nav Sucursales/Promociones en Admin. Sin migrations nuevas. Customer checkout P7 deferred.
 
-103. **Cierre documental pre-auditoría (2026-08-09)** — Baseline funcional `79ebd2b`.
+103. **Cierre documental pre-auditoría (2026-08-09)** — Baseline funcional `7a99396`.
 11B CLOSED; 11C-1/2/3 CLOSED; 11C-4 y Compuerta B PENDING. Canonical D-001…D-018
 arriba. Graphify regenerado (`graphify update .`); salida gitignored.
 
@@ -241,7 +251,7 @@ Formato: fecha · decisión · motivo.
 
 36. **Playwright 1.61: `reducedMotion` vía `contextOptions`** — el rango `^1.50` instaló 1.61.1, cuyos tipos ya no exponen `reducedMotion` como test option directa y el baseline rompía en typecheck. `tests/e2e/reduced-motion.spec.ts` usa ahora `test.use({ contextOptions: { reducedMotion: "reduce" } })` (equivale a `browser.newContext`). Además hubo que `npx playwright install chromium webkit chromium-headless-shell` (binarios nuevos del bump).
 
-37. **Auditoría before con materiales reproducibles** — `scripts/capture-visual-comparison.ts <fase>` (capturas de VIEWPORT en producción, 5 tamaños; a diferencia de `screenshots.spec.ts` que es full-page) y `scripts/compose-side-by-side.ts <fase>` (referencia | app a la misma altura). El teléfono del video SE MUEVE (cámara en mano): los recortes de `keyframes/phone-crops/` usan cajas por segmento, no una global. Resultado y prioridades en `references/analysis/VISUAL_REDESIGN_GAP.md`; la especificación que gobierna la implementación es `references/analysis/VISUAL_CONTRACT.md` (390×844).
+37. **Auditoría before con materiales reproducibles** — `scripts/capture-visual-comparison.ts <fase>` (capturas de VIEWPORT en producción, 5 tamaños; a diferencia de `screenshots.spec.ts` que es full-page) y `scripts/compose-side-by-side.ts <fase>` (referencia | app a la misma altura). El teléfono del video se movía (cámara en mano), por lo que los recortes históricos usaron cajas por segmento; esos binarios fueron retirados del árbol/historial en la sanitización pública. Resultado y prioridades en `references/analysis/VISUAL_REDESIGN_GAP.md`; la especificación que gobierna la implementación es `references/analysis/VISUAL_CONTRACT.md` (390×844).
 
 38. **/visual-lab** — ruta de desarrollo que monta los componentes REALES por escena (repetir = remount por key): `noindex` + excluida de sitemap + disallow en robots + kill-switch `VISUAL_LAB_DISABLED=1` (404). Trucos: `transform: translateZ(0)` en el marco convierte los `position: fixed` de las escenas en fijos-al-marco; `MotionConfig reducedMotion="always"` simula la preferencia sin tocar el SO; cookies/PWA se silencian escribiendo sus claves en un inicializador de estado del lab (los efectos de hijos corren antes que los de hermanos posteriores: gana la carrera sin parches).
 
@@ -434,7 +444,7 @@ documentación.
 
 81. **`0009_remote_advisor_hardening.sql` (local primero)** — respuesta controlada a
 Performance/Security Advisors del remoto tras `0001`–`0008`. Se validó solo en local (commit
-`5cfc9bd`) antes de cualquier despliegue: índices selectivos, consolidación SELECT equivalente,
+`f79c98e`) antes de cualquier despliegue: índices selectivos, consolidación SELECT equivalente,
 grant de `private.current_role()` a `authenticated`, sin policies en `payment_webhook_events`.
 
 82. **Índices selectivos, no mecánicos** — se añadieron solo cuatro índices con ruta de lectura
@@ -470,7 +480,7 @@ permanecen por falta de tráfico (aceptados temporalmente); Security Advisor sol
 `private.current_role()` EXECUTE solo a `authenticated` (no PUBLIC/anon/service_role),
 SECURITY DEFINER, `search_path` vacío; `process_stripe_payment_event` EXECUTE solo a
 `service_role`. Sin errores bloqueantes en registros. Working tree limpio en el commit de
-código `5cfc9bd` antes de este cierre documental. No se afirma que todos los advisors queden
+código `f79c98e` antes de este cierre documental. No se afirma que todos los advisors queden
 en cero.
 
 ## 2026-08-06 (Etapa 10 Compuerta A — Auth SSR y runbook del owner)

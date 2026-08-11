@@ -1,6 +1,6 @@
 # TIMELINE — Mapa temporal del video de referencia
 
-Duración real: 14,167 s (las prioridades del encargo hasta 00:18 se remapean a los límites de escena reales). Fotogramas fuente en `transitions/` y hojas en `contact-sheets/`.
+Duración real histórica: 14,167 s (las prioridades del encargo hasta 00:18 se remapean a los límites de escena reales). Los fotogramas y hojas fuente fueron retirados del árbol e historial durante la sanitización pública; esta cronología textual propia permanece.
 
 | Intervalo | Pantalla | Evento | Elementos animados | Duración | Interacción | Prioridad |
 |---|---|---|---|---|---|---|

@@ -6,11 +6,13 @@
  * Uso: node scripts/verify-motion.mjs [--skip-e2e]
  */
 import { spawnSync } from "node:child_process";
-import { appendFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 
 const LOG = "references/analysis/reports/verify.log";
 const skipE2e = process.argv.includes("--skip-e2e");
 
+mkdirSync(dirname(LOG), { recursive: true });
 writeFileSync(LOG, `verify-motion ${new Date().toISOString()}\n\n`);
 
 function run(label, command, args) {

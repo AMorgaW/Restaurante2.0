@@ -66,7 +66,7 @@ Actualización: **2026-07-13** · Rediseño visual cerrado (escenas 1–11 compl
 
 **FUNCIONALIDAD: COMPLETA Y VERDE.** Las 13 fases del prompt maestro están implementadas y verificadas. Todos los comandos de verificación funcional terminaron con código de salida 0. No quedan tareas requeridas pendientes ni `TODO` en funcionalidades exigidas.
 
-**REDISEÑO VISUAL: escenas 1–11 completadas y validadas.** La lógica de negocio (carrito/checkout/reservas/modificadores/stores/Supabase/API), rutas, SEO, service worker, accesibilidad, reduced motion y View Transitions se conservaron. Cierre global (2026-07-13, commit base `929e2de`): typecheck ✓, lint ✓, Vitest **14/139**, build **43 rutas**, Chromium **80/80**, WebKit **65/65 + 1 omitida por plataforma**, y desktop **3/3**. Reduced motion, Axe sin critical/serious, consola y rutas principales ✓. Un retry WebKit de reserva no se reprodujo en `reservation.spec.ts` ni en la repetición completa sin retries. Evidencia final: 44 PNG after, 14 comparaciones y 9 videos con hojas de contacto en `artifacts/visual-comparison/after/`. No quedan regresiones bloqueantes.
+**REDISEÑO VISUAL: escenas 1–11 completadas y validadas.** La lógica de negocio (carrito/checkout/reservas/modificadores/stores/Supabase/API), rutas, SEO, service worker, accesibilidad, reduced motion y View Transitions se conservaron. Cierre global (2026-07-13, commit base `88f24f2`): typecheck ✓, lint ✓, Vitest **14/139**, build **43 rutas**, Chromium **80/80**, WebKit **65/65 + 1 omitida por plataforma**, y desktop **3/3**. Reduced motion, Axe sin critical/serious, consola y rutas principales ✓. Un retry WebKit de reserva no se reprodujo en `reservation.spec.ts` ni en la repetición completa sin retries. Evidencia final: 44 PNG after, 14 comparaciones y 9 videos con hojas de contacto en `artifacts/visual-comparison/after/`. No quedan regresiones bloqueantes.
 
 ## Datos del menú
 
@@ -133,7 +133,7 @@ Supabase (migración `0001_initial.sql` con RLS + seed + repositorios tipados + 
 - Métricas Lighthouse no medidas en este entorno (CLS protegido por diseño; JS compartido ~102 kB).
 - Firefox no instalado en el host (cobertura chromium + webkit).
 - Integraciones externas no probadas contra servicios reales (sin credenciales, por diseño del encargo).
-- Nota histórica: el proyecto ya cuenta con repositorio Git local; checkpoint de escena 10 `929e2de`.
+- Nota histórica: el proyecto ya cuenta con repositorio Git local; checkpoint de escena 10 `88f24f2`.
 
 ## Siguiente acción
 
@@ -157,9 +157,9 @@ Los skills nombrados en las instrucciones de continuación (“Next.js Tailwind 
 
 ## Qué se hizo
 
-1. **Auditoría del video** `references/restaurant-motion-reference.mp4` (14,167 s · 512×896 · 30 fps · h264+aac · 425 frames): metadatos en `references/analysis/video-metadata.json`; fotogramas 1 fps + ventanas densas 15 fps por transición (`transitions/`, hojas en `contact-sheets/`); herramientas `ffmpeg-static`/`ffprobe-static` como devDependencies (sin instalar nada global; nada entra al bundle).
+1. **Auditoría histórica del video** (14,167 s · 512×896 · 30 fps · h264+aac · 425 frames): el MP4, metadata, fotogramas y hojas de contacto se retiraron del árbol e historial durante la sanitización pública por falta de procedencia redistribuible documentada. Las conclusiones textuales propias permanecen; `ffmpeg-static`/`ffprobe-static` siguen como herramientas de desarrollo.
 2. **Especificación**: `MOTION_SPEC.md` (parámetros por escena: bloom 0.15→1 ~400 ms ease-out, CTA que “se enciende”, pausa oscura 650 ms + splash 0.2→1, home por capas con chips stagger ~180 ms y patrón contenedor→imagen→texto, detalle con panel slide-up y chips de ingredientes ~110 ms, regreso rápido ~500 ms) y `TIMELINE.md` (tabla cronológica con prioridades P1–P4 y qué NO copiar).
-3. **Comparación con la app** (producción, grabaciones Playwright 390×844 en `reports/app-before/`): `GAP_ANALYSIS.md` con 12 diferencias (G1–G12), medidas de respuesta 69–249 ms (sin problemas de latencia). Plan en `IMPLEMENTATION_MOTION_PLAN.md`.
+3. **Comparación histórica con la app** (grabaciones Playwright 390×844, retiradas en la sanitización pública): `GAP_ANALYSIS.md` conserva 12 diferencias (G1–G12), medidas de respuesta 69–249 ms y el plan en `IMPLEMENTATION_MOTION_PLAN.md`.
 4. **Implementación** (solo transform/opacity, sin dependencias de runtime nuevas, reduced motion en todo):
    - Onboarding: bloom del plato 0.15→1 (450 ms), decoración 650+ ms, título 950 ms, subtítulo 1350 ms, CTA presente e interactivo desde el inicio que “se enciende” a los 1200 ms; salida 350 ms con blur 9 px.
    - Splash: pausa navy 450 ms + bloom de la marca 0.2→1 (450 ms) + sostenido (total 1,4 s, solo primera vez; reduced: 350 ms).
@@ -176,7 +176,7 @@ Los skills nombrados en las instrucciones de continuación (“Next.js Tailwind 
 
 ## Verificación de esta sesión — CERRADA EN VERDE (continuación 2026-07-11)
 
-- Grabaciones after (`reports/app-after/`, hojas `app-after-*.png`) comparadas frame a frame con la referencia: bloom del plato, pausa+bloom del splash, construcción por capas del home, stagger de filtros, materialización en scroll y detalle por capas CONFIRMADOS; sin destello del home; regreso sin re-animación.
+- Las grabaciones/hojas “after” fueron comparadas frame a frame y luego retiradas del árbol/historial en la sanitización pública. Conclusión conservada: bloom del plato, pausa+bloom del splash, construcción por capas del home, stagger de filtros, materialización en scroll y detalle por capas confirmados; sin destello del home; regreso sin re-animación.
 - **Los 3 fallos webkit: causa real corregida** (no timeouts): carrera test-vs-hidratación en select controlado y en input date (patrón de evidencia observable de hidratación, DECISIONS §33) + contención de CPU entre motores (suites por motor en secuencia, DECISIONS §34).
 - **Bug real encontrado y corregido**: tarjetas saltadas por scroll rápido quedaban invisibles con `whileInView+once` (margen IO 4000 px, DECISIONS §35; prueba permanente `reduced-motion.spec.ts` en ambos motores).
 - Aviso PWA: cumplía el comportamiento exigido; blindado con 4 pruebas de componente nuevas.

@@ -1,7 +1,7 @@
 # MOTION_SPEC — Especificación de movimiento del video de referencia
 
-Fuente: `references/restaurant-motion-reference.mp4` · 14,167 s · 512×896 (retrato) · 30 fps · 425 frames.
-Método: fotogramas a 1 fps (exploración) + secuencias densas a 15 fps por transición (≈66,7 ms por frame), hojas de contacto en `contact-sheets/` y frames con timestamp en `transitions/`.
+Fuente histórica: video de referencia de 14,167 s · 512×896 (retrato) · 30 fps · 425 frames. El archivo y sus derivados fueron retirados del árbol e historial durante la sanitización pública por falta de procedencia redistribuible documentada; esta especificación textual propia se conserva.
+Método histórico: fotogramas a 1 fps (exploración) + secuencias densas a 15 fps por transición (≈66,7 ms por frame), con hojas de contacto y frames timestamped. Esos derivados binarios fueron retirados del árbol e historial durante la sanitización pública.
 
 Contenido del video: grabación de un iPhone ejecutando una demo de app de recetas (fondo navy, tarjetas cobalto, CTA amarillo, acento verde-lima) — mismo lenguaje visual que Restaurante 2.0. Los timestamps de las prioridades del encargo (hasta 00:18) se remapearon a la duración real (14,17 s) por límites de escena detectados.
 

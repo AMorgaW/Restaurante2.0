@@ -2,8 +2,8 @@
 
 ## Current checkpoint
 
-- Functional baseline: `79ebd2b` — `test: estabiliza regresion e2e preproduccion`
-- Branch: `master`; publication task started clean at `c56d138`
+- Functional baseline: `7a99396` — `test: estabiliza regresion e2e preproduccion`
+- Branch: `master`; publication task started clean at `750c01d`; sanitized pre-doc HEAD `7c09732`
 - Migrations: local files `0001`–`0014`; local DB through `0014`; remote documented `0001`–`0009`; `0010`–`0014` **not** remote
 - Stages: 11B CLOSED · 11C-1…11C-4 CLOSED · **Compuerta B PENDING**
 - Product: responsive web system (not native / not installable-PWA requirement)
@@ -15,15 +15,18 @@
 - Credenciales funcionales Supabase locales retiradas de configs/tests tracked; sin secreto productivo detectado.
 - Helper central test-only con separación browser-safe/server-only, validación loopback y fail-fast sin imprimir valores.
 - `service_role` no se expone como `NEXT_PUBLIC_*`; passwords de fixtures efímeros por defecto.
-- Evidencia dirigida: helper/env 58/58, cinco configs Playwright cargan con placeholders runtime, fail-fast sin stack no imprime valores, typecheck y ESLint dirigido PASS.
+- Evidencia dirigida previa a la reescritura: helper/env 58/58, cinco configs Playwright cargan con placeholders runtime, fail-fast sin stack no imprime valores, typecheck y ESLint dirigido PASS.
 - `CURRENT TRACKED SECRET SCAN = PASS`; no se detectaron secretos productivos ni raw QR funcional tracked.
-- `PUBLICABLE HISTORY SECRET SCAN = FAIL`: 26/40 commits y 16 rutas conservan credenciales locales; reescritura no ejecutada porque `git-filter-repo`/BFG no están instalados.
-- Artefactos: 9 docs KEEP; 2 metadata JSON y 23 medios de app reproducibles REVIEW/REMOVE-IGNORE; MP4 + 265 derivados `PUBLICATION REVIEW REQUIRED` por licencia/procedencia no demostrada.
+- `PUBLICABLE HISTORY SECRET SCAN = PASS`: los 41 commits alcanzables se reescribieron; 5 valores funcionales locales fueron sustituidos sin mostrarlos. Fixtures explícitos `demo`/deterministas permanecen clasificados como no secretos.
+- Preservación: 41 commits originales → 41 finales; 0 vacíos eliminados; autores, emails, fechas de autor/committer y asuntos preservados.
+- Artefactos: 9 docs KEEP; 2 metadata JSON, 23 medios reproducibles, 265 derivados externos y el MP4 fueron retirados del árbol y de todo el historial alcanzable.
+- Graphify incremental post-sanitización: **2801 nodos · 6703 aristas · 186 comunidades**; health check sin endpoints faltantes/colgantes, self-loops ni colapsos.
+- QA dirigida post-rewrite/docs: `npm run typecheck` PASS; Vitest `env-modes` + `local-supabase-env` **42/42** PASS; ESLint del helper, tests y cinco configs sin errores; carga runtime de configs Playwright **5/5** PASS con placeholders no funcionales.
 - Sin Supabase remoto, reset, migration push, deploy ni Compuerta B.
 
 ## Admin UX refinement (2026-08-10)
 
-- Implementation HEAD: `a8b3850` — `fix: estabiliza experiencia admin refinada` (after waves 1–4); docs continued through `c56d138`
+- Implementation HEAD: `41229bb` — `fix: estabiliza experiencia admin refinada` (after waves 1–4); docs continued through `750c01d`
 - Directed static/component: typecheck PASS · ESLint on touched files PASS · inventory/admin-management/pension-admin/authorization Vitest PASS
 - Directed browser: desktop and 375 px mobile PASS; keyboard and reduced-motion checks PASS. Scope covered brand, nav chevrons, bell, mesas, inventory filters, employee Auth blocker, pensionados $500.000 and absence of Sucursales/Promociones from visible Admin nav.
 - EMPLOYEE CREATION AUTH BLOCKER: documented; no fake Auth create
@@ -31,18 +34,18 @@
 
 ## 11C-4 focused closure (2026-08-09)
 
-The initial read-only audit at `4189559` reported **CRITICAL 0 · HIGH 1**. The HIGH was structural accessibility in the primary pension order form; no backend/RLS/inventory/payment invariant failed.
+The initial read-only audit at `9a5a8ef` reported **CRITICAL 0 · HIGH 1**. The HIGH was structural accessibility in the primary pension order form; no backend/RLS/inventory/payment invariant failed.
 
-- `d365ee4` remedied the pension form with semantic submit, recoverable field validation/focus behavior and directed component coverage.
+- `8eff9be` remedied the pension form with semantic submit, recoverable field validation/focus behavior and directed component coverage.
 - 11C-4 was closed after that focused remediation. No new full pgTAP/concurrency/Vitest/Playwright marathon is claimed for this closure.
-- `56c82a1` was a post-gate interaction fix: affected Auth/onboarding/user-entry boundaries stopped relying on the soft-navigation path that produced dead clicks. Motion and reduced-motion behavior remained, but navigation reliability became authoritative.
+- `bfca664` was a post-gate interaction fix: affected Auth/onboarding/user-entry boundaries stopped relying on the soft-navigation path that produced dead clicks. Motion and reduced-motion behavior remained, but navigation reliability became authoritative.
 - Compuerta B was not started and the remote was not modified.
 
 The checkout customer follow-up is partial: delivery already captures address, phone and an optional reference/details field. Real customer payment-method selection remains **DEFERRED / CUSTOMER PHASE**; pickup and table/local do not require an address.
 
 ## 11C-1 Precheck
 
-Executed against HEAD `754485e` (pre–E2E stabilization). Result: **PRECHECK 11C OK**.
+Executed against HEAD `d91c8a3` (pre–E2E stabilization). Result: **PRECHECK 11C OK**.
 
 - working tree clean; migrations on disk `0001`–`0014`; local DB applied through `0014`
 - remote documented `0001`–`0009`; SQL tests live under `supabase/tests/` (not migrations)
@@ -50,7 +53,7 @@ Executed against HEAD `754485e` (pre–E2E stabilization). Result: **PRECHECK 11
 
 ## 11C-2 Technical regression
 
-Evidence from the approved 11C-2 closure at commit `79ebd2b` (after fixing HIGH `11C-TECH-001` Playwright isolation). First measurement pass was at `754485e`; E2E isolation fix landed in `79ebd2b`.
+Evidence from the approved 11C-2 closure at commit `7a99396` (after fixing HIGH `11C-TECH-001` Playwright isolation). First measurement pass was at `d91c8a3`; E2E isolation fix landed in `7a99396`.
 
 ### pgTAP
 
@@ -102,7 +105,7 @@ Evidence from the approved 11C-2 closure at commit `79ebd2b` (after fixing HIGH 
 
 ## 11C-3 Real restaurant flows
 
-Verdict: **11C-3 FLUJOS REALES APROBADOS** (same `79ebd2b` baseline; no additional product changes were introduced during the flow-approval pass).
+Verdict: **11C-3 FLUJOS REALES APROBADOS** (same `7a99396` baseline; no additional product changes were introduced during the flow-approval pass).
 
 ### CRITICAL / HIGH status
 
@@ -140,7 +143,7 @@ Full pgTAP (456), full concurrency ×2, full Vitest (552), full Playwright matri
 | Gate | Result |
 |---|---|
 | 11C-1 | OK |
-| 11C-2 | APPROVED (`79ebd2b`) |
+| 11C-2 | APPROVED (`7a99396`) |
 | 11C-3 | APPROVED (CRITICAL 0 / HIGH 0) |
 | 11C-4 | CLOSED (focused remediation; no full rerun claimed) |
 | Compuerta B | PENDING |
@@ -168,7 +171,7 @@ Full pgTAP (456), full concurrency ×2, full Vitest (552), full Playwright matri
 
 Fecha de la verificación final: **2026-07-11** · Entorno: Windows 10, Node 22.18, npm 10.9.
 
-> **Cierre global — escena 11 (2026-07-13, commit `929e2de`):** `npm run typecheck` y
+> **Cierre global — escena 11 (2026-07-13, commit `88f24f2`):** `npm run typecheck` y
 > `npm run lint` terminaron limpios; `npm run test` pasó **14 archivos / 139 pruebas**,
 > sin fallos ni omisiones; `npm run build` pasó con **43 rutas** y shared JS de 102 kB.
 > `npm run test:e2e` ejecutó **80/80 mobile-chromium**, **65/65 mobile-webkit + 1 skip**
@@ -243,7 +246,7 @@ Fecha de la verificación final: **2026-07-11** · Entorno: Windows 10, Node 22.
 
 # Sesión de movimiento — verificación final (2026-07-11)
 
-Tras la calibración de animaciones contra `references/restaurant-motion-reference.mp4` y la corrección de las regresiones/carreras detectadas.
+Tras la calibración histórica contra un video de referencia posteriormente retirado del árbol e historial por falta de procedencia redistribuible documentada, y la corrección de las regresiones/carreras detectadas.
 
 | # | Verificación | Comando | Exit | Resultado |
 |---|---|---|---|---|
@@ -270,7 +273,7 @@ Tras la calibración de animaciones contra `references/restaurant-motion-referen
 
 ## Rendimiento (producción; cota superior incl. protocolo CDP)
 
-Antes → después: chip 136→68 ms · favorito 74→69 · carrito→toast 125→85 · sheet 157/69→88/45 · tarjeta→detalle 249→149 · volver 164→112 · CTA onboarding 99→70. Conclusión honesta: **sin regresión** (las mejoras entran en la varianza del host; la medición “antes” corrió con más carga); los objetivos de <100 ms de feedback y 100–450 ms funcionales se cumplen con margen. Fidelidad visual confirmada frame a frame en `references/analysis/contact-sheets/app-after-*.png` (onboarding/splash/home/detalle/categorías/scroll).
+Antes → después: chip 136→68 ms · favorito 74→69 · carrito→toast 125→85 · sheet 157/69→88/45 · tarjeta→detalle 249→149 · volver 164→112 · CTA onboarding 99→70. Conclusión honesta: **sin regresión** (las mejoras entran en la varianza del host; la medición “antes” corrió con más carga); los objetivos de <100 ms de feedback y 100–450 ms funcionales se cumplen con margen. La evidencia binaria frame a frame fue inspeccionada históricamente y luego retirada del árbol/historial en la sanitización de publicación; las conclusiones textuales se conservan.
 
 ---
 
@@ -518,7 +521,7 @@ que otras suites puedan alterar.
 | `private.current_role()` | EXECUTE solo `authenticated`; SECURITY DEFINER; `search_path` vacío |
 | `process_stripe_payment_event` | EXECUTE solo `service_role`; SECURITY DEFINER; `search_path` vacío |
 | Registros / errores bloqueantes | ninguno reportado |
-| Working tree en cierre de código (`5cfc9bd`) | limpio |
+| Working tree en cierre de código (`f79c98e`) | limpio |
 
 No se afirma que todos los advisors queden en cero.
 
@@ -586,7 +589,7 @@ reversión; se prohíben escritura y ejecución (`UPDATE`/`INSERT`/`DELETE`/`MER
 
 ## Etapa 11B-1A — catálogo Supabase y precios autoritativos (2026-08-07)
 
-Checkpoint base: `d89a35b`. Catálogo público y validación de checkout leen la misma
+Checkpoint base: `82a962e`. Catálogo público y validación de checkout leen la misma
 abstracción de repositorio; `DATA_MODE=supabase` sin fallback local silencioso;
 `saveOrder` remoto sigue deshabilitado (`persistence-pending` / 503). Sin migraciones,
 sin SQL remoto, sin admin de catálogo, sin Compuerta B.
@@ -609,7 +612,7 @@ sin SQL remoto, sin admin de catálogo, sin Compuerta B.
 
 ## Etapa 11B-1B — administración real del catálogo (2026-08-07)
 
-Checkpoint base: `5b40d8c`. Escrituras admin → Server Actions → sesión SSR → RLS.
+Checkpoint base: `b18b57e`. Escrituras admin → Server Actions → sesión SSR → RLS.
 Sin migraciones, sin service_role en app, sin persistencia de pedidos, sin Compuerta B.
 
 | Verificación | Resultado real |
@@ -629,7 +632,7 @@ Sin migraciones, sin service_role en app, sin persistencia de pedidos, sin Compu
 
 ## Etapa 11B-2A — RPC transaccional de pedidos (2026-08-07)
 
-Checkpoint base: `1944cce`. Migración local **0010** únicamente. App **no** cableada
+Checkpoint base: `249e206`. Migración local **0010** únicamente. App **no** cableada
 (`persistence-pending` intacto). Sin db push / remoto / git push.
 
 | Verificación | Resultado real |
@@ -646,7 +649,7 @@ Checkpoint base: `1944cce`. Migración local **0010** únicamente. App **no** ca
 
 ## Corrección 11B-2A — replay temprano + cupón (2026-08-07)
 
-Checkpoint base: `fc9c543`. Solo 0010 + tests + harness + docs. Sin app / 0001–0009 / remoto.
+Checkpoint base: `b1f3684`. Solo 0010 + tests + harness + docs. Sin app / 0001–0009 / remoto.
 
 | Verificación | Resultado real |
 |---|---|
@@ -666,7 +669,7 @@ Checkpoint base: `fc9c543`. Solo 0010 + tests + harness + docs. Sin app / 0001�
 
 ## Etapa 11B-2B — checkout conectado a RPC (2026-08-07)
 
-Checkpoint base: `1dd2132`. Sin cambios SQL/migraciones. App cablea pedidos supabase.
+Checkpoint base: `4e6f642`. Sin cambios SQL/migraciones. App cablea pedidos supabase.
 
 | Verificación | Resultado real |
 |---|---|
@@ -718,7 +721,7 @@ Contrato DB 0004/0007 suficiente (sin migración 0012 de pensionados). App conec
 
 ## Etapa 11B-3 — operaciones staff + grant staff_status (2026-08-07)
 
-Commits: `79ae495` (0011 grant) + feat operaciones. Bloqueo: SELECT `staff_status` faltaba → 42501 en resolver.
+Commits: `aa29479` (0011 grant) + feat operaciones. Bloqueo: SELECT `staff_status` faltaba → 42501 en resolver.
 
 | Verificación | Resultado real |
 |---|---|
@@ -751,7 +754,7 @@ Corrección post-11B-1B: shell `/admin` exclusivo owner/admin; catálogo manager
 
 ## Etapa 11B-5 WEB — pensionados conectados a Supabase (2026-08-07)
 
-Checkpoint SQL previo `e15842f`. WEB conectada sin cambiar migraciones.
+Checkpoint SQL previo `e96d685`. WEB conectada sin cambiar migraciones.
 
 | Verificación | Resultado real |
 |---|---|
