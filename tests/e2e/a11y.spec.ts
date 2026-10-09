@@ -81,7 +81,7 @@ test.describe("Accesibilidad (axe)", () => {
     const page = await context.newPage();
     await page.goto("/");
     await expect(page.getByTestId("landing-page")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Comenzar" }).locator("..")).toHaveCSS(
+    await expect(page.getByRole("link", { name: "Comenzar" }).locator("..")).toHaveCSS(
       "opacity",
       "1",
     );

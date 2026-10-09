@@ -13,7 +13,7 @@ export function ServiceStatus({ period }: { period: ServicePeriod }) {
       className="service-status rounded-[1.35rem] border border-border-strong p-1.5"
     >
       {period === "closed" ? (
-        <div className="flex min-h-14 items-center gap-3 rounded-[1rem] bg-error/10 px-4 text-left">
+        <div className="service-closed flex min-h-14 items-center gap-3 rounded-[1rem] bg-error/10 px-4 text-left">
           <Clock3 aria-hidden className="size-5 shrink-0 text-error" />
           <div>
             <p className="font-extrabold">Cerrado</p>

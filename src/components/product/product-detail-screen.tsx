@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeft, Ban, ShoppingBag, Soup, UtensilsCrossed } from "lucide-react";
-import { m, useReducedMotion } from "motion/react";
+import { m } from "motion/react";
 import { useTransitionRouter } from "next-view-transitions";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { BrandMark } from "@/components/layout/brand-mark";
@@ -11,6 +11,7 @@ import { FavoriteButton } from "@/components/menu/favorite-button";
 import { Button } from "@/components/ui/button";
 import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { useToast } from "@/components/ui/toast";
+import { useHydratedReducedMotion } from "@/hooks/use-hydrated-reduced-motion";
 import { useMenuItemsWithAdminOverrides } from "@/hooks/use-menu-items";
 import { useServicePeriod } from "@/hooks/use-service-period";
 import { track } from "@/lib/analytics";
@@ -39,7 +40,7 @@ export function ProductDetailScreen({
   allowDemoOverrides?: boolean;
 }) {
   const router = useTransitionRouter();
-  const reduced = useReducedMotion() ?? false;
+  const reduced = useHydratedReducedMotion();
   const { toast } = useToast();
   const addItem = useCartStore((state) => state.addItem);
   const [adjustedItem] = useMenuItemsWithAdminOverrides(
@@ -198,24 +199,24 @@ export function ProductDetailScreen({
       className="product-detail-shell relative min-h-dvh overflow-x-hidden pb-[calc(6.5rem+env(safe-area-inset-bottom))]"
     >
       <header className="detail-topbar flex min-h-16 items-center justify-between gap-3 px-4 pt-[max(env(safe-area-inset-top),0.4rem)]">
-        <div className="flex items-center gap-2.5">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
           <button
             type="button"
             aria-label="Volver"
             onClick={goBack}
-            className="inline-flex size-11 items-center justify-center rounded-full border border-border-strong bg-white/5 transition-colors hover:bg-white/10"
+            className="detail-icon-button inline-flex size-11 shrink-0 items-center justify-center rounded-full border"
           >
             <ArrowLeft aria-hidden className="size-5" />
           </button>
-          <BrandMark size="sm" />
+          <BrandMark size="sm" name="Brisas del Sinú" className="min-w-0" />
         </div>
-        <FavoriteButton slug={item.slug} name={item.fullName} />
+        <FavoriteButton slug={item.slug} name={item.fullName} className="detail-favorite shrink-0" />
       </header>
 
-      <m.div {...enter(0, 8)} className="px-4 pt-2">
+      <div className="px-4 pt-2">
         <div
           data-testid="detail-image-container"
-          className={cn("detail-hero relative overflow-hidden rounded-[1.8rem] border border-border-strong", !item.available && "saturate-50")}
+          className={cn("detail-hero relative overflow-hidden rounded-[1.25rem]", !item.available && "saturate-50")}
           style={{ viewTransitionName: `dish-${item.slug}` } as CSSProperties}
         >
           <DishImage
@@ -224,10 +225,10 @@ export function ProductDetailScreen({
             sizes="(max-width: 672px) 100vw, 640px"
             priority
             className="h-full w-full"
-            imageStyle={{ objectPosition: visual.objectPosition, transform: `scale(${Math.max(1, visual.zoom - 0.12)})` }}
+            imageStyle={{ objectPosition: visual.objectPosition, transform: "scale(1.04)" }}
           />
         </div>
-      </m.div>
+      </div>
 
       <main className="detail-content px-5 pt-4">
         <m.div {...enter(0.06)} className="flex items-start justify-between gap-4">
@@ -235,7 +236,7 @@ export function ProductDetailScreen({
             <h1 className="text-balance text-[clamp(1.75rem,7vw,2.45rem)] font-extrabold leading-[1.02] tracking-[-0.045em]">
               {item.fullName}
             </h1>
-            <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-[#d9e2ff]">
+            <p className="detail-description mt-1.5 line-clamp-2 text-sm leading-relaxed">
               {item.shortDescription}
             </p>
             <p className="mt-2 text-[clamp(1.35rem,5.5vw,1.75rem)] font-extrabold tabular-nums">
@@ -244,13 +245,13 @@ export function ProductDetailScreen({
           </div>
           <div className="shrink-0 pt-1">
             <span className="sr-only">Cantidad</span>
-            <QuantitySelector value={quantity} onChange={setQuantity} />
+            <QuantitySelector value={quantity} onChange={setQuantity} className="detail-quantity" />
           </div>
         </m.div>
 
         {service.period === "closed" ? (
-          <m.div {...enter(0.1)} role="status" className="mt-3 flex items-center gap-3 rounded-2xl border border-error/25 bg-error/8 px-4 py-3">
-            <Ban aria-hidden className="size-5 shrink-0 text-error" />
+          <m.div {...enter(0.1)} role="status" className="detail-closed mt-3 flex items-center gap-3 rounded-2xl border px-4 py-3">
+            <Ban aria-hidden className="size-5 shrink-0" />
             <p className="text-sm"><strong>Cerrado.</strong> Abrimos a las 7:00 a. m. Puedes consultar el menú, pero no añadir productos ahora.</p>
           </m.div>
         ) : null}
@@ -295,7 +296,7 @@ export function ProductDetailScreen({
                           >
                             <span>{option.name}</span>
                             {option.additionalPrice > 0 ? (
-                              <span className="text-xs font-semibold text-lime">
+                              <span className="detail-accent text-xs font-semibold">
                                 +{formatCurrency(option.additionalPrice)}
                               </span>
                             ) : null}
@@ -319,7 +320,7 @@ export function ProductDetailScreen({
             className="mt-3"
           >
             <div className="flex items-center gap-2">
-              <Soup aria-hidden className="size-5 text-lime" />
+              <Soup aria-hidden className="detail-accent size-5" />
               <div>
                 <h2 id="soup-selector-title" className="font-extrabold">Elige tu sopa incluida</h2>
                 <p className="text-xs text-muted">Sin costo adicional</p>
@@ -337,7 +338,7 @@ export function ProductDetailScreen({
                     onClick={() => setSelectedSoupId(soupItem.id)}
                     className={cn("soup-option", selected && "soup-option-selected")}
                   >
-                    <Soup aria-hidden className="size-5 text-lime" />
+                    <Soup aria-hidden className="detail-accent size-5" />
                     <span>{soupItem.fullName}</span>
                   </button>
                 );
@@ -349,7 +350,7 @@ export function ProductDetailScreen({
                 onClick={() => setSelectedSoupId(NO_SOUP_OPTION_ID)}
                 className={cn("soup-option", selectedSoupId === NO_SOUP_OPTION_ID && "soup-option-selected")}
               >
-                <Ban aria-hidden className="size-5 text-lime" />
+                <Ban aria-hidden className="detail-accent size-5" />
                 <span>Sin sopa</span>
               </button>
             </div>
@@ -357,12 +358,12 @@ export function ProductDetailScreen({
         ) : null}
 
         {service.period === "lunch" && supportsLunchSoup ? (
-          <m.section {...enter(0.18)} aria-labelledby="order-summary-title" data-testid="detail-order-summary" className="detail-order-summary mt-3 rounded-[1.25rem] border border-white/12 px-4 py-3">
-            <h2 id="order-summary-title" className="text-sm font-extrabold text-lime">Tu pedido incluye</h2>
+          <m.section {...enter(0.18)} aria-labelledby="order-summary-title" data-testid="detail-order-summary" className="detail-order-summary mt-3 rounded-[1.25rem] border px-4 py-3">
+            <h2 id="order-summary-title" className="detail-accent text-sm font-extrabold">Tu pedido incluye</h2>
             <p className="mt-1 flex items-center gap-2 text-sm font-semibold">
-              <UtensilsCrossed aria-hidden className="size-4 shrink-0" />
+              <UtensilsCrossed aria-hidden className="detail-accent size-4 shrink-0" />
               <span>{quantity} {item.shortName ?? item.fullName}</span>
-              <span aria-hidden className="text-lime">+</span>
+              <span aria-hidden className="detail-accent">+</span>
               <span>{selectedSoup ? `1 ${selectedSoup.fullName}` : "Sin sopa"}</span>
             </p>
           </m.section>
@@ -394,7 +395,7 @@ export function ProductDetailScreen({
                   ? "modifier-incomplete-reason"
                   : undefined
             }
-            className="h-14 min-w-0 flex-1 rounded-full text-[15px]"
+            className="detail-add h-14 min-w-0 flex-1 rounded-full text-[15px]"
           >
             <ShoppingBag aria-hidden className="size-5" />
             {service.period === "closed" ? "Cerrado" : item.available ? "Añadir al carrito" : "No disponible"}

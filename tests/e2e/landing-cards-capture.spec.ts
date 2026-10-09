@@ -15,7 +15,7 @@ test("evidencia: portada estática en todos los tamaños", async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.goto("/");
     const landing = page.getByTestId("landing-page");
-    const cta = landing.getByRole("button", { name: "Comenzar" });
+    const cta = landing.getByRole("link", { name: "Comenzar" });
     await expect(landing.getByRole("img", { name: /pescado frito/i })).toBeVisible();
     await expect(cta).toBeVisible();
     const box = await cta.boundingBox();

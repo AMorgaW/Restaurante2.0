@@ -95,6 +95,16 @@ describe("MenuDishRow", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("en almuerzo aclara que la sopa se puede elegir", () => {
+    renderWithProviders(<MenuDishRow item={makeItem()} servicePeriod="lunch" />);
+    expect(screen.getByText("Puede llevar sopa")).toBeInTheDocument();
+  });
+
+  it("en cena no anuncia sopa en la tarjeta", () => {
+    renderWithProviders(<MenuDishRow item={makeItem()} servicePeriod="dinner" />);
+    expect(screen.queryByText("Puede llevar sopa")).not.toBeInTheDocument();
+  });
+
   it("muestra el estado agotado sin botón de añadir", () => {
     renderWithProviders(<MenuDishRow item={makeItem({ available: false })} />);
     expect(screen.getByText("Agotado")).toBeInTheDocument();
@@ -152,6 +162,16 @@ describe("FavoriteButton", () => {
 });
 
 describe("DishImage", () => {
+  it("no esconde la fotografía descargada detrás de opacity 0", () => {
+    const item = makeItem();
+    renderWithProviders(
+      <DishImage image={item.image} alt="Fotografía de Carne asada" sizes="100px" />,
+    );
+    const img = document.querySelector("img");
+    expect(img).not.toBeNull();
+    expect(img?.className ?? "").not.toContain("opacity-0");
+  });
+
   it("muestra un fallback accesible si la imagen falla", () => {
     const item = makeItem();
     renderWithProviders(

@@ -43,7 +43,7 @@ test.describe("Capturas de revisión visual", () => {
   test("menú tras completar y visita recurrente", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Comenzar" }).click();
+    await page.getByRole("link", { name: "Comenzar" }).click();
     await expect(page.getByRole("heading", { name: "Menú", exact: true })).toBeVisible();
     await page.screenshot({ path: `${DIR}/landing-menu-after-start-390x844.png`, fullPage: true });
 

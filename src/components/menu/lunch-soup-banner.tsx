@@ -1,37 +1,75 @@
-import { Soup } from "lucide-react";
+import { Soup, UtensilsCrossed } from "lucide-react";
+import { STANDALONE_PORTIONS_PENDING_COPY } from "@/lib/menu/flexible-orders";
 import type { MenuItem } from "@/types/menu";
 
+/**
+ * Dos lecturas distintas del almuerzo: la sopa que puede ir con el seco
+ * y las porciones sueltas, que el catálogo aún no vende.
+ */
 export function LunchSoupBanner({ soups }: { soups: ReadonlyArray<MenuItem> }) {
   const availableSoups = soups.filter((soup) => soup.available);
   return (
-    <section
-      aria-labelledby="lunch-soups-title"
+    <div
       data-testid="lunch-soup-banner"
-      className="lunch-soup-banner rounded-[1.35rem] border border-border-strong px-4 py-3.5"
+      className="lunch-soup-banner grid gap-2.5 lg:grid-cols-[minmax(0,1.45fr)_minmax(15rem,0.9fr)]"
     >
-      <div className="flex items-start gap-3">
-        <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-lime/30 bg-lime/8 text-lime">
-          <Soup aria-hidden className="size-6" />
+      <section
+        aria-labelledby="lunch-soups-title"
+        data-testid="included-soup-lane"
+        className="included-soup-lane rounded-[1.15rem] px-3.5 py-3"
+      >
+        <div className="flex items-start gap-3">
+          <div className="lunch-soup-mark flex size-11 shrink-0 items-center justify-center rounded-2xl">
+            <Soup aria-hidden className="size-6" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em]">Con el seco</p>
+            <h2 id="lunch-soups-title" className="font-extrabold leading-tight">
+              Sopa incluida con el almuerzo
+            </h2>
+            {availableSoups.length > 0 ? (
+              <ul className="mt-2 flex flex-wrap gap-2" aria-label="Sopas incluidas con el almuerzo">
+                {availableSoups.map((soup) => (
+                  <li
+                    key={soup.id}
+                    className="lunch-soup-chip inline-flex min-h-8 max-w-full items-center rounded-full px-3 text-xs font-semibold"
+                  >
+                    <Soup aria-hidden className="mr-1.5 size-3.5 shrink-0" />
+                    <span className="min-w-0">{soup.fullName}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-1 text-sm font-semibold">Hoy no hay sopa incluida. Puedes pedir el seco sin sopa.</p>
+            )}
+            {availableSoups.length > 0 ? (
+              <p className="mt-2 text-xs leading-relaxed text-muted">
+                El seco puede incluir una de estas sopas. Elige una en el detalle del plato o pide sin sopa.
+              </p>
+            ) : null}
+          </div>
         </div>
-        <div className="min-w-0 flex-1">
-          <h2 id="lunch-soups-title" className="font-extrabold">Sopas incluidas hoy</h2>
-          {availableSoups.length > 0 ? (
-            <ul className="mt-2 flex flex-wrap gap-2" aria-label="Sopas disponibles">
-              {availableSoups.map((soup) => (
-                <li key={soup.id} className="inline-flex min-h-8 items-center rounded-full border border-white/14 bg-white/6 px-3 text-xs font-semibold text-[#e8edff]">
-                  <Soup aria-hidden className="mr-1.5 size-3.5 text-lime" />
-                  {soup.fullName}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-1 text-sm font-semibold text-muted">Sopa no disponible hoy</p>
-          )}
-          <p className="mt-2 text-xs leading-relaxed text-muted">
-            Elige una en el detalle del plato o pide sin sopa.
-          </p>
+      </section>
+
+      <section
+        aria-labelledby="separate-portions-title"
+        data-testid="separate-portions-note"
+        data-flexible-orders="pending"
+        className="separate-portions-note rounded-[1.15rem] px-3.5 py-3"
+      >
+        <div className="flex items-start gap-3">
+          <div className="separate-portions-mark flex size-11 shrink-0 items-center justify-center rounded-2xl">
+            <UtensilsCrossed aria-hidden className="size-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em]">Pedido distinto</p>
+            <h3 id="separate-portions-title" className="font-extrabold leading-tight">
+              Por separado
+            </h3>
+            <p className="mt-1 text-xs leading-relaxed text-muted">{STANDALONE_PORTIONS_PENDING_COPY}</p>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }

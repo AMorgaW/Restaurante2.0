@@ -1,9 +1,10 @@
 "use client";
 
-import { m, useReducedMotion } from "motion/react";
+import { m } from "motion/react";
 import { getCategoryEmoji } from "@/components/menu/category-emoji";
 import { EASE_OUT } from "@/components/motion/variants";
 import { Chip } from "@/components/ui/chip";
+import { useHydratedReducedMotion } from "@/hooks/use-hydrated-reduced-motion";
 import { track } from "@/lib/analytics";
 import type { CategoryInfo } from "@/types/menu";
 
@@ -26,7 +27,7 @@ export function CategoryChips({
   entrance?: boolean;
   entranceDelay?: number;
 }) {
-  const reduced = useReducedMotion() ?? false;
+  const reduced = useHydratedReducedMotion();
   const animate = entrance && !reduced;
 
   const chipWrapper = (index: number) =>

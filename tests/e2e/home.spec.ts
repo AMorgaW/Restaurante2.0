@@ -15,7 +15,7 @@ test.describe("Raíz y menú principal", () => {
   test("mantiene la portada y navega al menú desde Comenzar", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByTestId("landing-page")).toBeVisible();
-    await page.getByRole("button", { name: "Comenzar" }).click();
+    await page.getByRole("link", { name: "Comenzar" }).click();
     await expect(page).toHaveURL(/\/menu$/);
     await expect(page.getByRole("heading", { name: "Menú", exact: true })).toBeVisible();
     await expect(page.getByRole("searchbox")).toBeVisible();

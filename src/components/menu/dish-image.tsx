@@ -2,14 +2,15 @@
 
 import { ImageOff } from "lucide-react";
 import Image from "next/image";
-import { useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 import type { MenuImageMeta } from "@/types/menu";
 
 /**
- * Imagen de plato con placeholder blur y estado de error accesible
- * (si el archivo falla, se muestra un recuadro con icono, sin romper
- * el layout). Todas las fotos son locales.
+ * Imagen de plato con reserva difusa y estado de error accesible.
+ * La foto no nace oculta: si el navegador ya la descargó, el HTML del
+ * servidor la muestra sin esperar a que React marque la carga. El pop de
+ * escala, cuando no hay encuadre editorial, ocurre después de hidratar.
  */
 export function DishImage({
   image,
@@ -34,6 +35,20 @@ export function DishImage({
 }) {
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const imageRef = useRef<HTMLImageElement | null>(null);
+  const editorial = imageStyle != null;
+
+  useEffect(() => {
+    if (editorial) return;
+    const node = imageRef.current;
+    if (!node) return;
+    const markLoaded = () => {
+      if (node.naturalWidth > 0) setLoaded(true);
+    };
+    if (node.complete) markLoaded();
+    node.addEventListener("load", markLoaded);
+    return () => node.removeEventListener("load", markLoaded);
+  }, [editorial, image.publicPath]);
 
   if (failed) {
     return (
@@ -53,10 +68,8 @@ export function DishImage({
   return (
     <div className={cn("relative overflow-hidden", className)}>
       <Image
-        // Si la imagen ya estaba completa antes de la hidratación, el evento
-        // load no llega a React: se marca cargada sin animación.
         ref={(node) => {
-          if (node?.complete) setLoaded(true);
+          imageRef.current = node;
         }}
         src={image.publicPath}
         alt={alt}
@@ -67,17 +80,11 @@ export function DishImage({
         {...(image.blurDataURL ? { blurDataURL: image.blurDataURL } : {})}
         className={cn(
           image.hasAlpha ? "object-contain" : "object-cover",
-          // Pop sutil al completar la carga (lenguaje de "materialización"
-          // de la referencia); GPU-only y desactivado con reduced motion.
-          // Con imageStyle (zoom editorial inline) el pop de escala cede el
-          // transform al tratamiento y queda solo el fundido de opacidad.
-          "transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-opacity",
-          loaded ? "opacity-100" : "opacity-0",
-          !imageStyle && (loaded ? "scale-100" : "scale-[0.94] motion-reduce:scale-100"),
+          !editorial && "transition-transform duration-200 ease-out motion-reduce:transition-none",
+          !editorial && (loaded ? "scale-100" : "scale-[0.94] motion-reduce:scale-100"),
           imageClassName,
         )}
         style={imageStyle}
-        onLoad={() => setLoaded(true)}
         onError={() => setFailed(true)}
       />
     </div>

@@ -74,9 +74,12 @@ describe("estado visual del servicio", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("admite una lista vacía de sopas", () => {
+  it("admite una lista vacía de sopas y distingue las porciones sueltas", () => {
     renderWithProviders(<LunchSoupBanner soups={[]} />);
-    expect(screen.getByText("Sopa no disponible hoy")).toBeInTheDocument();
+    expect(screen.getByText("Hoy no hay sopa incluida. Puedes pedir el seco sin sopa.")).toBeInTheDocument();
+    expect(screen.getByTestId("separate-portions-note")).toHaveAttribute("data-flexible-orders", "pending");
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 });
 

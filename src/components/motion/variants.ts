@@ -66,6 +66,19 @@ export const filterReveal: Variants = {
   exit: { opacity: 0, y: -4, transition: { duration: 0.16, ease: EASE_IN } },
 };
 
+/**
+ * Portada: el texto ya es legible en el primer frame (opacidad 1).
+ * `custom` es el retraso en segundos. El desplazamiento usa transform.
+ */
+export const landingEnter: Variants = {
+  hidden: { opacity: 1, y: 14 },
+  visible: (delay: number = 0) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.64, ease: EASE_OUT, delay },
+  }),
+};
+
 /** Selecciona variantes según la preferencia de movimiento. */
 export function pickVariants(reduced: boolean, full: Variants): Variants {
   return reduced ? reducedFade : full;

@@ -13,7 +13,7 @@ test("reduced motion: flujo completo sin contenido invisible", async ({ page }) 
   const onboarding = page.getByTestId("landing-page");
   await expect(onboarding).toBeVisible();
   await expect(onboarding.getByRole("img", { name: /pescado frito/i })).toHaveCSS("transform", "none");
-  await onboarding.getByRole("button", { name: "Comenzar" }).click();
+  await onboarding.getByRole("link", { name: "Comenzar" }).click();
   await expect(page).toHaveURL(/\/menu$/);
   await expect(page.getByRole("heading", { name: "Menú", exact: true })).toBeVisible();
   await expect(page.getByRole("group", { name: "Filtrar por categoría" }).locator("..")).toHaveCSS(

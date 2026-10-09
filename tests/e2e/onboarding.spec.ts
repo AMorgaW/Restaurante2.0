@@ -138,6 +138,9 @@ async function expectLandingVisible(page: Page) {
   await expect(view.image).toHaveAttribute("alt", /pescado frito/i);
   await expect.poll(() => view.image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   await expect(view.image).toHaveCSS("transform", "none");
+  await expect(view.cta).toHaveRole("link");
+  await expect(view.cta).toHaveAttribute("href", "/menu");
+  await expect(view.cta).toHaveAccessibleName("Comenzar");
   await expect(view.cta).toBeEnabled();
   await expect(view.userEntry).toHaveAttribute("aria-label", "Iniciar sesión");
   await expect(view.userEntry).toHaveAccessibleName(/iniciar sesión/i);
@@ -145,11 +148,11 @@ async function expectLandingVisible(page: Page) {
 
 async function waitForLandingHydration(page: Page) {
   await page.waitForFunction(() => {
-    const button = document.querySelector<HTMLButtonElement>('[data-testid="landing-cta"]');
-    if (!button) return false;
-    const propKey = Object.keys(button).find((key) => key.startsWith("__reactProps$"));
+    const link = document.querySelector<HTMLAnchorElement>('[data-testid="landing-cta"]');
+    if (!(link instanceof HTMLAnchorElement) || link.getAttribute("href") !== "/menu") return false;
+    const propKey = Object.keys(link).find((key) => key.startsWith("__reactProps$"));
     if (!propKey) return false;
-    const props = (button as unknown as Record<string, { onClick?: unknown }>)[propKey];
+    const props = (link as unknown as Record<string, { onClick?: unknown }>)[propKey];
     return typeof props?.onClick === "function";
   });
 }

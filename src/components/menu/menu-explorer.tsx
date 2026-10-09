@@ -1,7 +1,7 @@
 "use client";
 
-import { m, useReducedMotion } from "motion/react";
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { CatalogMasthead } from "@/components/menu/catalog-masthead";
 import { CategoryChips } from "@/components/menu/category-chips";
 import { LunchSoupBanner } from "@/components/menu/lunch-soup-banner";
 import { MenuGrid } from "@/components/menu/menu-grid";
@@ -11,10 +11,11 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/states";
 import { filterMenuItems } from "@/features/menu/filtering";
 import { track } from "@/lib/analytics";
-import { EASE_OUT } from "@/components/motion/variants";
+import { useHydratedReducedMotion } from "@/hooks/use-hydrated-reduced-motion";
 import { useMenuItemsWithAdminOverrides } from "@/hooks/use-menu-items";
 import { useServicePeriod } from "@/hooks/use-service-period";
-import { getIncludedLunchSoups, isSoupItem } from "@/lib/menu/included-soups";
+import { purchasableCatalogItems } from "@/lib/menu/flexible-orders";
+import { getIncludedLunchSoups } from "@/lib/menu/included-soups";
 import { DEFAULT_SERVICE_SNAPSHOT, type ServiceSnapshot } from "@/lib/menu/service-period";
 import { useMenuViewStore, type MenuSort } from "@/stores/menu-view";
 import type { CategoryInfo, MenuItem } from "@/types/menu";
@@ -71,7 +72,7 @@ export function MenuExplorer({
   const setCategory = useMenuViewStore((state) => state.setCategory);
   const sort = useMenuViewStore((state) => state.sort);
   const setSort = useMenuViewStore((state) => state.setSort);
-  const reduced = useReducedMotion() ?? false;
+  const reduced = useHydratedReducedMotion();
   const [menuEntrance] = useState(() => !sessionMenuEntranceDone);
   const service = useServicePeriod(initialServiceSnapshot);
 
@@ -102,7 +103,7 @@ export function MenuExplorer({
     return () => cancelAnimationFrame(frame);
   }, []);
 
-  const catalogItems = useMemo(() => items.filter((item) => !isSoupItem(item)), [items]);
+  const catalogItems = useMemo(() => purchasableCatalogItems(items), [items]);
   const includedSoups = useMemo(() => getIncludedLunchSoups(items), [items]);
   const visibleCategories = useMemo(
     () => categories.filter((category) => catalogItems.some((item) => item.categorySlug === category.slug)),
@@ -138,78 +139,52 @@ export function MenuExplorer({
 
   const hasActiveFilters = deferredQuery.trim().length > 0 || (categorySlug && !lockedCategory);
 
-  const reveal = (delay: number) =>
-    reduced
-      ? { initial: false as const }
-      : menuEntrance
-      ? {
-          initial: { opacity: 1, y: 12 },
-          animate: { opacity: 1, y: 0 },
-          transition: { duration: 0.32, delay, ease: EASE_OUT },
-        }
-      : { initial: false as const };
-
   return (
     <div className="menu-explorer flex flex-col gap-4">
-      <m.div {...reveal(0.08)}>
-        <ServiceStatus period={service.period} />
-      </m.div>
-      {service.period === "lunch" ? (
-        <m.div {...reveal(0.16)}>
-          <LunchSoupBanner soups={includedSoups} />
-        </m.div>
-      ) : null}
-      {title ? (
-        <m.div {...reveal(service.period === "lunch" ? 0.24 : 0.16)} className="menu-heading relative isolate overflow-hidden rounded-[1.4rem] px-4 py-3.5 sm:px-5">
-          <h1 className="text-screen-title font-extrabold tracking-[-0.04em]">{title}</h1>
-        </m.div>
-      ) : null}
-      {showSearch ? (
-        <m.div {...reveal(service.period === "lunch" ? 0.32 : 0.24)}>
-          <SearchField
-          value={query}
-          onValueChange={setQuery}
-          placeholder="Busca platos, categorías…"
-          />
-        </m.div>
-      ) : null}
-
-      {!lockedCategory ? (
-        <m.div {...reveal(service.period === "lunch" ? 0.4 : 0.32)}>
-          <CategoryChips
-          categories={visibleCategories}
-          selected={storedCategory}
-          onSelect={setCategory}
-          entrance={menuEntrance && !reduced}
-          entranceDelay={entranceDelay}
-          />
-        </m.div>
-      ) : null}
-
-      <m.div {...reveal(service.period === "lunch" ? 0.48 : 0.4)} className="menu-toolbar flex min-h-12 items-center justify-between gap-3 rounded-[1.15rem] px-3 py-1.5 sm:px-4">
-        <p aria-live="polite" className="shrink-0 text-[13px] font-semibold text-muted">
-          {filtered.length === 1 ? "1 plato" : `${filtered.length} platos`}
-        </p>
-        {showSort ? (
-          <div className="flex items-center gap-2">
-            <label htmlFor="menu-sort" className="sr-only">
-              Ordenar por
-            </label>
-            <select
-              id="menu-sort"
-              value={sort}
-              onChange={(event) => setSort(event.target.value as MenuSort)}
-              className="menu-sort-control h-10 min-w-0 max-w-[13.5rem] rounded-chip border border-border-soft bg-white/6 px-3 text-[13px] font-semibold text-foreground outline-none"
-            >
-              {SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value} className="bg-background-secondary">
-                  {option.label}
-                </option>
-              ))}
-            </select>
+      <CatalogMasthead title={title} period={service.period}>
+          <ServiceStatus period={service.period} />
+          {service.period === "lunch" ? <LunchSoupBanner soups={includedSoups} /> : null}
+          {showSearch ? (
+            <SearchField
+              value={query}
+              onValueChange={setQuery}
+              placeholder="Busca platos, categorías…"
+            />
+          ) : null}
+          {!lockedCategory ? (
+            <CategoryChips
+              categories={visibleCategories}
+              selected={storedCategory}
+              onSelect={setCategory}
+              entrance={menuEntrance && !reduced}
+              entranceDelay={entranceDelay}
+            />
+          ) : null}
+          <div className="menu-toolbar flex min-h-12 items-center justify-between gap-3 px-1 pt-1">
+            <p aria-live="polite" className="shrink-0 text-[13px] font-semibold text-muted">
+              {filtered.length === 1 ? "1 plato" : `${filtered.length} platos`}
+            </p>
+            {showSort ? (
+              <div className="flex min-w-0 items-center gap-2">
+                <label htmlFor="menu-sort" className="sr-only">
+                  Ordenar por
+                </label>
+                <select
+                  id="menu-sort"
+                  value={sort}
+                  onChange={(event) => setSort(event.target.value as MenuSort)}
+                  className="menu-sort-control h-11 min-w-0 max-w-[13.5rem] rounded-chip border border-border-soft bg-white px-3 text-[13px] font-semibold text-foreground outline-none"
+                >
+                  {SORT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
           </div>
-        ) : null}
-      </m.div>
+      </CatalogMasthead>
 
       {filtered.length === 0 ? (
         <EmptyState

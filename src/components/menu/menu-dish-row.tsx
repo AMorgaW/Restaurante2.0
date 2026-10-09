@@ -20,11 +20,9 @@ import { isWebKitBrowser } from "@/lib/browser-engine";
 const reflectedDishSlugs = new Set<string>();
 
 /**
- * Fila del catálogo /menu (VISUAL_CONTRACT §4.6): disco fotográfico
- * solapando el panel, tag lima + nombre (2 líneas, altura estable) +
- * snippet + precio, con favorito y acción rápida en columna derecha.
- * El enlace cubre la fila (nombre COMPLETO en aria-label); los botones
- * son hermanos por encima, nunca anidados.
+ * Tarjeta del catálogo. La fotografía ocupa el ancho y el nombre largo
+ * dispone de todo el renglón. El enlace cubre la tarjeta; favorito y
+ * acción rápida quedan por encima, nunca anidados.
  */
 export function MenuDishRow({
   item,
@@ -84,16 +82,15 @@ export function MenuDishRow({
       data-testid="menu-dish-row"
       data-service-period={servicePeriod}
       className={cn(
-        "menu-dish-card group relative flex min-h-[10.25rem] items-center transition-transform duration-200 active:scale-[0.985] motion-reduce:active:scale-100",
+        "menu-dish-card group relative flex flex-col transition-transform duration-200 active:scale-[0.985] motion-reduce:active:scale-100",
         className,
       )}
     >
-      {/* Panel que el disco solapa */}
       <div
         aria-hidden
         data-testid="menu-card-panel"
         className={cn(
-          "menu-card-panel absolute inset-y-1.5 left-[3.35rem] right-0 rounded-[28px] transition-[border-color,box-shadow] duration-200 xs:left-[3.7rem]",
+          "menu-card-panel absolute inset-0 rounded-[1.7rem] transition-[border-color,box-shadow] duration-200",
           playReflection && "menu-card-reflect-once",
           !item.available && "menu-card-panel-muted",
         )}
@@ -102,65 +99,63 @@ export function MenuDishRow({
       <Link
         href={`/plato/${item.slug}`}
         aria-label={`Ver ${item.fullName}`}
-        className="absolute inset-0 z-[1] rounded-[28px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
+        className="absolute inset-0 z-[1] rounded-[1.7rem] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
         onClick={(event) => {
           handleDishNavigation(event, `/plato/${item.slug}`);
           track("view_item", { item: item.slug, source: "menu" });
         }}
       />
 
-      <div
-        className="menu-dish-visual relative shrink-0"
-        style={{ viewTransitionName: `dish-${item.slug}` } as CSSProperties}
-      >
+      <div className="menu-dish-visual relative m-2 mb-0">
         <div
-          className="menu-dish-photo dish-circle dish-circle-soft relative size-[7.5rem] ring-1 ring-white/15 xs:size-[8.35rem]"
-          style={{ boxShadow: "0 20px 42px -22px rgba(8, 21, 96, 0.88)" }}
+          className="menu-dish-photo relative h-40 overflow-hidden rounded-[1.25rem] sm:h-44"
+          style={{ viewTransitionName: `dish-${item.slug}` } as CSSProperties}
         >
           <DishImage
             image={item.image}
             alt={`Fotografía de ${item.fullName}`}
-            sizes="(max-width: 399px) 116px, 128px"
+            sizes="(max-width: 1024px) 92vw, 40vw"
             priority={priority}
             className={cn("h-full w-full", !item.available && "opacity-60 saturate-50")}
             imageStyle={{
               objectPosition: visual.objectPosition,
-              transform: `scale(${visual.zoom})`,
+              transform: "scale(1.04)",
             }}
           />
         </div>
+        <div className="absolute right-2 top-2 z-[2]">
+          <FavoriteButton slug={item.slug} name={item.fullName} size="md" className="menu-card-favorite" />
+        </div>
       </div>
 
-      <div className="relative min-w-0 flex-1 py-4 pl-2.5 pr-1 xs:pl-3">
-        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-lime">
+      <div className="relative min-w-0 pb-4 pl-4 pr-[4.5rem] pt-3">
+        <p className="menu-card-kicker text-[11px] font-bold uppercase tracking-[0.12em]">
           {category.name}
         </p>
-        <h3 className="text-card-title mt-0.5 min-h-[2.65em] font-extrabold leading-snug text-balance break-words line-clamp-2">
+        <h3 className="text-card-title mt-1 font-extrabold leading-snug text-balance break-words line-clamp-2">
           {item.fullName}
         </h3>
-        <p className="menu-card-secondary mt-0.5 text-[12px] leading-snug line-clamp-1">
+        <p className="menu-card-secondary mt-1 text-[13px] leading-snug line-clamp-2">
           {item.shortDescription}
         </p>
         {servicePeriod === "lunch" ? (
-          <p className="mt-1.5 inline-flex min-h-7 items-center gap-1.5 rounded-full border border-lime/20 bg-lime/8 px-2.5 text-[11px] font-bold text-[#eefed0]">
-            <Soup aria-hidden className="size-3.5 text-lime" />
-            Incluye sopa
+          <p className="menu-card-soup mt-2 inline-flex min-h-7 max-w-full items-center gap-1.5 rounded-full px-2.5 text-[11px] font-bold">
+            <Soup aria-hidden className="size-3.5 shrink-0" />
+            Puede llevar sopa
           </p>
         ) : null}
-        <div className="mt-1.5 flex items-center gap-2.5">
+        <div className="mt-2 flex items-center gap-2.5">
           <Price amount={item.price} />
           {!item.available ? <AvailabilityBadge available={false} /> : null}
         </div>
       </div>
 
-      {/* Columna de acciones, por encima del enlace */}
-      <div className="relative z-[2] flex shrink-0 flex-col items-center gap-2 py-3 pr-3">
-        <FavoriteButton slug={item.slug} name={item.fullName} size="sm" />
+      <div className="absolute bottom-3 right-3 z-[2]">
         {servicePeriod === "lunch" && item.available ? (
           <Link
             href={`/plato/${item.slug}#sopa-incluida`}
             aria-label={hasAvailableSoup ? `Elegir sopa para ${item.fullName}` : `Elegir sin sopa para ${item.fullName}`}
-            className="inline-flex size-11 items-center justify-center rounded-full bg-action text-action-foreground shadow-glow transition-[transform,filter] duration-150 hover:brightness-95 active:scale-[0.94] motion-reduce:active:scale-100"
+            className="menu-card-add inline-flex size-11 items-center justify-center rounded-full bg-action text-action-foreground transition-[transform,filter] duration-150 hover:brightness-95 active:scale-[0.94] motion-reduce:active:scale-100"
             onClick={(event) => handleDishNavigation(event, `/plato/${item.slug}#sopa-incluida`)}
           >
             <Plus aria-hidden className="size-5" strokeWidth={2.6} />
@@ -174,7 +169,7 @@ export function MenuDishRow({
               track("add_to_cart", { item: item.slug, source: "card" });
               toast({ title: "Añadido al carrito", description: item.fullName, variant: "success" });
             }}
-            className="inline-flex size-11 items-center justify-center rounded-full bg-action text-action-foreground shadow-glow transition-[transform,filter] duration-150 hover:brightness-95 active:scale-[0.94] motion-reduce:active:scale-100"
+            className="menu-card-add inline-flex size-11 items-center justify-center rounded-full bg-action text-action-foreground transition-[transform,filter] duration-150 hover:brightness-95 active:scale-[0.94] motion-reduce:active:scale-100"
           >
             <Plus aria-hidden className="size-5" strokeWidth={2.6} />
           </button>
@@ -183,7 +178,7 @@ export function MenuDishRow({
             type="button"
             disabled
             aria-label={`No se puede añadir ${item.fullName}: el restaurante está cerrado`}
-            className="inline-flex size-11 items-center justify-center rounded-full border border-white/10 bg-white/8 text-muted opacity-60"
+            className="menu-card-add menu-card-add-disabled inline-flex size-11 items-center justify-center rounded-full border text-muted"
           >
             <Plus aria-hidden className="size-5" strokeWidth={2.6} />
           </button>
