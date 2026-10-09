@@ -1,0 +1,49 @@
+
+---
+description: Identidad visual Sinú cálido para la interfaz de Brisas del Sinú.
+globs: "src/**/*.tsx,src/**/*.css"
+alwaysApply: false
+---
+
+# Sistema visual Sinú cálido
+
+## Identidad
+- Marca oficial: Brisas del Sinú.
+- Estilo: alegre, cálido, gastronómico y moderno.
+- Prioriza fotografías de comida y una experiencia mobile-first.
+
+## Paleta inicial
+- Fondo: #FFF6E8
+- Superficies: #FFFFFF
+- Acción principal: #FF743D
+- Acento lima: #D9F65A
+- Verde de identidad: #136A57
+- Texto principal: #101D39
+
+## Implementación
+- Centraliza los nuevos colores en tokens semánticos.
+- Conserva Manrope inicialmente.
+- Reutiliza componentes y animaciones existentes.
+- No cambies todo el CSS global sin revisar sus dependencias.
+- Rediseña primero las pantallas públicas.
+- No alteres las interfaces de administración y empleados sin una tarea específica.
+- Conserva las funcionalidades y rutas existentes.
+- No reemplaces identificadores persistidos o datos comerciales demo solo por cambiar la marca visible.
+
+## Movimiento y calidad
+- Sigue las convenciones de Motion de CLAUDE.md.
+- Utiliza animaciones suaves con propósito.
+- Respeta prefers-reduced-motion.
+- Verifica contraste, accesibilidad y rendimiento.
+- Comprueba los resultados en móvil y escritorio.
+## Experiencia dinámica e interactividad
+
+- La interfaz debe sentirse viva, fluida y moderna, evitando pantallas excesivamente estáticas.
+- Incorporar animaciones progresivas al hacer scroll en secciones y elementos adecuados.
+- Utilizar transiciones suaves entre pantallas, tarjetas y detalles de productos.
+- Aplicar microinteracciones a botones, filtros, navegación y carrito.
+- Priorizar animaciones mediante `transform` y `opacity` para favorecer el rendimiento.
+- Evitar animaciones repetitivas que distraigan o dificulten la interacción.
+- Las animaciones de entrada no deben dejar contenido permanentemente oculto ni bloquear acciones.
+- Respetar `prefers-reduced-motion` y las convenciones existentes del proyecto.
+- Mantener una experiencia fluida en dispositivos móviles de rendimiento limitado.

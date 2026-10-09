@@ -1,0 +1,18 @@
+
+---
+description: Metodología incremental de desarrollo de Brisas del Sinú.
+alwaysApply: true
+---
+
+# Metodología de desarrollo
+
+- Respeta las convenciones de CLAUDE.md y AGENTS.md.
+- Antes de modificar código, identifica el objetivo, el alcance y los criterios de aceptación.
+- Para tareas complejas o que afecten varios módulos, presenta primero un plan breve y espera aprobación.
+- Implementa cambios pequeños, delimitados y verificables.
+- No modifiques módulos ajenos al objetivo aprobado.
+- Utiliza las Skills existentes cuando aporten valor real.
+- No invoques subagentes innecesariamente.
+- Ejecuta las pruebas pertinentes al cambio.
+- Al terminar, informa qué cambió, qué se verificó y qué quedó pendiente.
+- Nunca afirmes que una prueba pasó si no se ejecutó.
