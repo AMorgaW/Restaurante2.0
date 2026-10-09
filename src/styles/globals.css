@@ -515,19 +515,16 @@ body:has(.catalog-shell) {
 .catalog-shell .menu-dish-photo {
   box-shadow: 0 14px 24px -18px rgb(16 29 57 / 45%);
 }
-.catalog-shell .menu-dish-card {
-  animation-name: menu-card-rise;
-  animation-duration: 560ms;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-  animation-fill-mode: backwards;
+/* Una sola subida, en el hijo. El article conserva hover y presión.
+   Sin atributo de entrada no hay desplazamiento: el HTML inicial y las
+   visitas ya vistas permanecen en reposo antes de que React lea la sesión. */
+.catalog-shell {
+  --menu-card-rise: 22px;
 }
-@supports (animation-timeline: view()) {
-  .catalog-shell .menu-dish-card {
-    animation-duration: auto;
-    animation-timing-function: linear;
-    animation-timeline: view();
-    animation-range: entry 0% entry 72%;
-  }
+.menu-card-rise[data-rise="done"],
+.catalog-shell [data-menu-entrance="settled"] .menu-card-rise {
+  animation: none !important;
+  transform: none !important;
 }
 @media (hover: hover) and (pointer: fine) {
   .catalog-shell .menu-dish-card:hover .menu-card-panel,
@@ -755,10 +752,6 @@ body {
 }
 @keyframes catalog-masthead-enter {
   from { transform: translateY(14px); }
-  to { transform: translateY(0); }
-}
-@keyframes menu-card-rise {
-  from { transform: translateY(32px); }
   to { transform: translateY(0); }
 }
 .menu-heading::after {
@@ -1146,6 +1139,7 @@ body:has(.product-detail-shell) {
 
 @media (prefers-reduced-motion: reduce) {
   .menu-dish-card,
+  .menu-card-rise,
   .menu-dish-photo,
   .menu-dish-visual::after,
   .menu-category-chip,

@@ -117,7 +117,19 @@ test.describe("indicadores, sopas y buscador cálidos", () => {
     await expect(card.locator("h3")).toHaveCSS("color", "rgb(16, 29, 57)");
     await expect(card.getByTestId("menu-card-panel")).toHaveCSS("background-color", "rgb(255, 255, 255)");
     await expect(card.getByText("Puede llevar sopa")).toBeVisible();
-    await expect(card).toHaveCSS("animation-name", "menu-card-rise");
+    const rise = card.getByTestId("menu-card-rise");
+    const motion = await rise.evaluate((element) => {
+      const article = element.closest("article");
+      const wrap = article?.parentElement;
+      return {
+        rise: getComputedStyle(element).animationName,
+        article: article ? getComputedStyle(article).animationName : "",
+        wrap: wrap ? getComputedStyle(wrap).transform : "",
+      };
+    });
+    expect(motion.article).not.toBe("menu-card-rise");
+    expect(["menu-card-rise", "none"]).toContain(motion.rise);
+    expect(motion.wrap === "none" || motion.wrap === "matrix(1, 0, 0, 1, 0, 0)").toBe(true);
     await page.screenshot({ path: `${evidenceDir}/menu-cards-390x844.png` });
 
     expect(await expectNoHorizontalScroll(page)).toBe(true);

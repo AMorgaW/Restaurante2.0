@@ -86,6 +86,9 @@ export function MenuDishRow({
         className,
       )}
     >
+      {/* La subida vive aquí. Hover y presión se quedan en el article,
+          así cada uno posee su propio transform. */}
+      <div data-testid="menu-card-rise" className="menu-card-rise relative flex min-w-0 flex-col">
       <div
         aria-hidden
         data-testid="menu-card-panel"
@@ -183,6 +186,7 @@ export function MenuDishRow({
             <Plus aria-hidden className="size-5" strokeWidth={2.6} />
           </button>
         ) : null}
+      </div>
       </div>
     </article>
   );
