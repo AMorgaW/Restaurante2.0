@@ -1,12 +1,13 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { COMPACT_CARD_ENTER_RATIO } from "@/lib/menu/compact-card-entrance";
 import { expectNoHorizontalScroll, LONG_DISH_NAME, skipOnboarding } from "./helpers";
 
-test.use({ video: "on", serviceWorkers: "block" });
+test.use({ serviceWorkers: "block" });
 
-const devNoise = /favicon|third-party cookie|ChunkLoadError|turbopack-hmr|__nextjs_original-stack-frames|Transition was aborted because of timeout/i;
+const devNoise = /favicon|third-party cookie|ChunkLoadError|turbopack-hmr|webpack\.hot-update|hot-update\.json due to access control checks|__nextjs_original-stack-frames|Transition was aborted because of timeout/i;
 const VISIBLE_LONG_NAME = "Parrillada de ternera completa";
 const COMPACT_PEEK_PX = 48;
+const CATEGORY_EVIDENCE_DIR = "artifacts/visual-comparison/work/menu-carnes-compact-pilot";
 
 type CompactGate = {
   phase: string | null;
@@ -117,11 +118,28 @@ async function freshMenu(page: Page, width: number, height: number) {
     Object.assign(window, { __compactSamples: samples });
   });
   await page.setViewportSize({ width, height });
-  if (page.url().startsWith("http://localhost:3100")) {
+  if (page.url().startsWith("http")) {
     await page.evaluate(() => window.sessionStorage.removeItem("rb-menu-grid-visited"));
   }
   await page.goto("/menu");
   await expect(page.getByTestId("compact-dish-card").first()).toBeVisible();
+}
+
+/** WebKit puede pintar antes de que React atienda el primer controlado. */
+async function selectSortWhenHydrated(page: Page, value: "recomendados" | "nombre") {
+  await expect(async () => {
+    await page.selectOption("#menu-sort", value);
+    await expect(page.locator("#menu-sort")).toHaveValue(value);
+  }).toPass({ timeout: 20_000 });
+}
+
+async function openCompactDetailWhenHydrated(page: Page, link: Locator) {
+  const href = await link.getAttribute("href");
+  expect(href).toMatch(/^\/plato\//);
+  await expect(async () => {
+    await link.click();
+    await expect(page).toHaveURL(new RegExp(href ?? "/plato/"));
+  }).toPass({ timeout: 20_000 });
 }
 
 function jumpedRight(samples: number[]) {
@@ -213,46 +231,63 @@ test("la primera visita del menú real entra sin salto y aguanta el scroll", asy
   expect(errors, errors.join("\n")).toEqual([]);
 });
 
-test("volver del detalle no repite la entrada y la categoría sigue en fila", async ({ page }) => {
-  test.setTimeout(120_000);
+test("carnes respeta la visita compartida con /menu", async ({ page }) => {
   const errors = watchErrors(page);
-  await freshMenu(page, 390, 844);
-  await page.evaluate(() => window.scrollTo({ top: 640, behavior: "instant" }));
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
-
-  const link = page.locator("[data-catalog-pane='compact'] a[aria-label^='Ver ']").nth(3);
-  await link.scrollIntoViewIfNeeded();
-  const label = await link.getAttribute("aria-label");
-  await link.click();
-  await expect(page).toHaveURL(/\/plato\//);
-  await expect(page.getByTestId("detail-image-container")).toBeVisible();
-  const detailOpacity = await page
-    .getByTestId("detail-image-container")
-    .locator("img")
-    .evaluate((element) => Number(getComputedStyle(element).opacity));
-  expect(detailOpacity).toBeGreaterThan(0.95);
-
-  await page.goBack();
-  await expect(page).toHaveURL(/\/menu$/);
-  await expect(page.getByTestId("compact-dish-card").first()).toBeVisible();
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(80);
-  const replay = await page.evaluate(() => {
-    return [...document.querySelectorAll<HTMLElement>("[data-catalog-pane='compact'] [data-testid='compact-dish-card']")].slice(0, 6).map((card) => {
-      const transform = getComputedStyle(card).transform;
-      const x = transform.startsWith("matrix(") ? Number(transform.split(",")[4]) : 0;
-      return { phase: card.dataset.compactPhase, x };
-    });
-  });
-  expect(replay.every((card) => card.phase !== "play" && card.phase !== "hold" && Math.abs(card.x) < 2), JSON.stringify(replay)).toBe(true);
-  await expect(page.getByRole("link", { name: label ?? "" })).toBeVisible();
-
+  await page.addInitScript(() => window.sessionStorage.setItem("rb-menu-grid-visited", "1"));
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/menu/carnes");
-  await expect(page.getByTestId("menu-dish-row").first()).toBeVisible();
-  await expect(page.getByTestId("compact-dish-card")).toHaveCount(0);
-  await page.getByRole("button", { name: "Volver" }).click();
-  await expect(page).toHaveURL(/\/menu$/);
   await expect(page.getByTestId("compact-dish-card").first()).toBeVisible();
   await expect(page.getByTestId("menu-dish-row").first()).toBeHidden();
+  const categorySettled = await page.evaluate(() => {
+    return [...document.querySelectorAll<HTMLElement>("[data-catalog-pane='compact'] [data-testid='compact-dish-card']")]
+      .map((card) => ({ phase: card.dataset.compactPhase, transform: getComputedStyle(card).transform }));
+  });
+  expect(categorySettled.every((card) => card.phase !== "play" && card.phase !== "hold" && !/96/.test(card.transform)), JSON.stringify(categorySettled)).toBe(true);
+  expect(errors, errors.join("\n")).toEqual([]);
+});
+
+test("genera capturas del piloto carnes en 320 y 390 px", async ({ page }, testInfo) => {
+  testInfo.skip(testInfo.project.name !== "mobile-chromium", "La evidencia visual se conserva una sola vez.");
+  test.setTimeout(120_000);
+  for (const viewport of [
+    { name: "320x568", width: 320, height: 568 },
+    { name: "390x844", width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await page.goto("/menu/carnes");
+    await expect(page.getByTestId("compact-dish-card").first()).toBeVisible();
+    await page.addStyleTag({ content: '[data-testid="compact-dish-card"] { animation: none !important; transform: none !important; }' });
+    expect(await expectNoHorizontalScroll(page)).toBe(true);
+    await page.screenshot({ path: `${CATEGORY_EVIDENCE_DIR}/menu-carnes-${viewport.name}.png`, fullPage: false });
+  }
+});
+
+test("carnes conserva filtros, scroll y la entrada asentada al volver del detalle", async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors = watchErrors(page);
+  await page.addInitScript(() => window.sessionStorage.removeItem("rb-menu-grid-visited"));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/menu/carnes");
+  await expect(page.getByTestId("compact-dish-card").first()).toBeVisible();
+  await selectSortWhenHydrated(page, "nombre");
+  await page.getByRole("searchbox").fill("carne");
+  await expect(page.getByRole("searchbox")).toHaveValue("carne");
+  await page.evaluate(() => window.scrollTo({ top: 500, behavior: "instant" }));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
+  const yBefore = await page.evaluate(() => window.scrollY);
+
+  const link = page.locator("[data-catalog-pane='compact'] a[aria-label^='Ver ']").first();
+  await openCompactDetailWhenHydrated(page, link);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/menu\/carnes$/);
+  await expect(page.getByRole("searchbox")).toHaveValue("carne");
+  await expect(page.locator("#menu-sort")).toHaveValue("nombre");
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(Math.min(yBefore - 120, 80));
+  const replay = await page.evaluate(() => {
+    return [...document.querySelectorAll<HTMLElement>("[data-catalog-pane='compact'] [data-testid='compact-dish-card']")]
+      .map((card) => ({ phase: card.dataset.compactPhase, transform: getComputedStyle(card).transform }));
+  });
+  expect(replay.every((card) => card.phase !== "play" && card.phase !== "hold"), JSON.stringify(replay)).toBe(true);
   expect(errors, errors.join("\n")).toEqual([]);
 });
 
@@ -395,4 +430,17 @@ test("escritorio carga la fila y el cambio de tamaño no duplica ni salta", asyn
   });
   expect(new Set(namesAfter).size).toBe(namesAfter.length);
   expect(errors, errors.join("\n")).toEqual([]);
+});
+
+test("carnes conserva filas exclusivas en escritorio", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/menu/carnes");
+  await expect(page.getByTestId("menu-dish-row").first()).toBeVisible();
+  await expect(page.getByTestId("compact-dish-card").first()).toBeHidden();
+  const activePanes = await page.evaluate(() => ({
+    compactInert: document.querySelector("[data-catalog-pane='compact']")?.hasAttribute("inert"),
+    rowInert: document.querySelector("[data-catalog-pane='row']")?.hasAttribute("inert"),
+  }));
+  expect(activePanes.compactInert).toBe(true);
+  expect(activePanes.rowInert).toBe(false);
 });

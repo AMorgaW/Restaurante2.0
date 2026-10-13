@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
+import { CompactCatalogPrepaint } from "@/components/menu/compact-catalog-prepaint";
 import { MenuExplorer } from "@/components/menu/menu-explorer";
 import { EmptyState } from "@/components/ui/states";
 import { siteUrl } from "@/lib/env/client";
+import { getCatalogMobilePresentation } from "@/lib/menu/catalog-mobile-presentation";
 import { createServiceSnapshot } from "@/lib/menu/service-period";
 import { loadPublicCatalog } from "@/server/catalog/load-public-catalog";
 import { CatalogReadError } from "@/server/repositories/supabase";
@@ -33,6 +35,7 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { category: categorySlug } = await params;
   const initialServiceSnapshot = createServiceSnapshot(new Date());
+  const mobilePresentation = getCatalogMobilePresentation(categorySlug);
   try {
     const catalog = await loadPublicCatalog();
     const category = catalog.categories.find((candidate) => candidate.slug === categorySlug);
@@ -44,6 +47,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         <PageHeader title={category.name} backHref="/menu" />
         <div className="px-4 md:px-0">
           <p className="-mt-2 mb-3 text-sm text-muted">{category.description}</p>
+          {mobilePresentation === "compact" ? <CompactCatalogPrepaint /> : null}
           <MenuExplorer
             items={catalog.items}
             categories={catalog.categories}
@@ -51,6 +55,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
             lockedCategory={categorySlug}
             showSort
             allowDemoOverrides={catalog.allowDemoOverrides}
+            mobilePresentation={mobilePresentation}
           />
         </div>
       </div>
