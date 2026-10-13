@@ -1,14 +1,18 @@
+import type { CategoryInfo } from "@/types/menu";
+
 export type CatalogMobilePresentation = "row" | "compact";
 
 /**
- * Superficies que ya tienen aprobada la composición compacta en móvil.
- * El listado completo siempre la usa; las categorías se habilitan una a una
- * para que cada expansión sea reversible y no afecte buscar/favoritos.
+ * Solo las superficies de catálogo que ya resolvieron su categoría pueden
+ * pedir esta política. Así el cambio cubre cualquier categoría activa del
+ * catálogo sin convertir una URL inexistente en una categoría válida.
  */
-const COMPACT_CATEGORY_PILOTS = new Set(["carnes"]);
+export type CatalogMobilePresentationTarget =
+  | { kind: "menu" }
+  | { kind: "category"; category: CategoryInfo };
 
-export function getCatalogMobilePresentation(categorySlug?: string): CatalogMobilePresentation {
-  return categorySlug === undefined || COMPACT_CATEGORY_PILOTS.has(categorySlug)
-    ? "compact"
-    : "row";
+export function getCatalogMobilePresentation(
+  _target: CatalogMobilePresentationTarget,
+): CatalogMobilePresentation {
+  return "compact";
 }

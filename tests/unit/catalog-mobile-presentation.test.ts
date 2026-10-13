@@ -2,13 +2,22 @@ import { describe, expect, it } from "vitest";
 import { getCatalogMobilePresentation } from "@/lib/menu/catalog-mobile-presentation";
 
 describe("getCatalogMobilePresentation", () => {
-  it("mantiene compacto el menú completo y habilita solo el piloto carnes", () => {
-    expect(getCatalogMobilePresentation()).toBe("compact");
-    expect(getCatalogMobilePresentation("carnes")).toBe("compact");
+  it("mantiene compacto el menú completo", () => {
+    expect(getCatalogMobilePresentation({ kind: "menu" })).toBe("compact");
   });
 
-  it("deja las demás rutas de categoría en la fila existente", () => {
-    expect(getCatalogMobilePresentation("sopas")).toBe("row");
-    expect(getCatalogMobilePresentation("hamburguesas")).toBe("row");
+  it("habilita cualquier categoría ya resuelta, sin una lista piloto", () => {
+    expect(getCatalogMobilePresentation({
+      kind: "category",
+      category: { slug: "carnes", name: "Carnes", description: "A la brasa", displayOrder: 10 },
+    })).toBe("compact");
+    expect(getCatalogMobilePresentation({
+      kind: "category",
+      category: { slug: "sopas", name: "Sopas", description: "Incluidas", displayOrder: 3 },
+    })).toBe("compact");
+    expect(getCatalogMobilePresentation({
+      kind: "category",
+      category: { slug: "hamburguesas", name: "Hamburguesas", description: "Caso sintético", displayOrder: 5 },
+    })).toBe("compact");
   });
 });

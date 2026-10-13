@@ -35,12 +35,12 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { category: categorySlug } = await params;
   const initialServiceSnapshot = createServiceSnapshot(new Date());
-  const mobilePresentation = getCatalogMobilePresentation(categorySlug);
   try {
     const catalog = await loadPublicCatalog();
     const category = catalog.categories.find((candidate) => candidate.slug === categorySlug);
     const items = catalog.items.filter((item) => item.categorySlug === categorySlug);
     if (!category || items.length === 0) notFound();
+    const mobilePresentation = getCatalogMobilePresentation({ kind: "category", category });
 
     return (
       <div className="flex flex-col gap-4 md:px-0">

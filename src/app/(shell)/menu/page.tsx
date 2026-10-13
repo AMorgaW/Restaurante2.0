@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 
 export default async function MenuPage() {
   const initialServiceSnapshot = createServiceSnapshot(new Date());
-  const mobilePresentation = getCatalogMobilePresentation();
+  const mobilePresentation = getCatalogMobilePresentation({ kind: "menu" });
   try {
     const catalog = await loadPublicCatalog();
     if (catalog.items.length === 0) {

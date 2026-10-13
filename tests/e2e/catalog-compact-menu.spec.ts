@@ -7,7 +7,7 @@ test.use({ serviceWorkers: "block" });
 const devNoise = /favicon|third-party cookie|ChunkLoadError|turbopack-hmr|webpack\.hot-update|hot-update\.json due to access control checks|__nextjs_original-stack-frames|Transition was aborted because of timeout/i;
 const VISIBLE_LONG_NAME = "Parrillada de ternera completa";
 const COMPACT_PEEK_PX = 48;
-const CATEGORY_EVIDENCE_DIR = "artifacts/visual-comparison/work/menu-carnes-compact-pilot";
+const CATEGORY_EVIDENCE_DIR = "artifacts/visual-comparison/work/menu-categories-compact";
 
 type CompactGate = {
   phase: string | null;
@@ -246,20 +246,42 @@ test("carnes respeta la visita compartida con /menu", async ({ page }) => {
   expect(errors, errors.join("\n")).toEqual([]);
 });
 
-test("genera capturas del piloto carnes en 320 y 390 px", async ({ page }, testInfo) => {
+test("genera evidencia de carnes y sopas en 320 y 390 px", async ({ page }, testInfo) => {
   testInfo.skip(testInfo.project.name !== "mobile-chromium", "La evidencia visual se conserva una sola vez.");
   test.setTimeout(120_000);
-  for (const viewport of [
-    { name: "320x568", width: 320, height: 568 },
-    { name: "390x844", width: 390, height: 844 },
-  ]) {
-    await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await page.goto("/menu/carnes");
-    await expect(page.getByTestId("compact-dish-card").first()).toBeVisible();
-    await page.addStyleTag({ content: '[data-testid="compact-dish-card"] { animation: none !important; transform: none !important; }' });
-    expect(await expectNoHorizontalScroll(page)).toBe(true);
-    await page.screenshot({ path: `${CATEGORY_EVIDENCE_DIR}/menu-carnes-${viewport.name}.png`, fullPage: false });
+  for (const route of ["carnes", "sopas"] as const) {
+    for (const viewport of [
+      { name: "320x568", width: 320, height: 568 },
+      { name: "390x844", width: 390, height: 844 },
+    ]) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await page.goto(`/menu/${route}`);
+      if (route === "carnes") {
+        await expect(page.getByTestId("compact-dish-card").first()).toBeVisible();
+        await page.addStyleTag({ content: '[data-testid="compact-dish-card"] { animation: none !important; transform: none !important; }' });
+      } else {
+        await expect(page.getByTestId("lunch-soup-banner")).toBeVisible();
+        await expect(page.getByRole("heading", { name: "No encontramos platos con esa búsqueda" })).toBeVisible();
+      }
+      expect(await expectNoHorizontalScroll(page)).toBe(true);
+      await page.screenshot({ path: `${CATEGORY_EVIDENCE_DIR}/menu-${route}-${viewport.name}.png`, fullPage: false });
+    }
   }
+});
+
+test("sopas conserva el estado vacío comercial y no habilita compra individual", async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/menu/sopas");
+  await expect(page.getByTestId("lunch-soup-banner")).toBeVisible();
+  await expect(page.getByTestId("separate-portions-note")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "No encontramos platos con esa búsqueda" })).toBeVisible();
+  await expect(page.getByTestId("compact-dish-card")).toHaveCount(0);
+  await expect(page.getByTestId("menu-dish-row")).toHaveCount(0);
+  await expect(page.locator("main a[aria-label^='Ver ']")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /añadir.*carrito/i })).toHaveCount(0);
+  expect(await expectNoHorizontalScroll(page)).toBe(true);
+  expect(errors, errors.join("\n")).toEqual([]);
 });
 
 test("carnes conserva filtros, scroll y la entrada asentada al volver del detalle", async ({ page }) => {
@@ -437,10 +459,8 @@ test("carnes conserva filas exclusivas en escritorio", async ({ page }) => {
   await page.goto("/menu/carnes");
   await expect(page.getByTestId("menu-dish-row").first()).toBeVisible();
   await expect(page.getByTestId("compact-dish-card").first()).toBeHidden();
-  const activePanes = await page.evaluate(() => ({
+  await expect.poll(() => page.evaluate(() => ({
     compactInert: document.querySelector("[data-catalog-pane='compact']")?.hasAttribute("inert"),
     rowInert: document.querySelector("[data-catalog-pane='row']")?.hasAttribute("inert"),
-  }));
-  expect(activePanes.compactInert).toBe(true);
-  expect(activePanes.rowInert).toBe(false);
+  }))).toEqual({ compactInert: true, rowInert: false });
 });
