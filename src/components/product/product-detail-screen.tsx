@@ -3,7 +3,7 @@
 import { ArrowLeft, Ban, ShoppingBag, Soup, UtensilsCrossed } from "lucide-react";
 import { m } from "motion/react";
 import { useTransitionRouter } from "next-view-transitions";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { BrandMark } from "@/components/layout/brand-mark";
 import { DishImage } from "@/components/menu/dish-image";
 import { getDishVisual } from "@/components/menu/dish-visuals";
@@ -51,6 +51,9 @@ export function ProductDetailScreen({
   const service = useServicePeriod(initialServiceSnapshot);
   const visual = getDishVisual(item.slug);
   const [quantity, setQuantity] = useState(1);
+  const [confirmedOption, setConfirmedOption] = useState<string | null>(null);
+  const skipTotalPulse = useRef(true);
+  const [totalPulse, setTotalPulse] = useState(0);
 
   const availableSoups = useMemo(
     () => includedSoups.filter((soupItem) => soupItem.available),
@@ -139,6 +142,14 @@ export function ProductDetailScreen({
     0,
   );
   const lineTotal = (item.price + modifiersSurcharge) * quantity;
+
+  useEffect(() => {
+    if (skipTotalPulse.current) {
+      skipTotalPulse.current = false;
+      return;
+    }
+    setTotalPulse((current) => current + 1);
+  }, [lineTotal]);
   const commercialComplete = commercialGroups.every((group) => {
     const selected = commercialSelections[group.id] ? 1 : 0;
     if (group.required && selected < group.minSelections) return false;
@@ -183,13 +194,13 @@ export function ProductDetailScreen({
     else router.push("/menu");
   };
 
-  const enter = (delay: number, y = 12) =>
+  const enter = (delay: number, y = 8) =>
     reduced
       ? { initial: false as const }
       : {
           initial: { opacity: 1, y },
           animate: { opacity: 1, y: 0 },
-          transition: { duration: 0.36, delay, ease: [0.22, 1, 0.36, 1] as const },
+          transition: { duration: 0.24, delay, ease: [0.22, 1, 0.36, 1] as const },
         };
 
   return (
@@ -231,7 +242,7 @@ export function ProductDetailScreen({
       </div>
 
       <main className="detail-content px-5 pt-4">
-        <m.div {...enter(0.06)} className="flex items-start justify-between gap-4">
+        <m.div {...enter(0.02)} className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h1 className="text-balance text-[clamp(1.75rem,7vw,2.45rem)] font-extrabold leading-[1.02] tracking-[-0.045em]">
               {item.fullName}
@@ -245,19 +256,19 @@ export function ProductDetailScreen({
           </div>
           <div className="shrink-0 pt-1">
             <span className="sr-only">Cantidad</span>
-            <QuantitySelector value={quantity} onChange={setQuantity} className="detail-quantity" />
+            <QuantitySelector value={quantity} onChange={setQuantity} emphasize className="detail-quantity" />
           </div>
         </m.div>
 
         {service.period === "closed" ? (
-          <m.div {...enter(0.1)} role="status" className="detail-closed mt-3 flex items-center gap-3 rounded-2xl border px-4 py-3">
+          <m.div {...enter(0.04)} role="status" className="detail-closed mt-3 flex items-center gap-3 rounded-2xl border px-4 py-3">
             <Ban aria-hidden className="size-5 shrink-0" />
             <p className="text-sm"><strong>Cerrado.</strong> Abrimos a las 7:00 a. m. Puedes consultar el menú, pero no añadir productos ahora.</p>
           </m.div>
         ) : null}
 
         {commercialGroups.length > 0 ? (
-          <m.div {...enter(0.11)} className="mt-3 flex flex-col gap-3">
+          <m.div {...enter(0.05)} className="mt-3 flex flex-col gap-3">
             {commercialGroups.map((group) => {
               const availableOptions = group.options.filter((option) => option.available);
               return (
@@ -286,15 +297,20 @@ export function ProductDetailScreen({
                             type="button"
                             role="radio"
                             aria-checked={selected}
-                            onClick={() =>
+                            onClick={() => {
                               setCommercialSelections((current) => ({
                                 ...current,
                                 [group.id]: option.id,
-                              }))
-                            }
-                            className={cn("soup-option", selected && "soup-option-selected")}
+                              }));
+                              setConfirmedOption(`${group.id}:${option.id}`);
+                            }}
+                            className={cn(
+                              "soup-option",
+                              selected && "soup-option-selected",
+                              confirmedOption === `${group.id}:${option.id}` && "soup-option-confirm",
+                            )}
                           >
-                            <span>{option.name}</span>
+                            <span className="soup-option-label">{option.name}</span>
                             {option.additionalPrice > 0 ? (
                               <span className="detail-accent text-xs font-semibold">
                                 +{formatCurrency(option.additionalPrice)}
@@ -313,7 +329,7 @@ export function ProductDetailScreen({
 
         {service.period === "lunch" && supportsLunchSoup ? (
           <m.section
-            {...enter(0.12)}
+            {...enter(0.06)}
             id="sopa-incluida"
             aria-labelledby="soup-selector-title"
             data-testid="included-soup-selector"
@@ -335,11 +351,18 @@ export function ProductDetailScreen({
                     type="button"
                     role="radio"
                     aria-checked={selected}
-                    onClick={() => setSelectedSoupId(soupItem.id)}
-                    className={cn("soup-option", selected && "soup-option-selected")}
+                    onClick={() => {
+                      setSelectedSoupId(soupItem.id);
+                      setConfirmedOption(soupItem.id);
+                    }}
+                    className={cn(
+                      "soup-option",
+                      selected && "soup-option-selected",
+                      confirmedOption === soupItem.id && "soup-option-confirm",
+                    )}
                   >
                     <Soup aria-hidden className="detail-accent size-5" />
-                    <span>{soupItem.fullName}</span>
+                    <span className="soup-option-label">{soupItem.fullName}</span>
                   </button>
                 );
               })}
@@ -347,18 +370,25 @@ export function ProductDetailScreen({
                 type="button"
                 role="radio"
                 aria-checked={selectedSoupId === NO_SOUP_OPTION_ID}
-                onClick={() => setSelectedSoupId(NO_SOUP_OPTION_ID)}
-                className={cn("soup-option", selectedSoupId === NO_SOUP_OPTION_ID && "soup-option-selected")}
+                onClick={() => {
+                  setSelectedSoupId(NO_SOUP_OPTION_ID);
+                  setConfirmedOption(NO_SOUP_OPTION_ID);
+                }}
+                className={cn(
+                  "soup-option",
+                  selectedSoupId === NO_SOUP_OPTION_ID && "soup-option-selected",
+                  confirmedOption === NO_SOUP_OPTION_ID && "soup-option-confirm",
+                )}
               >
                 <Ban aria-hidden className="detail-accent size-5" />
-                <span>Sin sopa</span>
+                <span className="soup-option-label">Sin sopa</span>
               </button>
             </div>
           </m.section>
         ) : null}
 
         {service.period === "lunch" && supportsLunchSoup ? (
-          <m.section {...enter(0.18)} aria-labelledby="order-summary-title" data-testid="detail-order-summary" className="detail-order-summary mt-3 rounded-[1.25rem] border px-4 py-3">
+          <m.section {...enter(0.08)} aria-labelledby="order-summary-title" data-testid="detail-order-summary" className="detail-order-summary mt-3 rounded-[1.25rem] border px-4 py-3">
             <h2 id="order-summary-title" className="detail-accent text-sm font-extrabold">Tu pedido incluye</h2>
             <p className="mt-1 flex items-center gap-2 text-sm font-semibold">
               <UtensilsCrossed aria-hidden className="detail-accent size-4 shrink-0" />
@@ -371,15 +401,23 @@ export function ProductDetailScreen({
       </main>
 
       <m.div
-        initial={reduced ? false : { y: "100%" }}
+        initial={reduced ? false : { y: 16 }}
         animate={{ y: 0 }}
-        transition={reduced ? { duration: 0 } : { duration: 0.3, delay: 0.14, ease: [0.22, 1, 0.36, 1] }}
+        transition={reduced ? { duration: 0 } : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
         className="detail-cta fixed inset-x-0 bottom-0 z-40 mx-auto max-w-2xl border-t border-border-soft px-4 py-3 pb-[max(env(safe-area-inset-bottom),0.75rem)]"
       >
         <div className="flex items-center gap-3">
           <div className="min-w-[6.8rem] shrink-0">
             <p className="text-[10px] font-bold uppercase tracking-wide text-muted">Total</p>
-            <p aria-live="polite" data-testid="detail-total" className="text-xl font-extrabold tabular-nums">{formatCurrency(lineTotal)}</p>
+            <p aria-live="polite" data-testid="detail-total" className="text-xl font-extrabold tabular-nums">
+              {totalPulse > 0 ? (
+                <span key={totalPulse} className="qty-tick">
+                  {formatCurrency(lineTotal)}
+                </span>
+              ) : (
+                formatCurrency(lineTotal)
+              )}
+            </p>
             {service.period === "lunch" && supportsLunchSoup ? (
               <p className="text-[11px] font-semibold text-muted">{selectedSoup ? "Incluye 1 sopa" : "Sin sopa"}</p>
             ) : null}

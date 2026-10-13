@@ -44,3 +44,10 @@ export function getIncludedLunchSoupGroup(
 ): ModifierGroup | undefined {
   return item.modifierGroups.find((group) => group.id === INCLUDED_LUNCH_SOUP_GROUP_ID);
 }
+
+/** La misma condición del detalle: una sopa no lleva otra sopa incluida. */
+export function supportsIncludedLunchSoup(
+  item: Pick<MenuItem, "categorySlug" | "modifierGroups">,
+): boolean {
+  return !isSoupItem(item) && Boolean(getIncludedLunchSoupGroup(item));
+}

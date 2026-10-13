@@ -62,18 +62,21 @@ test.describe("estabilidad visual del catalogo", () => {
     await page.goto("/");
     await page.getByTestId("landing-cta").click();
     await page.waitForSelector("[data-testid='menu-grid'] img");
-    const firstFrame = await photoOpacity(page, ".menu-dish-photo img");
+    const firstFrame = await photoOpacity(page, "[data-testid='compact-dish-card']:visible img, [data-testid='menu-dish-row']:visible img");
     await saveFrame(page, info, "menu-primera-visita", firstFrame);
     expect(firstFrame.opacity, "la foto del primer frame no puede nacer invisible").toBe("1");
 
     await page.reload();
     await page.waitForSelector("[data-testid='menu-grid'] img");
-    const reloaded = await photoOpacity(page, ".menu-dish-photo img");
+    const reloaded = await photoOpacity(page, "[data-testid='compact-dish-card']:visible img, [data-testid='menu-dish-row']:visible img");
     await saveFrame(page, info, "menu-recarga", reloaded);
     expect(reloaded.opacity).toBe("1");
 
-    const dishName = await page.locator("[data-testid='menu-dish-row'] h3").first().innerText();
-    await page.getByRole("link", { name: `Ver ${dishName}` }).click();
+    const dishLabel = await page
+      .locator("[data-testid='compact-dish-card']:visible a[aria-label^='Ver '], [data-testid='menu-dish-row']:visible a[aria-label^='Ver ']")
+      .first()
+      .getAttribute("aria-label");
+    await page.getByRole("link", { name: dishLabel ?? "" }).click();
     await page.waitForSelector("[data-testid='detail-image-container'] img");
     const detail = await photoOpacity(page, "[data-testid='detail-image-container'] img");
     const transitionName = await page
@@ -85,7 +88,7 @@ test.describe("estabilidad visual del catalogo", () => {
 
     await returnFromDetail(page);
     await expect(page.getByTestId("menu-grid")).toBeVisible();
-    const returned = await photoOpacity(page, ".menu-dish-photo img");
+    const returned = await photoOpacity(page, "[data-testid='compact-dish-card']:visible img, [data-testid='menu-dish-row']:visible img");
     await saveFrame(page, info, "menu-regreso", returned);
     expect(returned.opacity).toBe("1");
 
@@ -102,8 +105,8 @@ test.describe("movimiento reducido desde el primer frame", () => {
     await page.goto("/menu");
     await page.waitForSelector("[data-testid='menu-grid'] img");
     const menu = await page.evaluate(() => {
-      const wrap = document.querySelector("[data-testid='menu-grid'] > div");
-      const img = document.querySelector(".menu-dish-photo img");
+      const wrap = document.querySelector("[data-catalog-pane='compact'], [data-testid='menu-grid'] > div");
+      const img = document.querySelector("[data-testid='compact-dish-card'] img, .menu-dish-photo img");
       return {
         wrap: wrap ? getComputedStyle(wrap).transform : null,
         opacity: img ? getComputedStyle(img).opacity : null,
@@ -113,8 +116,11 @@ test.describe("movimiento reducido desde el primer frame", () => {
     expect(menu.opacity).toBe("1");
     expect(menu.wrap === "none" || menu.wrap === "matrix(1, 0, 0, 1, 0, 0)").toBe(true);
 
-    const dishName = await page.locator("[data-testid='menu-dish-row'] h3").first().innerText();
-    await page.getByRole("link", { name: `Ver ${dishName}` }).click();
+    const dishLabel = await page
+      .locator("[data-testid='compact-dish-card']:visible a[aria-label^='Ver '], [data-testid='menu-dish-row']:visible a[aria-label^='Ver ']")
+      .first()
+      .getAttribute("aria-label");
+    await page.getByRole("link", { name: dishLabel ?? "" }).click();
     await page.waitForSelector("[data-testid='product-detail']");
     const detail = await page.evaluate(() => {
       const cta = document.querySelector(".detail-cta");

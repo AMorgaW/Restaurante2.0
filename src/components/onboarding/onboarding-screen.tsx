@@ -21,12 +21,15 @@ function enter(delay: number) {
 }
 
 /**
- * Clic normal: anima la salida y hace una carga completa.
+ * Clic normal en producción: anima la salida y hace una carga completa.
  * No usa el router ni deshabilita el enlace: un `router.push` abortado
  * (View Transitions / HMR) dejaba el CTA inerte. Sin JS, con modificadores
  * o con movimiento reducido, el `href` navega solo.
+ * En desarrollo la compilación de `/menu` bloquea el documento; el enlace
+ * navega nativo para que la portada siga visible hasta que el menú pinte.
  */
 function beginMenuTransition(event: MouseEvent<HTMLAnchorElement>) {
+  if (process.env.NODE_ENV === "development") return;
   if (event.defaultPrevented || event.button !== 0) return;
   if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;

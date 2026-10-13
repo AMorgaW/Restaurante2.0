@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
-import { skipOnboarding } from "./helpers";
+import { motionRowCatalogPath, skipOnboarding } from "./helpers";
 
 /**
  * T8-B: una sola subida por tarjeta, perceptible mientras entra en pantalla,
@@ -40,17 +40,25 @@ async function openMenu(page: Page, viewport: { width: number; height: number })
   await page.setViewportSize(viewport);
   await page.clock.setFixedTime(new Date("2026-07-21T12:00:00-05:00"));
   await skipOnboarding(page);
-  await page.goto("/menu");
+  await page.goto(motionRowCatalogPath(page));
   await page.waitForSelector("[data-testid='menu-card-rise']");
   await expect.poll(async () => page.getByTestId("menu-grid").getAttribute("data-menu-entrance")).not.toBe("off");
 }
 
-function translateY(transform: string) {
+function matrixPart(transform: string, index: number) {
   if (!transform || transform === "none") return 0;
   const matrix = transform.match(/matrix\(([^)]+)\)/);
   if (!matrix?.[1]) return 0;
   const parts = matrix[1].split(",").map((part) => Number(part.trim()));
-  return parts.length === 6 ? parts[5] ?? 0 : 0;
+  return parts.length === 6 ? parts[index] ?? 0 : 0;
+}
+
+function translateX(transform: string) {
+  return matrixPart(transform, 4);
+}
+
+function translateY(transform: string) {
+  return matrixPart(transform, 5);
 }
 
 function scaleX(transform: string) {
@@ -100,10 +108,10 @@ test.describe("entrada del catálogo al hacer scroll", () => {
       expect(first?.opacity).toBe("1");
 
       const target = await page.evaluate(() => {
-        const cards = [...document.querySelectorAll("[data-testid='menu-card-rise']")];
+        const cards = [...document.querySelectorAll<HTMLElement>("[data-testid='menu-card-rise']")];
         return cards.findIndex((card) => card.getBoundingClientRect().top > window.innerHeight + 8);
       });
-      expect(target, "hace falta una tarjeta completamente bajo el pliegue").toBeGreaterThanOrEqual(0);
+      expect(target, "hace falta una tarjeta normal completamente bajo el pliegue").toBeGreaterThanOrEqual(0);
 
       const samples: Array<NonNullable<Awaited<ReturnType<typeof readCard>>>> = [];
       let frameCount = 0;
@@ -161,9 +169,11 @@ test.describe("entrada del catálogo al hacer scroll", () => {
             expect(hit, pressedNote).toBe("menu-dish-row");
             expect(pressed, pressedNote).not.toBeNull();
             if (pressed) {
+              const horizontal = viewport.width < 1024;
               expect(active, pressedNote).toBe(true);
               expect(scaleX(pressed.riseTransform), pressedNote).toBeGreaterThan(0.99);
-              expect(Math.abs(translateY(pressed.riseTransform)), pressedNote).toBeGreaterThan(4);
+              expect(Math.abs(horizontal ? translateX(pressed.riseTransform) : translateY(pressed.riseTransform)), pressedNote).toBeGreaterThan(4);
+              expect(Math.abs(horizontal ? translateY(pressed.riseTransform) : translateX(pressed.riseTransform)), pressedNote).toBeLessThan(1.5);
               if (info.project.name !== "mobile-webkit") {
                 expect(Number(pressed.articleScale), pressedNote).toBeLessThan(0.995);
               }
@@ -171,11 +181,15 @@ test.describe("entrada del catálogo al hacer scroll", () => {
           }
         }
         if (sample && frameCount < 3) {
-          const offset = Math.abs(translateY(sample.riseTransform));
-          const ready =
-            (frameCount === 0 && sample.ratio > 0.18 && offset > 10) ||
-            (frameCount === 1 && sample.ratio > 0.32 && offset > 5 && offset < 16) ||
-            (frameCount === 2 && sample.ratio > 0.45 && offset > 1 && offset < 8);
+          const horizontal = viewport.width < 1024;
+          const offset = Math.abs(horizontal ? translateX(sample.riseTransform) : translateY(sample.riseTransform));
+          const ready = horizontal
+            ? ((frameCount === 0 && sample.ratio > 0.18 && offset > 28) ||
+              (frameCount === 1 && sample.ratio > 0.32 && offset > 12 && offset < 48) ||
+              (frameCount === 2 && sample.ratio > 0.45 && offset > 1 && offset < 16))
+            : ((frameCount === 0 && sample.ratio > 0.18 && offset > 10) ||
+              (frameCount === 1 && sample.ratio > 0.32 && offset > 5 && offset < 16) ||
+              (frameCount === 2 && sample.ratio > 0.45 && offset > 1 && offset < 8));
           if (ready) {
             frameCount += 1;
             const dir = "artifacts/t8b/frames";
@@ -191,8 +205,12 @@ test.describe("entrada del catálogo al hacer scroll", () => {
         await page.waitForTimeout(viewport.id === "mobile" ? 45 : 30);
       }
 
+      const horizontal = viewport.width < 1024;
       const visibleMotion = samples.filter((sample) => sample.ratio >= 0.2 && sample.ratio <= 0.9);
-      const travel = visibleMotion.map((sample) => translateY(sample.riseTransform));
+      const travel = visibleMotion.map((sample) =>
+        horizontal ? translateX(sample.riseTransform) : translateY(sample.riseTransform),
+      );
+      expect(visibleMotion.every((sample) => Math.abs(horizontal ? translateY(sample.riseTransform) : translateX(sample.riseTransform)) < 2)).toBe(true);
       const span = travel.length > 0 ? Math.max(...travel) - Math.min(...travel) : 0;
       const viewTimeline = await page.evaluate(() => {
         try {
@@ -211,13 +229,16 @@ test.describe("entrada del catálogo al hacer scroll", () => {
 
       const seen = await readCard(page, target);
       expect(Math.abs(translateY(seen?.riseTransform ?? "none"))).toBeLessThan(2);
+      expect(Math.abs(translateX(seen?.riseTransform ?? "none"))).toBeLessThan(2);
 
       await page.evaluate(() => window.scrollBy(0, -520));
       await page.waitForTimeout(120);
       const replay: number[] = [];
       for (let step = 0; step < 24; step += 1) {
         const sample = await readCard(page, target);
-        if (sample && sample.ratio > 0.2) replay.push(translateY(sample.riseTransform));
+        if (sample && sample.ratio > 0.2) {
+          replay.push(Math.max(Math.abs(translateX(sample.riseTransform)), Math.abs(translateY(sample.riseTransform))));
+        }
         await page.evaluate(() => window.scrollBy(0, 36));
         await page.waitForTimeout(30);
       }
@@ -242,7 +263,7 @@ test.describe("entrada del catálogo al hacer scroll", () => {
 
       await expect(async () => {
         if (/\/plato\//.test(page.url())) await page.getByRole("button", { name: "Volver" }).click();
-        await expect(page).toHaveURL(/\/menu$/, { timeout: 2_000 });
+        await expect(page).toHaveURL(motionRowCatalogPath(page) === "/buscar" ? /\/buscar$/ : /\/menu$/, { timeout: 2_000 });
       }).toPass({ timeout: 20_000 });
       await expect(page.getByTestId("menu-grid")).toHaveAttribute("data-menu-entrance", "settled");
       const returned = await readCard(page, 0);
@@ -301,7 +322,7 @@ test.describe("entrada del catálogo al hacer scroll", () => {
     mkdirSync(dir, { recursive: true });
     await page.screenshot({ path: `${dir}/${info.project.name}-rapido.png`, caret: "initial" });
     expect(stuck.every((card) => card.opacity === "1")).toBe(true);
-    expect(stuck.every((card) => Math.abs(translateY(card.transform)) < 2)).toBe(true);
+    expect(stuck.every((card) => Math.abs(translateY(card.transform)) < 2 && Math.abs(translateX(card.transform)) < 2)).toBe(true);
     expect(errors, errors.join("\n")).toEqual([]);
   });
 
@@ -316,7 +337,8 @@ test.describe("entrada del catálogo al hacer scroll", () => {
           const matrix = transform.match(/matrix\(([^)]+)\)/);
           if (!matrix?.[1]) return 0;
           const parts = matrix[1].split(",").map((part) => Number(part.trim()));
-          return parts.length === 6 ? parts[5] ?? 0 : 0;
+          if (parts.length !== 6) return 0;
+          return Math.max(Math.abs(parts[4] ?? 0), Math.abs(parts[5] ?? 0));
         };
         const sample = () => {
           document.querySelectorAll<HTMLElement>("[data-testid='menu-card-rise']").forEach((card) => {
@@ -332,7 +354,7 @@ test.describe("entrada del catálogo al hacer scroll", () => {
     });
     await page.clock.setFixedTime(new Date("2026-07-21T12:00:00-05:00"));
     await skipOnboarding(page);
-    await page.goto("/menu");
+    await page.goto(motionRowCatalogPath(page));
     await page.waitForSelector("[data-testid='menu-card-rise']");
     await page.waitForTimeout(300);
     const trace = await page.evaluate(() => {
@@ -350,10 +372,12 @@ test.describe("entrada del catálogo al hacer scroll", () => {
     const reduced = await readCard(page, 0);
     expect(reduced?.opacity).toBe("1");
     expect(Math.abs(translateY(reduced?.riseTransform ?? "none"))).toBeLessThan(1.5);
+    expect(Math.abs(translateX(reduced?.riseTransform ?? "none"))).toBeLessThan(1.5);
     await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "instant" }));
     await page.waitForTimeout(200);
     const after = await readCard(page, 0);
     expect(Math.abs(translateY(after?.riseTransform ?? "none"))).toBeLessThan(1.5);
+    expect(Math.abs(translateX(after?.riseTransform ?? "none"))).toBeLessThan(1.5);
     expect(errors, errors.join("\n")).toEqual([]);
     const dir = "artifacts/t8b/frames";
     mkdirSync(dir, { recursive: true });

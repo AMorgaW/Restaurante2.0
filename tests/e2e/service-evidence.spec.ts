@@ -13,8 +13,7 @@ async function waitForPainted(page: Page, selectors: string[]) {
       return box.width > 0 && box.height > 0;
     };
     const geometryReady = required.every((selector) => {
-      const element = document.querySelector(selector);
-      return element ? painted(element) : false;
+      return [...document.querySelectorAll(selector)].some(painted);
     });
     return geometryReady;
   }, selectors);
@@ -61,15 +60,15 @@ test("captura la escena completa en estados y viewports requeridos", async ({ pa
     await page.clock.setFixedTime(at(state.time));
     await page.goto("/menu");
     await expect(page.getByTestId("service-status")).toHaveAttribute("data-service-period", state.period);
-    await waitForPainted(page, ["[data-testid='service-status']", "[data-testid='menu-dish-row']"]);
+    await waitForPainted(page, ["[data-testid='service-status']", "[data-testid='compact-dish-card'], [data-testid='menu-dish-row']"]);
     await page.screenshot({ path: `${output}/menu-${state.name}-390x844.png` });
   }
 
   await page.clock.setFixedTime(at("12:00:00"));
   await page.goto("/menu");
-  const firstCard = page.getByTestId("menu-dish-row").first();
+  const firstCard = page.locator("[data-testid='compact-dish-card']:visible, [data-testid='menu-dish-row']:visible").first();
   await expect(firstCard).toBeVisible();
-  await waitForPainted(page, ["[data-testid='menu-dish-row']"]);
+  await waitForPainted(page, ["[data-testid='compact-dish-card'], [data-testid='menu-dish-row']"]);
   await firstCard.screenshot({ path: `${output}/tarjeta-vidrio-estatica.png` });
   await page.addStyleTag({ content: ".menu-card-panel::after{animation:none!important;opacity:.48!important;transform:translateX(215%) skewX(-18deg)!important}" });
   await firstCard.screenshot({ path: `${output}/tarjeta-reflejo.png` });
@@ -105,8 +104,8 @@ test("captura la escena completa en estados y viewports requeridos", async ({ pa
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/menu");
-  await expect(page.getByTestId("menu-dish-row").first()).toBeVisible();
-  await waitForPainted(page, ["[data-testid='service-status']", "[data-testid='menu-dish-row']"]);
+  await expect(page.locator("[data-testid='compact-dish-card']:visible, [data-testid='menu-dish-row']:visible").first()).toBeVisible();
+  await waitForPainted(page, ["[data-testid='service-status']", "[data-testid='compact-dish-card'], [data-testid='menu-dish-row']"]);
   await page.screenshot({ path: `${output}/menu-reduced-motion-390x844.png` });
 
   await page.emulateMedia({ reducedMotion: "no-preference" });
@@ -119,8 +118,8 @@ test("captura la escena completa en estados y viewports requeridos", async ({ pa
   ]) {
     await page.setViewportSize(viewport);
     await page.goto("/menu");
-    await expect(page.getByTestId("menu-dish-row").first()).toBeVisible();
-    await waitForPainted(page, ["[data-testid='service-status']", "[data-testid='menu-dish-row']"]);
+    await expect(page.locator("[data-testid='compact-dish-card']:visible, [data-testid='menu-dish-row']:visible").first()).toBeVisible();
+    await waitForPainted(page, ["[data-testid='service-status']", "[data-testid='compact-dish-card'], [data-testid='menu-dish-row']"]);
     await page.screenshot({ path: `${output}/menu-almuerzo-${viewport.name}.png` });
   }
 

@@ -79,6 +79,20 @@ export const landingEnter: Variants = {
   }),
 };
 
+/**
+ * Banda de luz sobre la foto del piloto. La imagen no cambia de opacidad.
+ * El brillo se sostiene un instante mientras cruza, 400 ms, en el límite
+ * alto de la banda de tarjetas (250–400).
+ */
+export const photoRevealSweep: Variants = {
+  idle: { opacity: 0, x: "-18%" },
+  play: {
+    opacity: [0, 1, 1, 0],
+    x: ["-18%", "18%", "78%", "120%"],
+    transition: { duration: 0.4, ease: EASE_OUT, times: [0, 0.12, 0.74, 1] },
+  },
+};
+
 /** Selecciona variantes según la preferencia de movimiento. */
 export function pickVariants(reduced: boolean, full: Variants): Variants {
   return reduced ? reducedFade : full;

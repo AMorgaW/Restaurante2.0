@@ -61,7 +61,9 @@ function auditRuntime(page: import("@playwright/test").Page) {
 
 async function settleMenu(page: import("@playwright/test").Page) {
   await expect(page.getByRole("heading", { name: "Menú", exact: true })).toBeVisible();
-  await expect(page.getByTestId("menu-dish-row").first()).toBeVisible();
+  const width = page.viewportSize()?.width ?? 0;
+  const card = width < 1024 ? page.getByTestId("compact-dish-card") : page.getByTestId("menu-dish-row");
+  await expect(card.first()).toBeVisible();
   await expect(page.getByTestId("menu-grid").locator("> div").first()).toHaveCSS("opacity", "1");
 }
 
@@ -91,7 +93,7 @@ test("evidencia visual de portada, menú y tarjetas", async ({ page }) => {
   );
   await page.screenshot({ path: `${evidenceDir}/${phase}-menu-390x844.png`, fullPage: false });
 
-  const firstCard = page.getByTestId("menu-dish-row").first();
+  const firstCard = page.getByTestId("compact-dish-card").first();
   await firstCard.screenshot({ path: `${evidenceDir}/${phase}-card-normal-390x844.png` });
   await firstCard.hover();
   await firstCard.screenshot({ path: `${evidenceDir}/${phase}-card-hover-390x844.png` });

@@ -100,7 +100,28 @@ describe("QuantitySelector", () => {
     renderWithProviders(<QuantitySelector value={3} onChange={vi.fn()} min={1} max={3} />);
     expect(screen.getByRole("button", { name: "Aumentar cantidad" })).toBeDisabled();
   });
+
+  it("el carrito no recibe el pulso del número", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<QuantityHarness />);
+    await user.click(screen.getByRole("button", { name: "Aumentar cantidad" }));
+    expect(screen.getByRole("group", { name: "Cantidad" })).toHaveTextContent("2");
+    expect(document.querySelector(".qty-tick")).toBeNull();
+  });
+
+  it("el detalle marca el número solo después del primer cambio", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<QuantityHarness emphasize />);
+    expect(document.querySelector(".qty-tick")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Aumentar cantidad" }));
+    expect(document.querySelector(".qty-tick")).toHaveTextContent("2");
+  });
 });
+
+function QuantityHarness({ emphasize = false }: { emphasize?: boolean }) {
+  const [value, setValue] = useState(1);
+  return <QuantitySelector value={value} onChange={setValue} emphasize={emphasize} />;
+}
 
 function SearchHarness({ onChange }: { onChange: (value: string) => void }) {
   const [value, setValue] = useState("");

@@ -87,7 +87,16 @@ export default defineConfig({
     {
       name: "desktop",
       use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 1000 } },
-      testMatch: ["**/desktop.spec.ts", "**/catalog-scroll-motion.spec.ts"],
+      testMatch: [
+        "**/desktop.spec.ts",
+        "**/catalog-scroll-motion.spec.ts",
+        "**/catalog-microinteractions.spec.ts",
+        "**/catalog-photo-reveal.spec.ts",
+        "**/catalog-horizontal-entrance.spec.ts",
+        "**/catalog-slide-calibration.spec.ts",
+        "**/catalog-timed-entrance.spec.ts",
+        "**/catalog-compact-card.spec.ts",
+      ],
     },
   ],
 });

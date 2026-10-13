@@ -112,24 +112,14 @@ test.describe("indicadores, sopas y buscador cálidos", () => {
     await clear.click();
     await expect(search).toHaveValue("");
 
-    const card = page.getByTestId("menu-dish-row").first();
+    const card = page.getByTestId("compact-dish-card").first();
     await card.scrollIntoViewIfNeeded();
     await expect(card.locator("h3")).toHaveCSS("color", "rgb(16, 29, 57)");
     await expect(card.getByTestId("menu-card-panel")).toHaveCSS("background-color", "rgb(255, 255, 255)");
     await expect(card.getByText("Puede llevar sopa")).toBeVisible();
-    const rise = card.getByTestId("menu-card-rise");
-    const motion = await rise.evaluate((element) => {
-      const article = element.closest("article");
-      const wrap = article?.parentElement;
-      return {
-        rise: getComputedStyle(element).animationName,
-        article: article ? getComputedStyle(article).animationName : "",
-        wrap: wrap ? getComputedStyle(wrap).transform : "",
-      };
-    });
-    expect(motion.article).not.toBe("menu-card-rise");
-    expect(["menu-card-rise", "none"]).toContain(motion.rise);
-    expect(motion.wrap === "none" || motion.wrap === "matrix(1, 0, 0, 1, 0, 0)").toBe(true);
+    await expect(card.getByTestId("menu-card-rise")).toHaveCount(0);
+    const motion = await card.evaluate((element) => getComputedStyle(element).opacity);
+    expect(motion).toBe("1");
     await page.screenshot({ path: `${evidenceDir}/menu-cards-390x844.png` });
 
     expect(await expectNoHorizontalScroll(page)).toBe(true);
@@ -244,7 +234,7 @@ test.describe("servicio cálido con movimiento reducido", () => {
     await expect(page.getByRole("listitem").filter({ hasText: "Almuerzo" })).toHaveCSS("background-color", "rgb(19, 106, 87)");
     await expect(page.getByTestId("catalog-masthead")).toHaveCSS("animation-name", "none");
     await expect(page.getByTestId("catalog-masthead")).toHaveCSS("opacity", "1");
-    await expect(page.getByTestId("menu-dish-row").first()).toHaveCSS("animation-name", "none");
+    await expect(page.getByTestId("compact-dish-card").first()).toHaveCSS("animation-name", "none");
     const transition = await page.locator(".service-period-active").evaluate((element) => getComputedStyle(element).transitionDuration);
     expect(
       transition.split(",").every((part) => {

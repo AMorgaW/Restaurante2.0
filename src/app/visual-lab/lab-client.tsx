@@ -7,6 +7,7 @@ import { HeroDishCard } from "@/components/menu/hero-dish-card";
 import { HomeScreen } from "@/components/menu/home-screen";
 import { MenuDishRow } from "@/components/menu/menu-dish-row";
 import { MenuExplorer } from "@/components/menu/menu-explorer";
+import { CompactCardLabScene } from "./compact-card-lab-scene";
 import { InstallPwaPrompt, type PwaPreviewState } from "@/components/feedback/install-pwa-prompt";
 import { OnboardingScreen } from "@/components/onboarding/onboarding-screen";
 import { SplashSequence } from "@/components/onboarding/splash-sequence";
@@ -18,6 +19,7 @@ type SceneId =
   | "splash"
   | "home"
   | "tarjetas"
+  | "compactas"
   | "categoria"
   | "transicion"
   | "pwa";
@@ -27,6 +29,7 @@ const SCENES: Array<{ id: SceneId; label: string }> = [
   { id: "splash", label: "Splash" },
   { id: "home", label: "Entrada del home" },
   { id: "tarjetas", label: "Tarjetas" },
+  { id: "compactas", label: "Tarjetas compactas" },
   { id: "categoria", label: "Categorías" },
   { id: "transicion", label: "Tarjeta → detalle" },
   { id: "pwa", label: "Prompt PWA" },
@@ -111,7 +114,13 @@ export function VisualLabClient({
   const replay = () => setReplayKey((value) => value + 1);
 
   return (
-    <div className="min-h-dvh bg-background px-4 py-6 text-foreground">
+    <div
+      className={
+        scene === "compactas"
+          ? "catalog-shell min-h-dvh overflow-x-clip px-0 py-6 text-foreground"
+          : "min-h-dvh bg-background px-4 py-6 text-foreground"
+      }
+    >
       <header className="mx-auto mb-4 flex max-w-5xl flex-wrap items-center gap-2">
         <h1 className="mr-2 text-lg font-extrabold">Visual Lab</h1>
         <span className="rounded-full border border-border-soft px-2 py-0.5 text-[11px] text-muted">
@@ -211,7 +220,11 @@ export function VisualLabClient({
           className="relative mx-auto overflow-hidden rounded-3xl border border-border-strong bg-background shadow-card"
           style={{ width, height: 780, transform: "translateZ(0)" }}
         >
-          <div key={`${scene}-${replayKey}`} className="h-full overflow-y-auto">
+          <div
+            key={`${scene}-${replayKey}`}
+            className="h-full overflow-x-clip overflow-y-auto"
+            data-compact-scroll-root=""
+          >
             {scene === "onboarding" && dish ? (
               sceneDone ? (
                 <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
@@ -249,6 +262,10 @@ export function VisualLabClient({
             ) : null}
 
             {scene === "home" ? <HomeScreen items={items} categories={categories} /> : null}
+
+            {scene === "compactas" ? (
+              <CompactCardLabScene items={items} reducedMotion={reduced} />
+            ) : null}
 
             {scene === "tarjetas" && dish ? (
               <div className="flex flex-col gap-5 p-4">

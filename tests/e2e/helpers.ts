@@ -13,6 +13,27 @@ export async function skipOnboarding(page: Page): Promise<void> {
   });
 }
 
+/** Tarjeta que el viewport está mostrando. En /menu móvil es la compacta. */
+export function visibleMenuCard(page: Page) {
+  return page.locator("[data-testid='compact-dish-card']:visible, [data-testid='menu-dish-row']:visible");
+}
+
+/**
+ * Fotografía de la fila visible. En /menu de escritorio la compacta sigue
+ * en el HTML, oculta, y no debe ganar el primer `img` de la grilla.
+ */
+export function visibleRowPhoto(page: Page) {
+  return page.locator("[data-testid='menu-dish-row']:visible .menu-dish-photo img");
+}
+
+/**
+ * La fila y sus pilotos de 64/100 px siguen en /buscar bajo 1024 px
+ * y en /menu desde ese ancho. /menu móvil ya no los hospeda.
+ */
+export function motionRowCatalogPath(page: Page): "/menu" | "/buscar" {
+  return (page.viewportSize()?.width ?? 1440) < 1024 ? "/buscar" : "/menu";
+}
+
 /** Comprueba que no exista scroll horizontal global. */
 export async function expectNoHorizontalScroll(page: Page): Promise<boolean> {
   return page.evaluate(

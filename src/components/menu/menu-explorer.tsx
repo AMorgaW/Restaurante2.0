@@ -16,6 +16,7 @@ import { useMenuItemsWithAdminOverrides } from "@/hooks/use-menu-items";
 import { useServicePeriod } from "@/hooks/use-service-period";
 import { purchasableCatalogItems } from "@/lib/menu/flexible-orders";
 import { getIncludedLunchSoups } from "@/lib/menu/included-soups";
+import { shouldPlayResultsSettle } from "@/lib/menu/results-motion";
 import { DEFAULT_SERVICE_SNAPSHOT, type ServiceSnapshot } from "@/lib/menu/service-period";
 import { useMenuViewStore, type MenuSort } from "@/stores/menu-view";
 import type { CategoryInfo, MenuItem } from "@/types/menu";
@@ -48,6 +49,7 @@ export function MenuExplorer({
   entrance: _legacyEntrance = false,
   entranceDelay = 0,
   allowDemoOverrides = true,
+  mobilePresentation = "row",
 }: {
   items: MenuItem[];
   categories: CategoryInfo[];
@@ -64,6 +66,8 @@ export function MenuExplorer({
   entranceDelay?: number;
   /** Solo DATA_MODE=local puede aplicar overrides demo del panel. */
   allowDemoOverrides?: boolean;
+  /** Solo /menu móvil usa la tarjeta compacta. El default conserva la fila. */
+  mobilePresentation?: "row" | "compact";
 }) {
   const items = useMenuItemsWithAdminOverrides(baseItems, allowDemoOverrides);
   const query = useMenuViewStore((state) => state.query);
@@ -134,10 +138,19 @@ export function MenuExplorer({
     return filterMenuItems(source, { query: deferredQuery, categorySlug, sort });
   }, [catalogItems, deferredQuery, categorySlug, sort, excludeSlugs]);
 
-  // Identidad del filtro activo: al cambiar, el grid re-anima brevemente.
+  // Categoría, búsqueda y orden. La lista cambia en este mismo render.
   const filterKey = `${categorySlug ?? "todas"}::${deferredQuery.trim().toLowerCase()}::${sort}`;
+  // `at` vive en el estado: un ref se adelantaría en el doble render de desarrollo
+  // y el cambio real parecería un filtro repetido.
+  const [resultsMotion, setResultsMotion] = useState({ key: filterKey, play: false, at: 0 });
+  if (filterKey !== resultsMotion.key) {
+    const now = performance.now();
+    const play = shouldPlayResultsSettle(resultsMotion.key, filterKey, resultsMotion.at, now);
+    setResultsMotion({ key: filterKey, play, at: play ? now : resultsMotion.at });
+  }
 
   const hasActiveFilters = deferredQuery.trim().length > 0 || (categorySlug && !lockedCategory);
+  const resultsClassName = resultsMotion.play ? "menu-results-swap" : undefined;
 
   return (
     <div className="menu-explorer flex flex-col gap-4">
@@ -187,32 +200,36 @@ export function MenuExplorer({
       </CatalogMasthead>
 
       {filtered.length === 0 ? (
-        <EmptyState
-          icon="search"
-          title="No encontramos platos con esa búsqueda"
-          description="Prueba con otro nombre o revisa todas las categorías."
-          action={
-            hasActiveFilters ? (
-              <Button
-                variant="secondary"
-                size="md"
-                onClick={() => {
-                  setQuery("");
-                  if (!lockedCategory) setCategory(null);
-                }}
-              >
-                Limpiar filtros
-              </Button>
-            ) : undefined
-          }
-        />
+        <div className={resultsClassName} data-results-motion={resultsMotion.play ? "settle" : "instant"}>
+          <EmptyState
+            icon="search"
+            title="No encontramos platos con esa búsqueda"
+            description="Prueba con otro nombre o revisa todas las categorías."
+            action={
+              hasActiveFilters ? (
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={() => {
+                    setQuery("");
+                    if (!lockedCategory) setCategory(null);
+                  }}
+                >
+                  Limpiar filtros
+                </Button>
+              ) : undefined
+            }
+          />
+        </div>
       ) : (
         <MenuGrid
           items={filtered}
           filterKey={filterKey}
+          settleResults={resultsMotion.play}
           entranceDelay={menuEntrance ? Math.max(entranceDelay, service.period === "lunch" ? 0.56 : 0.48) : 0}
           servicePeriod={service.period}
           hasAvailableSoup={includedSoups.some((soup) => soup.available)}
+          mobilePresentation={mobilePresentation}
         />
       )}
     </div>

@@ -7,6 +7,11 @@ import { FeaturedDishRow } from "@/components/menu/featured-dish-row";
 import { FoodCardSkeleton } from "@/components/menu/food-card-skeleton";
 import { HeroDishCard } from "@/components/menu/hero-dish-card";
 import { MenuDishRow } from "@/components/menu/menu-dish-row";
+import { PHOTO_REVEAL_PILOT_SLUG } from "@/lib/menu/photo-reveal-pilot";
+import {
+  GEOMETRIC_SLIDE_PILOT_SLUG,
+  TIMED_SLIDE_PILOT_SLUG,
+} from "@/lib/menu/slide-calibration-pilot";
 import { useCartStore } from "@/stores/cart";
 import { useFavoritesStore } from "@/stores/favorites";
 import type { MenuItem } from "@/types/menu";
@@ -103,6 +108,63 @@ describe("MenuDishRow", () => {
   it("en cena no anuncia sopa en la tarjeta", () => {
     renderWithProviders(<MenuDishRow item={makeItem()} servicePeriod="dinner" />);
     expect(screen.queryByText("Puede llevar sopa")).not.toBeInTheDocument();
+  });
+
+  it("el piloto no monta el velo ni el reflejo hasta que la entrada está activa", () => {
+    const { container } = renderWithProviders(
+      <MenuDishRow item={makeItem({ slug: PHOTO_REVEAL_PILOT_SLUG, fullName: "Plato de carne asada" })} />,
+    );
+    const card = screen.getByTestId("menu-dish-row");
+    const photo = container.querySelector(".menu-dish-photo");
+    expect(card).toHaveAttribute("data-photo-reveal", "pilot");
+    expect(screen.getByTestId("menu-card-rise")).not.toHaveAttribute("data-slide");
+    expect(screen.getByTestId("menu-card-panel")).not.toHaveClass("menu-card-reflect-once");
+    expect(screen.queryByTestId("menu-photo-veil")).not.toBeInTheDocument();
+    expect(photo).toHaveStyle({ viewTransitionName: `dish-${PHOTO_REVEAL_PILOT_SLUG}` });
+    expect(photo?.querySelector("[data-testid='menu-photo-veil']")).toBeNull();
+  });
+
+  it("separa la entrada geométrica de la de duración fija", () => {
+    renderWithProviders(
+      <MenuDishRow item={makeItem({ slug: GEOMETRIC_SLIDE_PILOT_SLUG, fullName: "Carne asada plato con cebolleta" })} />,
+    );
+    expect(screen.getByTestId("menu-card-rise")).toHaveAttribute("data-slide-calibration", "pilot");
+    expect(screen.getByTestId("menu-card-rise")).not.toHaveAttribute("data-slide-timed");
+    renderWithProviders(
+      <MenuDishRow item={makeItem({ slug: TIMED_SLIDE_PILOT_SLUG, fullName: LONG_NAME })} />,
+    );
+    const timed = screen.getAllByTestId("menu-card-rise")[1];
+    expect(timed).toHaveAttribute("data-slide-timed", "pilot");
+    expect(timed).not.toHaveAttribute("data-slide-calibration");
+    renderWithProviders(<MenuDishRow item={makeItem()} />);
+    const normal = screen.getAllByTestId("menu-card-rise")[2];
+    expect(normal).not.toHaveAttribute("data-slide-calibration");
+    expect(normal).not.toHaveAttribute("data-slide-timed");
+  });
+
+  it("el velo del piloto queda fuera de la foto y no tapa el puntero", () => {
+    const { container } = renderWithProviders(
+      <MenuDishRow
+        item={makeItem({ slug: PHOTO_REVEAL_PILOT_SLUG, fullName: "Plato de carne asada" })}
+        photoReveal
+      />,
+    );
+    const photo = container.querySelector(".menu-dish-photo");
+    const veil = screen.getByTestId("menu-photo-veil");
+    expect(photo?.contains(veil)).toBe(false);
+    expect(photo?.parentElement?.contains(veil)).toBe(true);
+    expect(veil).toHaveClass("pointer-events-none");
+    expect(container.querySelectorAll("[data-testid='menu-photo-veil']")).toHaveLength(1);
+  });
+
+  it("una tarjeta normal no recibe el velo aunque la entrada esté activa", () => {
+    renderWithProviders(
+      <MenuDishRow item={makeItem({ slug: "bandeja-paisa", fullName: "Bandeja paisa" })} photoReveal />,
+    );
+    expect(screen.queryByTestId("menu-photo-veil")).not.toBeInTheDocument();
+    expect(screen.getByTestId("menu-dish-row")).not.toHaveAttribute("data-photo-reveal");
+    expect(screen.getByTestId("menu-card-rise")).not.toHaveAttribute("data-slide");
+    expect(screen.getByTestId("menu-card-panel")).toHaveClass("menu-card-reflect-once");
   });
 
   it("muestra el estado agotado sin botón de añadir", () => {

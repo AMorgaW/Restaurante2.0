@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { LONG_DISH_NAME, expectNoHorizontalScroll } from "./helpers";
 
+const COMPACT_LONG_NAME = "Parrillada de ternera completa";
+
 const evidenceDir = "artifacts/visual-comparison/work/menu-real-layout-fix";
 
 const mobileAndTablet = [
@@ -22,28 +24,30 @@ test.describe("árbol real de filas editoriales del menú", () => {
       await page.setViewportSize(viewport);
       await page.goto("/menu");
 
-      const rows = page.getByTestId("menu-dish-row");
-      const panels = page.getByTestId("menu-card-panel");
-      await expect(rows.first()).toBeVisible();
-      await expect(panels.first()).toBeVisible();
+      const cards = page.getByTestId("compact-dish-card");
+      await expect(cards.first()).toBeVisible();
+      await page.addStyleTag({
+        content: '[data-testid="compact-dish-card"] { animation: none !important; transform: none !important; }',
+      });
+      await expect(page.getByTestId("menu-dish-row").first()).toBeHidden();
       await expect(page.getByTestId("bottom-nav-active-pill")).toHaveCount(0);
       await expect(page.getByTestId("menu-user-entry")).toHaveAttribute("aria-label", "Iniciar sesión");
       await expect(page.getByRole("navigation", { name: "Navegación principal" })).toHaveCount(0);
 
-      const [firstBox, secondBox, panelBox, circleBox] = await Promise.all([
-        rows.nth(0).boundingBox(),
-        rows.nth(1).boundingBox(),
-        panels.first().boundingBox(),
-        rows.first().locator(".dish-circle").boundingBox(),
+      const [firstBox, secondBox, photoBox] = await Promise.all([
+        cards.nth(0).boundingBox(),
+        cards.nth(1).boundingBox(),
+        cards.first().locator("[data-compact-photo]").boundingBox(),
       ]);
       expect(firstBox).not.toBeNull();
       expect(secondBox).not.toBeNull();
-      expect(panelBox).not.toBeNull();
-      expect(circleBox).not.toBeNull();
+      expect(photoBox).not.toBeNull();
       expect(secondBox!.y).toBeGreaterThan(firstBox!.y + 1);
       expect(Math.abs(secondBox!.x - firstBox!.x)).toBeLessThanOrEqual(1);
-      expect(Math.abs(circleBox!.width - circleBox!.height)).toBeLessThanOrEqual(1);
-      expect(circleBox!.x + circleBox!.width).toBeGreaterThan(panelBox!.x);
+      expect(photoBox!.x).toBeLessThan(firstBox!.x + firstBox!.width / 2);
+      expect(photoBox!.width).toBeGreaterThanOrEqual(96);
+      expect(photoBox!.width).toBeLessThanOrEqual(104.5);
+      expect(firstBox!.height).toBeGreaterThanOrEqual(150);
       expect(await expectNoHorizontalScroll(page)).toBe(true);
     });
   }
@@ -58,7 +62,8 @@ test.describe("árbol real de filas editoriales del menú", () => {
     expect(firstBox).not.toBeNull();
     expect(secondBox).not.toBeNull();
     expect(secondBox!.x).toBeGreaterThan(firstBox!.x + firstBox!.width * 0.4);
-    await expect(rows.first().locator(".dish-circle")).toBeVisible();
+    await expect(rows.first().locator(".menu-dish-photo")).toBeVisible();
+    await expect(page.getByTestId("compact-dish-card").first()).toBeHidden();
     await expect(rows.last()).toBeVisible({ timeout: 15_000 });
   });
 
@@ -66,30 +71,24 @@ test.describe("árbol real de filas editoriales del menú", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/menu");
 
-    const row = page.getByTestId("menu-dish-row").first();
-    const panel = row.getByTestId("menu-card-panel");
+    const card = page.getByTestId("compact-dish-card").first();
+    const panel = card.getByTestId("menu-card-panel");
     await expect(panel).toBeVisible();
     const styles = await panel.evaluate((element) => {
       const style = getComputedStyle(element);
       return {
-        background: style.background,
-        borderColor: style.borderColor,
+        backgroundColor: style.backgroundColor,
         opacity: style.opacity,
-        backdropFilter: style.backdropFilter,
-        supportsBackdrop: CSS.supports("backdrop-filter", "blur(1px)"),
       };
     });
-    expect(styles.background).toContain("rgba(31, 62, 158, 0.84)");
+    expect(styles.backgroundColor).toBe("rgb(255, 255, 255)");
     expect(styles.opacity).toBe("1");
-    expect(styles.borderColor).not.toBe("rgb(255, 255, 255)");
-    expect(styles.borderColor).not.toBe("rgba(0, 0, 0, 0)");
-    // Chromium móvil en headless puede declarar soporte pero desactivar el
-    // filtro compuesto; en ese caso la superficie conserva el gradiente
-    // semitransparente como fallback. Cuando se compone, debe ser el blur real.
-    if (styles.backdropFilter !== "none") expect(styles.backdropFilter).toContain("blur(8px)");
 
-    await expect(row.getByRole("link", { name: /elegir sopa para/i })).toBeVisible();
-    await expect(row.getByRole("button", { name: /favorito/i })).toBeVisible();
+    await expect(card.getByRole("link", { name: /elegir sopa para/i })).toBeVisible();
+    await expect(card.getByRole("button", { name: /favorito/i })).toBeVisible();
+    const favorite = await card.getByRole("button", { name: /favorito/i }).boundingBox();
+    expect(favorite?.width ?? 0).toBeGreaterThanOrEqual(44);
+    expect(favorite?.height ?? 0).toBeGreaterThanOrEqual(44);
   });
 
   test("genera evidencia del árbol visible en los viewports requeridos", async ({ page }, testInfo) => {
@@ -102,31 +101,31 @@ test.describe("árbol real de filas editoriales del menú", () => {
     ]) {
       await page.setViewportSize(viewport);
       await page.goto("/menu");
-      await expect(page.getByTestId("menu-dish-row").first()).toBeVisible();
-      // Evidencia estática del estado final: no modifica el producto ni sus
-      // transiciones; evita capturar una fila a mitad de su entrada existente.
-      await page.addStyleTag({ content: '[data-testid="menu-grid"] > div { opacity: 1 !important; transform: none !important; }' });
+      const visible = viewport.width < 1024 ? page.getByTestId("compact-dish-card") : page.getByTestId("menu-dish-row");
+      await expect(visible.first()).toBeVisible();
+      await page.addStyleTag({ content: '[data-testid="menu-grid"] > div, [data-testid="compact-dish-card"] { opacity: 1 !important; animation: none !important; transform: none !important; }' });
       await page.screenshot({ path: `${evidenceDir}/menu-${viewport.name}.png`, fullPage: false });
     }
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/menu");
-    await page.addStyleTag({ content: '[data-testid="menu-grid"] > div { opacity: 1 !important; transform: none !important; }' });
+    await page.addStyleTag({ content: '[data-testid="compact-dish-card"] { opacity: 1 !important; animation: none !important; transform: none !important; }' });
     await page.getByRole("searchbox").fill("ternera");
-    const longName = page.getByRole("heading", { name: LONG_DISH_NAME });
+    const longName = page.getByRole("heading", { name: COMPACT_LONG_NAME });
     await expect(longName).toBeVisible();
+    await expect(page.getByRole("link", { name: `Ver ${LONG_DISH_NAME}` })).toBeAttached();
     await longName.scrollIntoViewIfNeeded();
     await page.screenshot({ path: `${evidenceDir}/menu-long-name-390x844.png`, fullPage: false });
 
     await page.goto("/menu");
-    await page.addStyleTag({ content: '[data-testid="menu-grid"] > div { opacity: 1 !important; transform: none !important; }' });
-    await expect(page.getByTestId("menu-dish-row").first()).toBeVisible();
+    await page.addStyleTag({ content: '[data-testid="compact-dish-card"] { opacity: 1 !important; animation: none !important; transform: none !important; }' });
+    await expect(page.getByTestId("compact-dish-card").first()).toBeVisible();
     await page.evaluate(() => {
-      const rows = document.querySelectorAll('[data-testid="menu-dish-row"]');
-      rows.item(rows.length - 1)?.scrollIntoView({ block: "center" });
+      const cards = document.querySelectorAll("[data-catalog-pane='compact'] [data-testid='compact-dish-card']");
+      cards.item(cards.length - 1)?.scrollIntoView({ block: "center" });
     });
-    const lastRow = page.getByTestId("menu-dish-row").last();
-    await expect(lastRow).toHaveCSS("opacity", "1");
+    const lastCard = page.getByTestId("compact-dish-card").last();
+    await expect(lastCard).toHaveCSS("opacity", "1");
     await page.screenshot({ path: `${evidenceDir}/menu-scrolled-390x844.png`, fullPage: false });
   });
 });

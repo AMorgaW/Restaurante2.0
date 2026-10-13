@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { expectNoHorizontalScroll, skipOnboarding } from "./helpers";
+import { expectNoHorizontalScroll, skipOnboarding, visibleMenuCard } from "./helpers";
 
 const evidenceDir = "artifacts/visual-comparison/work/catalog-warm-t0-t1";
 
@@ -25,7 +25,7 @@ test.describe("tema cálido del catálogo y cabecera", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/menu");
     await expect(page.getByRole("heading", { name: "Menú" })).toBeVisible();
-    await expect(page.getByTestId("menu-dish-row").first()).toBeVisible();
+    await expect(visibleMenuCard(page).first()).toBeVisible();
     await expect(page.locator("header")).toHaveCSS("opacity", "1");
 
     const shell = page.locator(".catalog-shell");
@@ -48,7 +48,7 @@ test.describe("tema cálido del catálogo y cabecera", () => {
 
     const headingColor = await page.getByRole("heading", { name: "Menú" }).evaluate((element) => getComputedStyle(element).color);
     expect(headingColor).toBe("rgb(16, 29, 57)");
-    const titleColor = await page.getByTestId("menu-dish-row").first().locator("h3").evaluate((element) => getComputedStyle(element).color);
+    const titleColor = await visibleMenuCard(page).first().locator("h3").evaluate((element) => getComputedStyle(element).color);
     expect(titleColor).toBe("rgb(16, 29, 57)");
     const searchColor = await page.getByRole("searchbox").evaluate((element) => getComputedStyle(element).color);
     expect(searchColor).toBe("rgb(16, 29, 57)");
@@ -80,7 +80,7 @@ test.describe("tema cálido del catálogo y cabecera", () => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.goto("/menu");
       await expect(page.locator("header").getByText("Brisas del Sinú")).toBeVisible();
-      await expect(page.getByTestId("menu-dish-row").first()).toBeVisible();
+      await expect(visibleMenuCard(page).first()).toBeVisible();
       await expect(page.locator("header")).toHaveCSS("opacity", "1");
       expect(await expectNoHorizontalScroll(page)).toBe(true);
       await page.screenshot({ path: `${evidenceDir}/${viewport.shot}` });

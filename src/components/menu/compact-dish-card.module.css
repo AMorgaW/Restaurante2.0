@@ -1,0 +1,160 @@
+.card {
+  position: relative;
+  container-type: inline-size;
+  min-height: 152px;
+  border-radius: 1.25rem;
+  color: #101d39;
+  --compact-slide: 96px;
+  --compact-duration: 360ms;
+}
+
+.layout {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-height: 152px;
+  padding: 8px;
+}
+
+.photo {
+  position: relative;
+  flex: none;
+  width: 104px;
+  min-height: 136px;
+  align-self: stretch;
+  overflow: hidden;
+  border-radius: 1rem;
+}
+
+@container (max-width: 340px) {
+  .photo {
+    width: 96px;
+  }
+}
+
+.body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kicker {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.name {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow-wrap: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding-right: calc(2.75rem + 8px);
+}
+
+.metaWide {
+  padding-right: calc(2.75rem * 2 + 16px);
+}
+
+.price {
+  flex: none;
+  white-space: nowrap;
+}
+
+.soup {
+  max-width: 100%;
+  white-space: normal;
+}
+
+.hit {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+.actions {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hold {
+  transform: translateX(var(--compact-slide));
+}
+
+.play {
+  animation: compact-card-slide var(--compact-duration) cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform;
+}
+
+.done {
+  transform: none;
+  will-change: auto;
+}
+
+@keyframes compact-card-slide {
+  from {
+    transform: translateX(var(--compact-slide));
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.card[data-compact-phase="rest"],
+.card[data-compact-phase="hold"] {
+  transform: translateX(var(--compact-slide));
+}
+
+.card[data-compact-frozen="1"] {
+  animation: none !important;
+  transform: none !important;
+  will-change: auto !important;
+}
+
+@media (min-width: 1024px) {
+  :global([data-catalog-pane="compact"]) .photo {
+    view-transition-name: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .hold,
+  .play,
+  .done {
+    animation: none !important;
+    transform: none !important;
+    will-change: auto !important;
+  }
+}

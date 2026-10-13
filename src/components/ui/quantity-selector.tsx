@@ -1,6 +1,7 @@
 "use client";
 
 import { Minus, Plus } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { restaurantConfig } from "@/config/restaurant";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +16,7 @@ export function QuantitySelector({
   max = restaurantConfig.checkout.maxQuantityPerLine,
   label = "Cantidad",
   size = "md",
+  emphasize = false,
   className,
 }: {
   value: number;
@@ -23,8 +25,22 @@ export function QuantitySelector({
   max?: number;
   label?: string;
   size?: "sm" | "md";
+  /** Pulso visual del número. El carrito no lo activa. */
+  emphasize?: boolean;
   className?: string;
 }) {
+  const skipPulse = useRef(true);
+  const [pulse, setPulse] = useState(0);
+
+  useEffect(() => {
+    if (!emphasize) return;
+    if (skipPulse.current) {
+      skipPulse.current = false;
+      return;
+    }
+    setPulse((current) => current + 1);
+  }, [emphasize, value]);
+
   const buttonClasses = cn(
     "inline-flex items-center justify-center rounded-full bg-white/8 border border-border-soft text-foreground",
     "transition-[background-color,transform] duration-150 active:scale-[0.92] motion-reduce:active:scale-100",
@@ -54,7 +70,13 @@ export function QuantitySelector({
           size === "md" ? "text-lg" : "text-base",
         )}
       >
-        {value}
+        {emphasize && pulse > 0 ? (
+          <span key={pulse} className="qty-tick">
+            {value}
+          </span>
+        ) : (
+          value
+        )}
       </span>
       <button
         type="button"

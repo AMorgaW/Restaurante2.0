@@ -44,11 +44,34 @@ const soup = makeItem({
   price: 12_000,
 });
 
-function renderDetail(period: "lunch" | "dinner" | "closed", soups = [soup]) {
+function renderDetail(
+  period: "lunch" | "dinner" | "closed",
+  soups = [soup],
+  withModifier = false,
+) {
   const localHour = period === "lunch" ? "12:00:00" : period === "dinner" ? "18:00:00" : "23:00:00";
   const instant = new Date(`2026-07-21T${localHour}-05:00`);
   vi.setSystemTime(instant);
-  const item = makeItem({ modifierGroups: [createIncludedLunchSoupGroup(soups)] });
+  const item = makeItem({
+    modifierGroups: [
+      ...(withModifier
+        ? [
+            {
+              id: "acompanante",
+              name: "Acompañante",
+              required: true,
+              minSelections: 1,
+              maxSelections: 1,
+              options: [
+                { id: "arroz", name: "Arroz", additionalPrice: 0, available: true },
+                { id: "patacon", name: "Patacón", additionalPrice: 2_000, available: true },
+              ],
+            },
+          ]
+        : []),
+      createIncludedLunchSoupGroup(soups),
+    ],
+  });
   renderWithProviders(
     <ProductDetailScreen
       item={item}
@@ -115,5 +138,48 @@ describe("detalle dependiente del servicio", () => {
     expect(screen.queryByText(/término de la carne/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/notas para la cocina/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/también te puede gustar/i)).not.toBeInTheDocument();
+  });
+
+  it("en almuerzo la cantidad, la sopa y el modificador llegan juntos al carrito", () => {
+    renderDetail("lunch", [soup], true);
+    const total = screen.getByTestId("detail-total");
+    const initialTotal = total.textContent;
+    expect(screen.getByRole("button", { name: "Añadir al carrito" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("radio", { name: /Patacón/ }));
+    expect(screen.getByRole("radio", { name: /Patacón/ })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radio", { name: /Patacón/ })).toHaveClass("soup-option-confirm");
+    expect(total.textContent).not.toBe(initialTotal);
+    fireEvent.click(screen.getByRole("button", { name: "Aumentar cantidad" }));
+    expect(screen.getByRole("group", { name: "Cantidad" })).toHaveTextContent("2");
+    expect(document.querySelector(".detail-quantity .qty-tick")).toHaveTextContent("2");
+    fireEvent.click(screen.getByRole("radio", { name: "Sin sopa" }));
+    expect(screen.getByRole("radio", { name: "Sin sopa" })).toHaveClass("soup-option-confirm");
+    expect(screen.getByTestId("detail-order-summary")).toHaveTextContent("Sin sopa");
+    fireEvent.click(screen.getByRole("button", { name: "Añadir al carrito" }));
+    const modifiers = useCartStore.getState().items[0]?.modifiers ?? [];
+    expect(modifiers.map((modifier) => modifier.optionId).sort()).toEqual(["no-soup", "patacon"]);
+    expect(modifiers.find((modifier) => modifier.optionId === "patacon")?.priceSnapshot).toBe(2_000);
+    expect(modifiers.find((modifier) => modifier.optionId === "no-soup")?.priceSnapshot).toBe(0);
+    expect(useCartStore.getState().items[0]?.quantity).toBe(2);
+  });
+
+  it("en cena el modificador se compra sin sopa", () => {
+    renderDetail("dinner", [soup], true);
+    expect(screen.queryByTestId("included-soup-selector")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Añadir al carrito" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("radio", { name: "Arroz" }));
+    expect(screen.getByRole("radio", { name: "Arroz" })).toHaveClass("soup-option-confirm");
+    fireEvent.click(screen.getByRole("button", { name: "Aumentar cantidad" }));
+    fireEvent.click(screen.getByRole("button", { name: "Añadir al carrito" }));
+    expect(useCartStore.getState().items[0]?.quantity).toBe(2);
+    expect(useCartStore.getState().items[0]?.modifiers).toEqual([
+      {
+        groupId: "acompanante",
+        groupName: "Acompañante",
+        optionId: "arroz",
+        optionName: "Arroz",
+        priceSnapshot: 0,
+      },
+    ]);
   });
 });

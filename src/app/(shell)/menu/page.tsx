@@ -33,8 +33,14 @@ export default async function MenuPage() {
     }
     return (
       <div className="flex flex-col gap-4 px-4 pb-8 pt-4 md:px-0 md:pt-7">
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;var wide=window.matchMedia("(min-width: 1024px)").matches;var visited=false;try{visited=window.sessionStorage.getItem("rb-menu-grid-visited")==="1";}catch(e){}var id="menu-compact-settle";var node=document.getElementById(id);if(reduce||wide||visited){if(!node){var style=document.createElement("style");style.id=id;style.textContent="[data-testid=compact-dish-card]{animation:none!important;transform:none!important}";document.head.appendChild(style);}}else if(node){node.remove();}}catch(e){}})();`,
+          }}
+        />
         <JsonLd data={menuJsonLd(catalog.items)} />
         <MenuExplorer
+          mobilePresentation="compact"
           items={catalog.items}
           categories={catalog.categories}
           initialServiceSnapshot={initialServiceSnapshot}

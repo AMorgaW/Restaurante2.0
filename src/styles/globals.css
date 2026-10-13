@@ -515,16 +515,26 @@ body:has(.catalog-shell) {
 .catalog-shell .menu-dish-photo {
   box-shadow: 0 14px 24px -18px rgb(16 29 57 / 45%);
 }
-/* Una sola subida, en el hijo. El article conserva hover y presión.
+/* Una sola entrada, en el hijo. El article conserva hover y presión.
    Sin atributo de entrada no hay desplazamiento: el HTML inicial y las
-   visitas ya vistas permanecen en reposo antes de que React lea la sesión. */
+   visitas ya vistas permanecen en reposo antes de que React lea la sesión.
+   64 px es el recorrido móvil; la subida de escritorio usa --menu-card-rise. */
 .catalog-shell {
   --menu-card-rise: 22px;
+  --menu-card-slide: 64px;
 }
 .menu-card-rise[data-rise="done"],
 .catalog-shell [data-menu-entrance="settled"] .menu-card-rise {
   animation: none !important;
   transform: none !important;
+}
+/* Asentamiento de un cambio de categoría u orden. La opacidad no se toca. */
+.menu-results-swap {
+  animation: menu-results-swap 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes menu-results-swap {
+  from { transform: translateY(10px); }
+  to { transform: translateY(0); }
 }
 @media (hover: hover) and (pointer: fine) {
   .catalog-shell .menu-dish-card:hover .menu-card-panel,
@@ -939,6 +949,32 @@ body {
   }
 }
 
+/* Piloto: la banda es hermana de la foto. El reflejo de cristal no corre
+   en esa tarjeta, ni al entrar ni al pasar el puntero. */
+.menu-photo-veil,
+.menu-photo-band {
+  pointer-events: none;
+}
+.menu-photo-band {
+  opacity: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgb(255 116 61 / 0%) 8%,
+    rgb(255 116 61 / 58%) 30%,
+    rgb(255 243 214 / 68%) 47%,
+    rgb(255 250 240 / 74%) 50%,
+    rgb(255 243 214 / 64%) 53%,
+    rgb(255 116 61 / 50%) 70%,
+    transparent 100%
+  );
+}
+.menu-dish-card[data-photo-reveal="pilot"] .menu-card-panel::after {
+  animation: none !important;
+  opacity: 0 !important;
+  transform: none !important;
+}
+
 /* Detalle de producto — Sinú cálido, solo mientras .product-detail-shell existe.
    No reescribe @theme. La foto comparte radio y recorte con la tarjeta
    para que el morph de view-transition-name sea el mismo encuadre, más grande. */
@@ -1042,10 +1078,21 @@ body:has(.product-detail-shell) {
   background: #f4fbf7;
   color: #101d39;
   box-shadow: inset 0 0 0 1px rgb(19 106 87 / 18%), 0 8px 16px -14px rgb(19 106 87 / 70%);
-  animation: detail-select-pop 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.soup-option-confirm .soup-option-label {
+  display: inline-block;
+  animation: detail-select-pop 160ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 @keyframes detail-select-pop {
-  from { transform: scale(0.96); }
+  from { transform: scale(0.94); }
+  to { transform: scale(1); }
+}
+.product-detail-shell .qty-tick {
+  display: inline-block;
+  animation: qty-tick 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes qty-tick {
+  from { transform: scale(1.08); }
   to { transform: scale(1); }
 }
 .detail-order-summary {
@@ -1077,7 +1124,7 @@ body:has(.product-detail-shell) {
   transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1), filter 160ms ease, box-shadow 180ms ease, background-color 160ms ease;
 }
 .product-detail-shell .detail-add:active:not(:disabled) {
-  transform: scale(0.98);
+  transform: scale(0.96);
   box-shadow: 0 6px 12px -10px rgb(255 116 61 / 90%);
 }
 .product-detail-shell .detail-add:disabled {
@@ -1140,14 +1187,19 @@ body:has(.product-detail-shell) {
 @media (prefers-reduced-motion: reduce) {
   .menu-dish-card,
   .menu-card-rise,
+  .menu-results-swap,
   .menu-dish-photo,
   .menu-dish-visual::after,
   .menu-category-chip,
   .menu-sort-control,
   .menu-card-panel::after,
+  .menu-photo-veil,
+  .menu-photo-band,
   .product-personalization-grid,
   .product-personalization-chevron,
   .soup-option,
+  .soup-option-label,
+  .qty-tick,
   .detail-icon-button,
   .product-detail-shell .detail-quantity button,
   .product-detail-shell .detail-favorite,
@@ -1165,6 +1217,11 @@ body:has(.product-detail-shell) {
     animation: none !important;
     transform: none !important;
     opacity: 1;
+  }
+  .menu-photo-veil,
+  .menu-photo-band {
+    opacity: 0 !important;
+    transform: none !important;
   }
 }
 
