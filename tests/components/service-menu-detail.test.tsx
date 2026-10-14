@@ -99,10 +99,20 @@ describe("estado visual del servicio", () => {
 
   it("admite una lista vacía de sopas y distingue las porciones sueltas", () => {
     renderWithProviders(<LunchSoupBanner soups={[]} />);
-    expect(screen.getByText("Hoy no hay sopa incluida. Puedes pedir el seco sin sopa.")).toBeInTheDocument();
+    expect(screen.getByText("Hoy no hay sopa disponible para incluir. Puedes pedir el seco sin sopa.")).toBeInTheDocument();
+    expect(screen.queryByText("Algunos almuerzos la incluyen. Elígela en detalle o pide «Sin sopa»."))
+      .not.toBeInTheDocument();
     expect(screen.getByTestId("separate-portions-note")).toHaveAttribute("data-flexible-orders", "pending");
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("mantiene las reglas comerciales completas en la franja compacta", () => {
+    renderWithProviders(<LunchSoupBanner soups={[soup]} />);
+    expect(screen.getByText("Algunos almuerzos la incluyen. Elígela en detalle o pide «Sin sopa»."))
+      .toBeInTheDocument();
+    expect(screen.getByText("Sopa sola, arroz y arroz con sopa aún no se ofrecen para compra independiente."))
+      .toBeInTheDocument();
   });
 });
 

@@ -2,6 +2,11 @@ import { Soup, UtensilsCrossed } from "lucide-react";
 import { STANDALONE_PORTIONS_PENDING_COPY } from "@/lib/menu/flexible-orders";
 import type { MenuItem } from "@/types/menu";
 
+const COMPACT_INCLUDED_SOUP_COPY =
+  "Algunos almuerzos la incluyen. Elígela en detalle o pide «Sin sopa».";
+const COMPACT_STANDALONE_COPY =
+  "Sopa sola, arroz y arroz con sopa aún no se ofrecen para compra independiente.";
+
 /**
  * Dos lecturas distintas del almuerzo: la sopa que puede ir con el seco
  * y las porciones sueltas, que el catálogo aún no vende.
@@ -25,7 +30,8 @@ export function LunchSoupBanner({ soups }: { soups: ReadonlyArray<MenuItem> }) {
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-bold uppercase tracking-[0.14em]">Con el seco</p>
             <h2 id="lunch-soups-title" className="font-extrabold leading-tight">
-              Sopa incluida con el almuerzo
+              <span className="hidden lg:inline">Sopa incluida con el almuerzo</span>
+              <span className="lg:hidden">Sopa incluida</span>
             </h2>
             {availableSoups.length > 0 ? (
               <ul className="mt-2 flex flex-wrap gap-2" aria-label="Sopas incluidas con el almuerzo">
@@ -40,12 +46,15 @@ export function LunchSoupBanner({ soups }: { soups: ReadonlyArray<MenuItem> }) {
                 ))}
               </ul>
             ) : (
-              <p className="mt-1 text-sm font-semibold">Hoy no hay sopa incluida. Puedes pedir el seco sin sopa.</p>
+              <p className="mt-1 text-sm font-semibold">Hoy no hay sopa disponible para incluir. Puedes pedir el seco sin sopa.</p>
             )}
             {availableSoups.length > 0 ? (
-              <p className="mt-2 text-xs leading-relaxed text-muted">
+              <p className="mt-2 hidden text-xs leading-relaxed text-muted lg:block">
                 El seco puede incluir una de estas sopas. Elige una en el detalle del plato o pide sin sopa.
               </p>
+            ) : null}
+            {availableSoups.length > 0 ? (
+              <p className="mt-1 text-xs leading-snug text-muted lg:hidden">{COMPACT_INCLUDED_SOUP_COPY}</p>
             ) : null}
           </div>
         </div>
@@ -66,7 +75,8 @@ export function LunchSoupBanner({ soups }: { soups: ReadonlyArray<MenuItem> }) {
             <h3 id="separate-portions-title" className="font-extrabold leading-tight">
               Por separado
             </h3>
-            <p className="mt-1 text-xs leading-relaxed text-muted">{STANDALONE_PORTIONS_PENDING_COPY}</p>
+            <p className="mt-1 hidden text-xs leading-relaxed text-muted lg:block">{STANDALONE_PORTIONS_PENDING_COPY}</p>
+            <p className="mt-1 text-xs leading-snug text-muted lg:hidden">{COMPACT_STANDALONE_COPY}</p>
           </div>
         </div>
       </section>

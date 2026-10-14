@@ -51,9 +51,9 @@ test.describe("indicadores, sopas y buscador cálidos", () => {
     await expect(dinner).not.toHaveAttribute("aria-current", "true");
     await expect(dinner).toContainText("5:00 p. m. – 10:00 p. m.");
     await expect(page.getByTestId("service-status").getByRole("button")).toHaveCount(0);
-    await expect(page.getByRole("heading", { name: "Sopa incluida con el almuerzo" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Sopa incluida/ })).toBeVisible();
     await expect(page.getByText("Sopa de maíz con arroz y frijoles")).toBeVisible();
-    await expect(page.getByText("Elige una en el detalle del plato o pide sin sopa.")).toBeVisible();
+    await expect(page.getByText(/Algunos almuerzos la incluyen\. Elígela en detalle o pide/)).toBeVisible();
     await expect(page.getByRole("heading", { name: "Por separado" })).toBeVisible();
     await expect(page.getByTestId("separate-portions-note")).toHaveAttribute("data-flexible-orders", "pending");
     await expect(page.getByTestId("included-soup-lane")).toHaveCSS("background-color", "rgb(244, 251, 247)");
@@ -73,7 +73,7 @@ test.describe("indicadores, sopas y buscador cálidos", () => {
     await expect(lunch).toHaveCSS("background-color", "rgb(19, 106, 87)");
     await expect(lunch).toHaveCSS("color", "rgb(255, 246, 232)");
     await expect(dinner).toHaveCSS("color", "rgb(60, 77, 104)");
-    await expect(page.getByRole("heading", { name: "Sopa incluida con el almuerzo" })).toHaveCSS("color", "rgb(16, 29, 57)");
+    await expect(page.getByRole("heading", { name: /Sopa incluida/ })).toHaveCSS("color", "rgb(16, 29, 57)");
     await expect(page.getByRole("searchbox")).toHaveCSS("background-color", "rgb(255, 255, 255)");
     await expect(page.getByRole("searchbox")).toHaveCSS("color", "rgb(16, 29, 57)");
     await expect(page.getByRole("heading", { name: "Menú", exact: true })).toHaveCSS("color", "rgb(16, 29, 57)");
