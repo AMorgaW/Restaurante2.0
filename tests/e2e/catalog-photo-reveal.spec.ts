@@ -162,6 +162,10 @@ async function saveMissedBand(page: Page, info: TestInfo, label: string) {
 }
 
 test.describe("piloto de revelado fotográfico", () => {
+  test.beforeEach(({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 1440) < 1024, "Piloto histórico de filas; /buscar móvil usa CompactDishCard.");
+  });
+
   test("scroll lento y rápido distinguen la tarjeta piloto de una normal", async ({ page }, info) => {
     const errors = watchErrors(page);
     await page.addInitScript(() => {

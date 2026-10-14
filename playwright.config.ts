@@ -96,6 +96,7 @@ export default defineConfig({
         "**/catalog-slide-calibration.spec.ts",
         "**/catalog-timed-entrance.spec.ts",
         "**/catalog-compact-card.spec.ts",
+        "**/search-compact.spec.ts",
       ],
     },
   ],

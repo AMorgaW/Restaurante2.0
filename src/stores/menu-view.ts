@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { getMenuViewStorageKey, type MenuViewScope } from "@/lib/menu/view-scope";
 
 export type MenuSort = "recomendados" | "precio-asc" | "precio-desc" | "nombre";
 
@@ -10,7 +11,7 @@ export type MenuSort = "recomendados" | "precio-asc" | "precio-desc" | "nombre";
  * en sessionStorage: al volver desde un detalle se conservan los filtros
  * y no se reinicia la vista.
  */
-interface MenuViewState {
+export interface MenuViewState {
   categorySlug: string | null;
   query: string;
   sort: MenuSort;
@@ -19,20 +20,28 @@ interface MenuViewState {
   setSort: (sort: MenuSort) => void;
 }
 
-export const useMenuViewStore = create<MenuViewState>()(
-  persist(
-    (set) => ({
-      categorySlug: null,
-      query: "",
-      sort: "recomendados",
-      setCategory: (slug) => set({ categorySlug: slug }),
-      setQuery: (query) => set({ query }),
-      setSort: (sort) => set({ sort }),
-    }),
-    {
-      name: "rb-menu-view",
-      version: 1,
-      storage: createJSONStorage(() => sessionStorage),
-    },
-  ),
-);
+function createMenuViewStore(scope: MenuViewScope) {
+  return create<MenuViewState>()(
+    persist(
+      (set) => ({
+        categorySlug: null,
+        query: "",
+        sort: "recomendados",
+        setCategory: (slug) => set({ categorySlug: slug }),
+        setQuery: (query) => set({ query }),
+        setSort: (sort) => set({ sort }),
+      }),
+      {
+        name: getMenuViewStorageKey(scope),
+        version: 1,
+        storage: createJSONStorage(() => sessionStorage),
+      },
+    ),
+  );
+}
+
+/** Existing catalog state; keep this export stable for /menu and home. */
+export const useMenuViewStore = createMenuViewStore("catalog");
+
+/** Search-only state, sharing the same store mechanism with a separate key. */
+export const useSearchViewStore = createMenuViewStore("search");

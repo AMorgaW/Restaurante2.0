@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
-import { SIMPLE_DISH_NAME, SIMPLE_DISH_SLUG, motionRowCatalogPath, skipOnboarding, visibleRowPhoto } from "./helpers";
+import { SIMPLE_DISH_NAME, SIMPLE_DISH_SLUG, motionRowCatalogPath, skipOnboarding, visibleMenuPhoto } from "./helpers";
 
 /**
  * T8-C: el catálogo se asienta solo al cambiar categoría u orden,
@@ -44,7 +44,7 @@ async function openMenu(page: Page, time: string) {
   await skipOnboarding(page);
   await page.goto(motionRowCatalogPath(page));
   await expect(page.getByTestId("service-status")).toHaveAttribute("data-service-period", time < "17:00:00" ? "lunch" : "dinner");
-  await expect(visibleRowPhoto(page).first()).toBeVisible();
+  await expect(visibleMenuPhoto(page).first()).toBeVisible();
 }
 
 function saveEvidence(info: TestInfo, name: string, data: unknown) {
@@ -131,7 +131,7 @@ test.describe("microinteracciones del recorrido público", () => {
       });
     });
     await expect(page.getByTestId("menu-grid")).toHaveAttribute("data-results-motion", "instant");
-    const rapidOpacity = await visibleRowPhoto(page).first().evaluate((image) => getComputedStyle(image).opacity);
+    const rapidOpacity = await visibleMenuPhoto(page).first().evaluate((image) => getComputedStyle(image).opacity);
     expect(rapidOpacity).toBe("1");
     expect(errors, errors.join("\n")).toEqual([]);
   });
@@ -296,7 +296,9 @@ test.describe("movimiento reducido", () => {
     });
     const menu = await page.evaluate(() => {
       const grid = document.querySelector<HTMLElement>("[data-testid='menu-grid']");
-      const image = grid?.querySelector("[data-testid='menu-dish-row'] .menu-dish-photo img");
+      const image = grid?.querySelector(
+        "[data-testid='compact-dish-card'] [data-compact-photo] img, [data-testid='menu-dish-row'] .menu-dish-photo img",
+      );
       return {
         motion: grid?.getAttribute("data-results-motion") ?? null,
         transform: grid ? getComputedStyle(grid).transform : null,

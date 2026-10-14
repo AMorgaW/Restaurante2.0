@@ -8,8 +8,7 @@ export type CatalogMobilePresentation = "row" | "compact";
  * catálogo sin convertir una URL inexistente en una categoría válida.
  */
 export type CatalogMobilePresentationTarget =
-  | { kind: "menu" }
-  | { kind: "category"; category: CategoryInfo };
+  { kind: "menu" } | { kind: "category"; category: CategoryInfo } | { kind: "search" };
 
 export function getCatalogMobilePresentation(
   _target: CatalogMobilePresentationTarget,

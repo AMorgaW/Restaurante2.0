@@ -26,12 +26,16 @@ export function visibleRowPhoto(page: Page) {
   return page.locator("[data-testid='menu-dish-row']:visible .menu-dish-photo img");
 }
 
-/**
- * La fila y sus pilotos de 64/100 px siguen en /buscar bajo 1024 px
- * y en /menu desde ese ancho. /menu móvil ya no los hospeda.
- */
-export function motionRowCatalogPath(page: Page): "/menu" | "/buscar" {
-  return (page.viewportSize()?.width ?? 1440) < 1024 ? "/buscar" : "/menu";
+/** Pilotos históricos de fila: solo se ejercitan donde la fila sigue visible. */
+export function motionRowCatalogPath(_page: Page): "/menu" | "/buscar" {
+  return "/menu";
+}
+
+/** Fotografía de la tarjeta que está visible en cualquier presentación. */
+export function visibleMenuPhoto(page: Page) {
+  return page.locator(
+    "[data-testid='compact-dish-card']:visible [data-compact-photo] img, [data-testid='menu-dish-row']:visible .menu-dish-photo img",
+  );
 }
 
 /** Comprueba que no exista scroll horizontal global. */

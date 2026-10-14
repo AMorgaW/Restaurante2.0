@@ -92,6 +92,10 @@ async function readCard(page: Page, index: number) {
 }
 
 test.describe("entrada del catálogo al hacer scroll", () => {
+  test.beforeEach(({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 1440) < 1024, "Piloto histórico de filas; /buscar móvil usa CompactDishCard.");
+  });
+
   test("scroll lento, presión, regreso y vuelta sin repetir la subida", async ({ page }, info) => {
     test.setTimeout(120_000);
     const errors = watchHydration(page);

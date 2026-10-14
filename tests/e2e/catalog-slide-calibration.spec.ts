@@ -82,6 +82,10 @@ function shot(info: TestInfo, name: string) {
 }
 
 test.describe("calibración de la entrada horizontal", () => {
+  test.beforeEach(({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 1440) < 1024, "Piloto histórico de filas; /buscar móvil usa CompactDishCard.");
+  });
+
   test("el móvil compara 64 px con el recorrido más largo", async ({ page }, info) => {
     test.setTimeout(120_000);
     const width = page.viewportSize()?.width ?? 0;

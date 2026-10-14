@@ -103,6 +103,10 @@ async function readPair(page: Page) {
 }
 
 test.describe("entrada de duración fija de la ternera", () => {
+  test.beforeEach(({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 1440) < 1024, "Piloto histórico de filas; /buscar móvil usa CompactDishCard.");
+  });
+
   test("scroll lento compara las dos tarjetas hasta el precio", async ({ page }) => {
     test.setTimeout(90_000);
     const errors = watchErrors(page);

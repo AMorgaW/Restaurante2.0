@@ -18,7 +18,8 @@ import { purchasableCatalogItems } from "@/lib/menu/flexible-orders";
 import { getIncludedLunchSoups } from "@/lib/menu/included-soups";
 import { shouldPlayResultsSettle } from "@/lib/menu/results-motion";
 import { DEFAULT_SERVICE_SNAPSHOT, type ServiceSnapshot } from "@/lib/menu/service-period";
-import { useMenuViewStore, type MenuSort } from "@/stores/menu-view";
+import { getMenuScrollStorageKey, type MenuViewScope } from "@/lib/menu/view-scope";
+import { useMenuViewStore, useSearchViewStore, type MenuSort } from "@/stores/menu-view";
 import type { CategoryInfo, MenuItem } from "@/types/menu";
 
 const SORT_OPTIONS: Array<{ value: MenuSort; label: string }> = [
@@ -33,9 +34,9 @@ const SORT_OPTIONS: Array<{ value: MenuSort; label: string }> = [
 let sessionMenuEntranceDone = false;
 
 /**
- * Explorador de menú reutilizado en inicio, /menu y /menu/[categoria].
- * El estado (búsqueda, categoría, orden) vive en un store de sesión:
- * volver desde un detalle conserva filtros y scroll.
+ * Explorador de menú reutilizado en inicio, /menu, /menu/[categoria] y
+ * /buscar. Cada superficie selecciona su scope de sesión para que volver
+ * desde un detalle conserve sus propios filtros y scroll.
  */
 export function MenuExplorer({
   items: baseItems,
@@ -50,6 +51,8 @@ export function MenuExplorer({
   entranceDelay = 0,
   allowDemoOverrides = true,
   mobilePresentation = "row",
+  viewScope = "catalog",
+  initialQuery,
 }: {
   items: MenuItem[];
   categories: CategoryInfo[];
@@ -66,16 +69,39 @@ export function MenuExplorer({
   entranceDelay?: number;
   /** Solo DATA_MODE=local puede aplicar overrides demo del panel. */
   allowDemoOverrides?: boolean;
-  /** Solo /menu móvil usa la tarjeta compacta. El default conserva la fila. */
+  /** Política responsive resuelta por la ruta. El default conserva la fila. */
   mobilePresentation?: "row" | "compact";
+  /** Persistencia independiente para /buscar, sin mezclar el catálogo. */
+  viewScope?: MenuViewScope;
+  /** Consulta explícita de la URL; tiene precedencia sobre sessionStorage. */
+  initialQuery?: string;
 }) {
   const items = useMenuItemsWithAdminOverrides(baseItems, allowDemoOverrides);
-  const query = useMenuViewStore((state) => state.query);
-  const setQuery = useMenuViewStore((state) => state.setQuery);
-  const storedCategory = useMenuViewStore((state) => state.categorySlug);
-  const setCategory = useMenuViewStore((state) => state.setCategory);
-  const sort = useMenuViewStore((state) => state.sort);
-  const setSort = useMenuViewStore((state) => state.setSort);
+  const catalogQuery = useMenuViewStore((state) => state.query);
+  const catalogSetQuery = useMenuViewStore((state) => state.setQuery);
+  const catalogCategory = useMenuViewStore((state) => state.categorySlug);
+  const catalogSetCategory = useMenuViewStore((state) => state.setCategory);
+  const catalogSort = useMenuViewStore((state) => state.sort);
+  const catalogSetSort = useMenuViewStore((state) => state.setSort);
+  const searchQuery = useSearchViewStore((state) => state.query);
+  const searchSetQuery = useSearchViewStore((state) => state.setQuery);
+  const searchCategory = useSearchViewStore((state) => state.categorySlug);
+  const searchSetCategory = useSearchViewStore((state) => state.setCategory);
+  const searchSort = useSearchViewStore((state) => state.sort);
+  const searchSetSort = useSearchViewStore((state) => state.setSort);
+  const appliedInitialQuery = useRef<string | undefined>(undefined);
+  const storedQuery = viewScope === "search" ? searchQuery : catalogQuery;
+  const query =
+    viewScope === "search" &&
+    initialQuery !== undefined &&
+    appliedInitialQuery.current !== initialQuery
+      ? initialQuery
+      : storedQuery;
+  const setQuery = viewScope === "search" ? searchSetQuery : catalogSetQuery;
+  const storedCategory = viewScope === "search" ? searchCategory : catalogCategory;
+  const setCategory = viewScope === "search" ? searchSetCategory : catalogSetCategory;
+  const sort = viewScope === "search" ? searchSort : catalogSort;
+  const setSort = viewScope === "search" ? searchSetSort : catalogSetSort;
   const reduced = useHydratedReducedMotion();
   const [menuEntrance] = useState(() => !sessionMenuEntranceDone);
   const service = useServicePeriod(initialServiceSnapshot);
@@ -84,10 +110,17 @@ export function MenuExplorer({
     sessionMenuEntranceDone = true;
   }, []);
 
+  useEffect(() => {
+    if (viewScope !== "search" || initialQuery === undefined) return;
+    if (appliedInitialQuery.current === initialQuery) return;
+    appliedInitialQuery.current = initialQuery;
+    if (searchQuery !== initialQuery) searchSetQuery(initialQuery);
+  }, [initialQuery, searchQuery, searchSetQuery, viewScope]);
+
   useLayoutEffect(() => {
     let stored: string | null = null;
     try {
-      stored = sessionStorage.getItem("rb-menu-scroll-y");
+      stored = sessionStorage.getItem(getMenuScrollStorageKey(viewScope));
     } catch {
       return;
     }
@@ -99,25 +132,32 @@ export function MenuExplorer({
     const frame = requestAnimationFrame(() => {
       window.scrollTo({ top: y, behavior: "instant" });
       try {
-        sessionStorage.removeItem("rb-menu-scroll-y");
+        sessionStorage.removeItem(getMenuScrollStorageKey(viewScope));
       } catch {
         /* ignore */
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, [viewScope]);
 
   const catalogItems = useMemo(() => purchasableCatalogItems(items), [items]);
   const includedSoups = useMemo(() => getIncludedLunchSoups(items), [items]);
   const visibleCategories = useMemo(
-    () => categories.filter((category) => catalogItems.some((item) => item.categorySlug === category.slug)),
+    () =>
+      categories.filter((category) =>
+        catalogItems.some((item) => item.categorySlug === category.slug),
+      ),
     [categories, catalogItems],
   );
   const categorySlug = lockedCategory ?? storedCategory;
   const deferredQuery = useDeferredValue(query);
 
   useEffect(() => {
-    if (!lockedCategory && storedCategory && !visibleCategories.some((entry) => entry.slug === storedCategory)) {
+    if (
+      !lockedCategory &&
+      storedCategory &&
+      !visibleCategories.some((entry) => entry.slug === storedCategory)
+    ) {
       setCategory(null);
     }
   }, [lockedCategory, setCategory, storedCategory, visibleCategories]);
@@ -134,7 +174,8 @@ export function MenuExplorer({
 
   const filtered = useMemo(() => {
     const excluded = new Set(excludeSlugs);
-    const source = excluded.size > 0 ? catalogItems.filter((item) => !excluded.has(item.slug)) : catalogItems;
+    const source =
+      excluded.size > 0 ? catalogItems.filter((item) => !excluded.has(item.slug)) : catalogItems;
     return filterMenuItems(source, { query: deferredQuery, categorySlug, sort });
   }, [catalogItems, deferredQuery, categorySlug, sort, excludeSlugs]);
 
@@ -155,52 +196,55 @@ export function MenuExplorer({
   return (
     <div className="menu-explorer flex flex-col gap-4">
       <CatalogMasthead title={title} period={service.period}>
-          <ServiceStatus period={service.period} />
-          {service.period === "lunch" ? <LunchSoupBanner soups={includedSoups} /> : null}
-          {showSearch ? (
-            <SearchField
-              value={query}
-              onValueChange={setQuery}
-              placeholder="Busca platos, categorías…"
-            />
+        <ServiceStatus period={service.period} />
+        {service.period === "lunch" ? <LunchSoupBanner soups={includedSoups} /> : null}
+        {showSearch ? (
+          <SearchField
+            value={query}
+            onValueChange={setQuery}
+            placeholder="Busca platos, categorías…"
+          />
+        ) : null}
+        {!lockedCategory ? (
+          <CategoryChips
+            categories={visibleCategories}
+            selected={storedCategory}
+            onSelect={setCategory}
+            entrance={menuEntrance && !reduced}
+            entranceDelay={entranceDelay}
+          />
+        ) : null}
+        <div className="menu-toolbar flex min-h-12 items-center justify-between gap-3 px-1 pt-1">
+          <p aria-live="polite" className="shrink-0 text-[13px] font-semibold text-muted">
+            {filtered.length === 1 ? "1 plato" : `${filtered.length} platos`}
+          </p>
+          {showSort ? (
+            <div className="flex min-w-0 items-center gap-2">
+              <label htmlFor="menu-sort" className="sr-only">
+                Ordenar por
+              </label>
+              <select
+                id="menu-sort"
+                value={sort}
+                onChange={(event) => setSort(event.target.value as MenuSort)}
+                className="menu-sort-control h-11 min-w-0 max-w-[13.5rem] rounded-chip border border-border-soft bg-white px-3 text-[13px] font-semibold text-foreground outline-none"
+              >
+                {SORT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           ) : null}
-          {!lockedCategory ? (
-            <CategoryChips
-              categories={visibleCategories}
-              selected={storedCategory}
-              onSelect={setCategory}
-              entrance={menuEntrance && !reduced}
-              entranceDelay={entranceDelay}
-            />
-          ) : null}
-          <div className="menu-toolbar flex min-h-12 items-center justify-between gap-3 px-1 pt-1">
-            <p aria-live="polite" className="shrink-0 text-[13px] font-semibold text-muted">
-              {filtered.length === 1 ? "1 plato" : `${filtered.length} platos`}
-            </p>
-            {showSort ? (
-              <div className="flex min-w-0 items-center gap-2">
-                <label htmlFor="menu-sort" className="sr-only">
-                  Ordenar por
-                </label>
-                <select
-                  id="menu-sort"
-                  value={sort}
-                  onChange={(event) => setSort(event.target.value as MenuSort)}
-                  className="menu-sort-control h-11 min-w-0 max-w-[13.5rem] rounded-chip border border-border-soft bg-white px-3 text-[13px] font-semibold text-foreground outline-none"
-                >
-                  {SORT_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : null}
-          </div>
+        </div>
       </CatalogMasthead>
 
       {filtered.length === 0 ? (
-        <div className={resultsClassName} data-results-motion={resultsMotion.play ? "settle" : "instant"}>
+        <div
+          className={resultsClassName}
+          data-results-motion={resultsMotion.play ? "settle" : "instant"}
+        >
           <EmptyState
             icon="search"
             title="No encontramos platos con esa búsqueda"
@@ -210,6 +254,7 @@ export function MenuExplorer({
                 <Button
                   variant="secondary"
                   size="md"
+                  className="!border-[#ff743d] !bg-[#ff743d] !text-[#101d39] hover:!bg-[#ff8758] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#101d39]"
                   onClick={() => {
                     setQuery("");
                     if (!lockedCategory) setCategory(null);
@@ -226,7 +271,9 @@ export function MenuExplorer({
           items={filtered}
           filterKey={filterKey}
           settleResults={resultsMotion.play}
-          entranceDelay={menuEntrance ? Math.max(entranceDelay, service.period === "lunch" ? 0.56 : 0.48) : 0}
+          entranceDelay={
+            menuEntrance ? Math.max(entranceDelay, service.period === "lunch" ? 0.56 : 0.48) : 0
+          }
           servicePeriod={service.period}
           hasAvailableSoup={includedSoups.some((soup) => soup.available)}
           mobilePresentation={mobilePresentation}

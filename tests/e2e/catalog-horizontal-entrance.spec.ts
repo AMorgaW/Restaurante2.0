@@ -85,6 +85,10 @@ function shot(info: TestInfo, name: string) {
 }
 
 test.describe("entrada horizontal del catálogo", () => {
+  test.beforeEach(({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 1440) < 1024, "Piloto histórico de filas; /buscar móvil usa CompactDishCard.");
+  });
+
   test("scroll lento recorre varias tarjetas y abre el plato", async ({ page }, info) => {
     test.setTimeout(120_000);
     const errors = watchErrors(page);
