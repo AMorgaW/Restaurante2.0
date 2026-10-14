@@ -23,6 +23,21 @@ type RpcErrorLike = {
 
 const MESSAGE_MAP: Array<{ match: RegExp; code: string; message: string; status?: number }> = [
   {
+    match: /venta independiente/i,
+    code: "item-not-orderable",
+    message: "Uno de los platos no está habilitado para compra independiente.",
+  },
+  {
+    match: /servicio está cerrado|sucursal está cerrada|sucursal cerrada/i,
+    code: "service-closed",
+    message: "El restaurante está cerrado en este momento.",
+  },
+  {
+    match: /sopa incluida|sopa seleccionada|selecciona la sopa/i,
+    code: "included-soup-invalid",
+    message: "La selección de sopa ya no está disponible para este pedido.",
+  },
+  {
     match: /conflicto de idempotencia/i,
     code: "idempotency-conflict",
     message: "Este intento de pedido ya se usó con otra intención. Inicia un pedido nuevo.",

@@ -152,17 +152,20 @@ function seedCatalog() {
       '${BRANCH_ID}', '${RESTAURANT_ID}', 'Centro 11B5', 'centro', 'active', true, true,
       6000, 25000, null
     );
+    insert into public.opening_hours (branch_id, day_of_week, opening_time, closing_time, is_closed)
+    select '${BRANCH_ID}'::uuid, day, time '00:00', time '23:59', false
+    from generate_series(0, 6) as day;
 
     insert into public.categories (restaurant_id, name, slug, display_order, is_active)
     values ('${RESTAURANT_ID}', 'Cat', '${PREFIX}-cat', 1, true);
 
     insert into public.menu_items (
       id, restaurant_id, category_slug, slug, name, short_description, base_price,
-      available, featured, display_order, image_path
+      available, featured, display_order, image_path, is_independently_orderable
     ) values
-      ('${ITEM_INCLUDED}', '${RESTAURANT_ID}', '${PREFIX}-cat', '${ITEM_INCLUDED}', 'Incluido 11B5', 'ok', 20000, true, true, 1, '/icon.svg'),
-      ('${ITEM_SUB}', '${RESTAURANT_ID}', '${PREFIX}-cat', '${ITEM_SUB}', 'Sustitucion 11B5', 'ok', 45000, true, false, 2, '/icon.svg'),
-      ('${ITEM_STD}', '${RESTAURANT_ID}', '${PREFIX}-cat', '${ITEM_STD}', 'Standard 11B5', 'ok', 15000, true, false, 3, '/icon.svg');
+      ('${ITEM_INCLUDED}', '${RESTAURANT_ID}', '${PREFIX}-cat', '${ITEM_INCLUDED}', 'Incluido 11B5', 'ok', 20000, true, true, 1, '/icon.svg', true),
+      ('${ITEM_SUB}', '${RESTAURANT_ID}', '${PREFIX}-cat', '${ITEM_SUB}', 'Sustitucion 11B5', 'ok', 45000, true, false, 2, '/icon.svg', true),
+      ('${ITEM_STD}', '${RESTAURANT_ID}', '${PREFIX}-cat', '${ITEM_STD}', 'Standard 11B5', 'ok', 15000, true, false, 3, '/icon.svg', true);
 
     insert into public.branch_menu_items (branch_id, menu_item_id, price, available) values
       ('${BRANCH_ID}', '${ITEM_INCLUDED}', 20000, true),

@@ -3,6 +3,12 @@ import { calculateTotals, buildLineId, lineTotal } from "@/features/cart/calcula
 import type { CheckoutInput } from "@/features/checkout/schema";
 import { getResolvedDataMode, getResolvedPaymentProvider } from "@/lib/env/server";
 import { stableHash } from "@/lib/demo/pricing";
+import { getOpeningStatus } from "@/lib/menu/opening-hours";
+import {
+  INCLUDED_LUNCH_SOUP_GROUP_ID,
+  isSoupItem,
+} from "@/lib/menu/included-soups";
+import { resolveServicePeriod } from "@/lib/menu/service-period";
 import { getMenuRepository, getOrderRepository } from "@/server/repositories";
 import type { CartItem, Order } from "@/types/order";
 
@@ -52,6 +58,15 @@ export async function placeOrder(input: CheckoutInput): Promise<Order> {
     );
   }
 
+  // Keep one accepted instant for the early mirror of the authoritative RPC
+  // checks. The database repeats the same decision inside one transaction.
+  const acceptedAt = new Date();
+  const servicePeriod = resolveServicePeriod(acceptedAt, branch.timezone);
+  const openingStatus = getOpeningStatus(branch, acceptedAt);
+  if (servicePeriod === "closed" || !openingStatus.open) {
+    throw new OrderValidationError("El restaurante está cerrado en este momento.", "service-closed");
+  }
+
   const menuRepository = getMenuRepository();
   const cartItems: CartItem[] = [];
 
@@ -69,6 +84,12 @@ export async function placeOrder(input: CheckoutInput): Promise<Order> {
       throw new OrderValidationError(
         `“${menuItem.fullName}” no está disponible en este momento.`,
         "item-unavailable",
+      );
+    }
+    if (menuItem.isIndependentlyOrderable === false) {
+      throw new OrderValidationError(
+        `“${menuItem.fullName}” no está habilitado para compra independiente.`,
+        "item-not-orderable",
       );
     }
 
@@ -99,7 +120,24 @@ export async function placeOrder(input: CheckoutInput): Promise<Order> {
       };
     });
 
+    const includedSoupSelections = modifiers.filter(
+      (modifier) => modifier.groupId === INCLUDED_LUNCH_SOUP_GROUP_ID,
+    );
+    if (includedSoupSelections.length > 0 && (servicePeriod !== "lunch" || isSoupItem(menuItem))) {
+      throw new OrderValidationError(
+        "La sopa incluida solo está disponible con platos elegibles durante el almuerzo.",
+        "included-soup-invalid",
+      );
+    }
+    if (includedSoupSelections.length > 1) {
+      throw new OrderValidationError(
+        `Solo puedes elegir una opción de sopa para “${menuItem.fullName}”.`,
+        "included-soup-invalid",
+      );
+    }
+
     for (const group of menuItem.modifierGroups) {
+      if (group.id === INCLUDED_LUNCH_SOUP_GROUP_ID && servicePeriod !== "lunch") continue;
       const selected = modifiers.filter((modifier) => modifier.groupId === group.id).length;
       if (group.required && selected < group.minSelections) {
         throw new OrderValidationError(

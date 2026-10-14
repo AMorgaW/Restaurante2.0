@@ -40,14 +40,40 @@ insert into public.branches (
 ) values
   ('f2000000-0000-0000-0000-000000000001', 'f1000000-0000-0000-0000-000000000001', 'Read Branch A', 'read-branch-a', true, true, 6000, 25000, 'active'),
   ('f2000000-0000-0000-0000-000000000002', 'f1000000-0000-0000-0000-000000000002', 'Read Branch B', 'read-branch-b', true, true, 6000, 25000, 'active');
+insert into public.opening_hours (branch_id, day_of_week, opening_time, closing_time, is_closed)
+select branch_id, day, time '00:00', time '23:59', false
+from (values
+  ('f2000000-0000-0000-0000-000000000001'::uuid),
+  ('f2000000-0000-0000-0000-000000000002'::uuid)
+) as branches(branch_id)
+cross join generate_series(0, 6) as days(day);
+do $$
+declare
+  utc_hour integer := floor(extract(hour from (pg_catalog.clock_timestamp() at time zone 'UTC')))::integer;
+  offset_hours integer := 12 - utc_hour;
+  fixture_timezone text;
+begin
+  fixture_timezone := case
+    when offset_hours = 0 then 'UTC'
+    when offset_hours > 0 then 'Etc/GMT-' || offset_hours::text
+    else 'Etc/GMT+' || abs(offset_hours)::text
+  end;
+  update public.branches
+  set timezone = fixture_timezone
+  where id in (
+    'f2000000-0000-0000-0000-000000000001'::uuid,
+    'f2000000-0000-0000-0000-000000000002'::uuid
+  );
+end;
+$$;
 
 insert into public.categories (id, restaurant_id, name, slug) values
   ('f3000000-0000-0000-0000-000000000001', 'f1000000-0000-0000-0000-000000000001', 'Platos', 'read-platos-a'),
   ('f3000000-0000-0000-0000-000000000002', 'f1000000-0000-0000-0000-000000000002', 'Platos', 'read-platos-b');
 
-insert into public.menu_items (id, restaurant_id, category_slug, slug, name, base_price, image_path, available) values
-  ('read-main-a', 'f1000000-0000-0000-0000-000000000001', 'read-platos-a', 'read-main-a', 'Read Main A', 10000, '/demo.jpg', true),
-  ('read-main-b', 'f1000000-0000-0000-0000-000000000002', 'read-platos-b', 'read-main-b', 'Read Main B', 10000, '/demo.jpg', true);
+insert into public.menu_items (id, restaurant_id, category_slug, slug, name, base_price, image_path, available, is_independently_orderable) values
+  ('read-main-a', 'f1000000-0000-0000-0000-000000000001', 'read-platos-a', 'read-main-a', 'Read Main A', 10000, '/demo.jpg', true, true),
+  ('read-main-b', 'f1000000-0000-0000-0000-000000000002', 'read-platos-b', 'read-main-b', 'Read Main B', 10000, '/demo.jpg', true, true);
 
 insert into public.branch_menu_items (branch_id, menu_item_id, price, available) values
   ('f2000000-0000-0000-0000-000000000001', 'read-main-a', 10000, true),

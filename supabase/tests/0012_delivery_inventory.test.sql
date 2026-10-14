@@ -11,17 +11,43 @@ values ('d1000000-0000-4000-8000-000000000001', 'Inv Del Restaurant', 'inv-del-r
 insert into public.branches (id, restaurant_id, name, slug) values
   ('d2000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001', 'Branch A', 'inv-del-a'),
   ('d2000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001', 'Branch B', 'inv-del-b');
+insert into public.opening_hours (branch_id, day_of_week, opening_time, closing_time, is_closed)
+select branch_id, day, time '00:00', time '23:59', false
+from (values
+  ('d2000000-0000-4000-8000-000000000001'::uuid),
+  ('d2000000-0000-4000-8000-000000000002'::uuid)
+) as branches(branch_id)
+cross join generate_series(0, 6) as days(day);
+do $$
+declare
+  utc_hour integer := floor(extract(hour from (pg_catalog.clock_timestamp() at time zone 'UTC')))::integer;
+  offset_hours integer := 12 - utc_hour;
+  fixture_timezone text;
+begin
+  fixture_timezone := case
+    when offset_hours = 0 then 'UTC'
+    when offset_hours > 0 then 'Etc/GMT-' || offset_hours::text
+    else 'Etc/GMT+' || abs(offset_hours)::text
+  end;
+  update public.branches
+  set timezone = fixture_timezone
+  where id in (
+    'd2000000-0000-4000-8000-000000000001'::uuid,
+    'd2000000-0000-4000-8000-000000000002'::uuid
+  );
+end;
+$$;
 
 insert into public.categories (id, restaurant_id, name, slug)
 values ('d3000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001', 'Inv', 'inv-del-cat');
 
-insert into public.menu_items (id, restaurant_id, category_slug, slug, name, base_price, image_path) values
-  ('inv-del-g', 'd1000000-0000-4000-8000-000000000001', 'inv-del-cat', 'inv-del-g', 'Plato G', 10000, '/demo.jpg'),
-  ('inv-del-ml', 'd1000000-0000-4000-8000-000000000001', 'inv-del-cat', 'inv-del-ml', 'Plato ML', 10000, '/demo.jpg'),
-  ('inv-del-u', 'd1000000-0000-4000-8000-000000000001', 'inv-del-cat', 'inv-del-u', 'Plato U', 10000, '/demo.jpg'),
-  ('inv-del-multi', 'd1000000-0000-4000-8000-000000000001', 'inv-del-cat', 'inv-del-multi', 'Plato Multi', 10000, '/demo.jpg'),
-  ('inv-del-norecipe', 'd1000000-0000-4000-8000-000000000001', 'inv-del-cat', 'inv-del-norecipe', 'Sin Receta', 10000, '/demo.jpg'),
-  ('inv-del-late', 'd1000000-0000-4000-8000-000000000001', 'inv-del-cat', 'inv-del-late', 'Fallo Tardio', 10000, '/demo.jpg');
+insert into public.menu_items (id, restaurant_id, category_slug, slug, name, base_price, image_path, is_independently_orderable) values
+  ('inv-del-g', 'd1000000-0000-4000-8000-000000000001', 'inv-del-cat', 'inv-del-g', 'Plato G', 10000, '/demo.jpg', true),
+  ('inv-del-ml', 'd1000000-0000-4000-8000-000000000001', 'inv-del-cat', 'inv-del-ml', 'Plato ML', 10000, '/demo.jpg', true),
+  ('inv-del-u', 'd1000000-0000-4000-8000-000000000001', 'inv-del-cat', 'inv-del-u', 'Plato U', 10000, '/demo.jpg', true),
+  ('inv-del-multi', 'd1000000-0000-4000-8000-000000000001', 'inv-del-cat', 'inv-del-multi', 'Plato Multi', 10000, '/demo.jpg', true),
+  ('inv-del-norecipe', 'd1000000-0000-4000-8000-000000000001', 'inv-del-cat', 'inv-del-norecipe', 'Sin Receta', 10000, '/demo.jpg', true),
+  ('inv-del-late', 'd1000000-0000-4000-8000-000000000001', 'inv-del-cat', 'inv-del-late', 'Fallo Tardio', 10000, '/demo.jpg', true);
 
 insert into public.branch_menu_items (branch_id, menu_item_id, price, available)
 select b.id, m.id, 10000, true

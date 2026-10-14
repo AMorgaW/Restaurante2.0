@@ -43,16 +43,38 @@ insert into public.branches (
   'a2000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000001',
   'RPC Branch', 'rpc-branch', true, true, 6000, 25000, 'active'
 );
+insert into public.opening_hours (branch_id, day_of_week, opening_time, closing_time, is_closed)
+select 'a2000000-0000-0000-0000-000000000001'::uuid, day, time '00:00', time '23:59', false
+from generate_series(0, 6) as day;
+-- Keep wrapper-positive fixtures in Almuerzo regardless of when pgTAP runs.
+-- This only chooses the local timezone of the isolated fixture; production
+-- branch timezones and the RPC clock are untouched.
+do $$
+declare
+  utc_hour integer := floor(extract(hour from (pg_catalog.clock_timestamp() at time zone 'UTC')))::integer;
+  offset_hours integer := 12 - utc_hour;
+  fixture_timezone text;
+begin
+  fixture_timezone := case
+    when offset_hours = 0 then 'UTC'
+    when offset_hours > 0 then 'Etc/GMT-' || offset_hours::text
+    else 'Etc/GMT+' || abs(offset_hours)::text
+  end;
+  update public.branches
+  set timezone = fixture_timezone
+  where id = 'a2000000-0000-0000-0000-000000000001'::uuid;
+end;
+$$;
 insert into public.categories (id, restaurant_id, name, slug) values
   ('a3000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000001', 'Platos', 'platos'),
   ('a3000000-0000-0000-0000-000000000002', 'a1000000-0000-0000-0000-000000000001', 'Sopas', 'sopas');
-insert into public.menu_items (id, restaurant_id, category_slug, slug, name, base_price, image_path, available) values
-  ('rpc-main', 'a1000000-0000-0000-0000-000000000001', 'platos', 'rpc-main', 'RPC Main', 20000, '/demo.jpg', true),
-  ('rpc-side', 'a1000000-0000-0000-0000-000000000001', 'platos', 'rpc-side', 'RPC Side', 10000, '/demo.jpg', true),
-  ('rpc-off', 'a1000000-0000-0000-0000-000000000001', 'platos', 'rpc-off', 'RPC Off', 9000, '/demo.jpg', false),
-  ('rpc-soup', 'a1000000-0000-0000-0000-000000000001', 'sopas', 'rpc-soup', 'RPC Soup', 5000, '/demo.jpg', true),
-  ('rpc-unlisted', 'a1000000-0000-0000-0000-000000000001', 'platos', 'rpc-unlisted', 'RPC Unlisted', 7000, '/demo.jpg', true),
-  ('rpc-branch-off', 'a1000000-0000-0000-0000-000000000001', 'platos', 'rpc-branch-off', 'RPC Branch Off', 8000, '/demo.jpg', true);
+insert into public.menu_items (id, restaurant_id, category_slug, slug, name, base_price, image_path, available, is_independently_orderable) values
+  ('rpc-main', 'a1000000-0000-0000-0000-000000000001', 'platos', 'rpc-main', 'RPC Main', 20000, '/demo.jpg', true, true),
+  ('rpc-side', 'a1000000-0000-0000-0000-000000000001', 'platos', 'rpc-side', 'RPC Side', 10000, '/demo.jpg', true, true),
+  ('rpc-off', 'a1000000-0000-0000-0000-000000000001', 'platos', 'rpc-off', 'RPC Off', 9000, '/demo.jpg', false, true),
+  ('rpc-soup', 'a1000000-0000-0000-0000-000000000001', 'sopas', 'rpc-soup', 'RPC Soup', 5000, '/demo.jpg', true, false),
+  ('rpc-unlisted', 'a1000000-0000-0000-0000-000000000001', 'platos', 'rpc-unlisted', 'RPC Unlisted', 7000, '/demo.jpg', true, true),
+  ('rpc-branch-off', 'a1000000-0000-0000-0000-000000000001', 'platos', 'rpc-branch-off', 'RPC Branch Off', 8000, '/demo.jpg', true, true);
 insert into public.branch_menu_items (branch_id, menu_item_id, price, available) values
   ('a2000000-0000-0000-0000-000000000001', 'rpc-main', 20000, true),
   ('a2000000-0000-0000-0000-000000000001', 'rpc-side', 12000, true),

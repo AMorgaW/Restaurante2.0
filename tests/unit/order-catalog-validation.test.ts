@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MenuItem } from "@/types/menu";
 import type { MenuRepository, OrderRepository } from "@/server/repositories/types";
 
@@ -43,6 +43,7 @@ const item: MenuItem = {
   categorySlug: "carnes",
   shortDescription: "demo",
   price: 25000,
+  isIndependentlyOrderable: true,
   available: true,
   featured: false,
   tags: [],
@@ -94,6 +95,8 @@ function baseInput(overrides: Record<string, unknown> = {}) {
 
 describe("placeOrder catálogo autoritativo", () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-21T12:00:00-05:00"));
     harness.menuRepo.current = {
       getMenuItems: async () => [item],
       getMenuItemBySlug: async (slug) => (slug === item.slug ? item : null),
@@ -105,6 +108,10 @@ describe("placeOrder catálogo autoritativo", () => {
       listOrders: async () => [],
       updateOrderStatus: async () => ({ ok: false, reason: "not-found" }),
     };
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("recalcula precio servidor e ignora manipulación del cliente", async () => {
@@ -122,6 +129,46 @@ describe("placeOrder catálogo autoritativo", () => {
   it("rechaza producto no disponible", async () => {
     harness.menuRepo.current.getMenuItemBySlug = async () => ({ ...item, available: false });
     await expect(placeOrder(baseInput())).rejects.toBeInstanceOf(OrderValidationError);
+  });
+
+  it("rechaza productos que no se venden de forma independiente", async () => {
+    harness.menuRepo.current.getMenuItemBySlug = async () => ({
+      ...item,
+      categorySlug: "sopas",
+      isIndependentlyOrderable: false,
+    });
+    await expect(placeOrder(baseInput())).rejects.toMatchObject({ code: "item-not-orderable" });
+  });
+
+  it("rechaza sopa incluida fuera de Almuerzo y en los límites cerrados", async () => {
+    const soupGroup = {
+      id: "included-lunch-soup",
+      kind: "includedLunchSoup" as const,
+      name: "Sopa incluida",
+      required: false,
+      minSelections: 0,
+      maxSelections: 1,
+      options: [{ id: "no-soup", name: "Sin sopa", additionalPrice: 0, available: true }],
+    };
+    harness.menuRepo.current.getMenuItemBySlug = async () => ({
+      ...item,
+      modifierGroups: [...item.modifierGroups, soupGroup],
+    });
+    const soupInput = baseInput({
+      items: [{
+        slug: "plato-test",
+        quantity: 1,
+        notes: "",
+        modifiers: [
+          { groupId: "g1", optionId: "o1" },
+          { groupId: "included-lunch-soup", optionId: "no-soup" },
+        ],
+      }],
+    });
+    vi.setSystemTime(new Date("2026-07-21T18:00:00-05:00"));
+    await expect(placeOrder(soupInput)).rejects.toMatchObject({ code: "included-soup-invalid" });
+    vi.setSystemTime(new Date("2026-07-21T22:00:00-05:00"));
+    await expect(placeOrder(baseInput())).rejects.toMatchObject({ code: "service-closed" });
   });
 
   it("rechaza opción inactiva y de otro grupo", async () => {

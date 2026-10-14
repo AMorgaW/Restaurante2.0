@@ -65,7 +65,7 @@ async function hydrateOrders(
 }
 
 const menuSelect =
-  "id, slug, name, short_name, category_slug, short_description, description, base_price, available, featured, tags, ingredients, allergens, preparation_minutes, display_order, image_path, image_width, image_height, image_blur_data_url, original_filename";
+  "id, slug, name, short_name, category_slug, short_description, description, base_price, is_independently_orderable, available, featured, tags, ingredients, allergens, preparation_minutes, display_order, image_path, image_width, image_height, image_blur_data_url, original_filename";
 
 export class CatalogReadError extends Error {
   constructor(message: string) {

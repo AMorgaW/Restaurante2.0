@@ -73,16 +73,19 @@ function seed() {
 
     insert into public.branches (id, restaurant_id, name, slug, status, pickup_enabled, delivery_enabled, delivery_fee, delivery_minimum)
     values ('${BRANCH_ID}', '${RESTAURANT_ID}', 'Centro orders', 'centro', 'active', true, true, 6000, 25000);
+    insert into public.opening_hours (branch_id, day_of_week, opening_time, closing_time, is_closed)
+    select '${BRANCH_ID}'::uuid, day, time '00:00', time '23:59', false
+    from generate_series(0, 6) as day;
 
     insert into public.categories (restaurant_id, name, slug, display_order, is_active)
     values ('${RESTAURANT_ID}', 'Cat', 'e11b2b-cat', 1, true);
 
     insert into public.menu_items (
       id, restaurant_id, category_slug, slug, name, short_description, base_price,
-      available, featured, display_order, image_path
+      available, featured, display_order, image_path, is_independently_orderable
     ) values (
       '${ITEM_ID}', '${RESTAURANT_ID}', 'e11b2b-cat', '${ITEM_ID}', 'Plato 11B2B', 'ok', 20000,
-      true, true, 1, '/icon.svg'
+      true, true, 1, '/icon.svg', true
     );
 
     insert into public.branch_menu_items (branch_id, menu_item_id, price, available)

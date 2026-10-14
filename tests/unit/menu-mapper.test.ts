@@ -73,6 +73,24 @@ describe("menu-mapper", () => {
     expect(commerce).toEqual({ price: 27000, available: true, listed: true });
   });
 
+  it("conserva la bandera comercial y mantiene sopa no comprable por defecto", () => {
+    const mappedMain = mapCatalogMenuItem(
+      { ...baseItem, is_independently_orderable: true },
+      { menu_item_id: baseItem.id, price: 27000, available: true },
+      [],
+      [],
+    );
+    expect(mappedMain?.isIndependentlyOrderable).toBe(true);
+
+    const mappedSoup = mapCatalogMenuItem(
+      { ...baseItem, category_slug: "sopas" },
+      { menu_item_id: baseItem.id, price: 27000, available: true },
+      [],
+      [],
+    );
+    expect(mappedSoup?.isIndependentlyOrderable).toBe(false);
+  });
+
   it("global disabled + branch available → NO comprable", () => {
     const commerce = resolveBranchCommerce(
       { ...baseItem, available: false },

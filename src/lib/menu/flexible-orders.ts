@@ -15,9 +15,13 @@ export const flexibleOrderCatalog = {
 export const STANDALONE_PORTIONS_PENDING_COPY =
   "Sopa sola, porción de arroz o arroz con sopa son pedidos distintos. Este menú todavía no los ofrece para añadir al carrito.";
 
-export function purchasableCatalogItems<T extends Pick<MenuItem, "categorySlug">>(
+export function purchasableCatalogItems<T extends Pick<MenuItem, "categorySlug"> & {
+  isIndependentlyOrderable?: boolean;
+}>(
   items: ReadonlyArray<T>,
 ): T[] {
-  if (flexibleOrderCatalog.standaloneSoup) return [...items];
-  return items.filter((item) => !isSoupItem(item));
+  if (flexibleOrderCatalog.standaloneSoup) {
+    return items.filter((item) => item.isIndependentlyOrderable ?? !isSoupItem(item));
+  }
+  return items.filter((item) => item.isIndependentlyOrderable ?? !isSoupItem(item));
 }

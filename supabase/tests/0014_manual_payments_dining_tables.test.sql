@@ -72,11 +72,30 @@ insert into public.branches (
   'e2000000-0000-0000-0000-000000000001', 'e1000000-0000-0000-0000-000000000001',
   'Pay Branch', 'pay-branch', true, true, 6000, 25000, 'active'
 );
+insert into public.opening_hours (branch_id, day_of_week, opening_time, closing_time, is_closed)
+select 'e2000000-0000-0000-0000-000000000001'::uuid, day, time '00:00', time '23:59', false
+from generate_series(0, 6) as day;
+do $$
+declare
+  utc_hour integer := floor(extract(hour from (pg_catalog.clock_timestamp() at time zone 'UTC')))::integer;
+  offset_hours integer := 12 - utc_hour;
+  fixture_timezone text;
+begin
+  fixture_timezone := case
+    when offset_hours = 0 then 'UTC'
+    when offset_hours > 0 then 'Etc/GMT-' || offset_hours::text
+    else 'Etc/GMT+' || abs(offset_hours)::text
+  end;
+  update public.branches
+  set timezone = fixture_timezone
+  where id = 'e2000000-0000-0000-0000-000000000001'::uuid;
+end;
+$$;
 insert into public.categories (id, restaurant_id, name, slug)
 values ('e3000000-0000-0000-0000-000000000001', 'e1000000-0000-0000-0000-000000000001', 'Platos', 'platos');
-insert into public.menu_items (id, restaurant_id, category_slug, slug, name, base_price, image_path, available) values
-  ('pay-main', 'e1000000-0000-0000-0000-000000000001', 'platos', 'pay-main', 'Pay Main', 10000, '/demo.jpg', true),
-  ('pay-free', 'e1000000-0000-0000-0000-000000000001', 'platos', 'pay-free', 'Pay Free', 0, '/demo.jpg', true);
+insert into public.menu_items (id, restaurant_id, category_slug, slug, name, base_price, image_path, available, is_independently_orderable) values
+  ('pay-main', 'e1000000-0000-0000-0000-000000000001', 'platos', 'pay-main', 'Pay Main', 10000, '/demo.jpg', true, true),
+  ('pay-free', 'e1000000-0000-0000-0000-000000000001', 'platos', 'pay-free', 'Pay Free', 0, '/demo.jpg', true, true);
 insert into public.branch_menu_items (branch_id, menu_item_id, price, available) values
   ('e2000000-0000-0000-0000-000000000001', 'pay-main', 10000, true),
   ('e2000000-0000-0000-0000-000000000001', 'pay-free', 0, true);

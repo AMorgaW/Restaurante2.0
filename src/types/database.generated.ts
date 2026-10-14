@@ -945,6 +945,7 @@ export type Database = {
           display_order: number
           featured: boolean
           id: string
+          is_independently_orderable: boolean
           image_blur_data_url: string | null
           image_height: number | null
           image_path: string
@@ -972,6 +973,7 @@ export type Database = {
           display_order?: number
           featured?: boolean
           id: string
+          is_independently_orderable?: boolean
           image_blur_data_url?: string | null
           image_height?: number | null
           image_path: string
@@ -999,6 +1001,7 @@ export type Database = {
           display_order?: number
           featured?: boolean
           id?: string
+          is_independently_orderable?: boolean
           image_blur_data_url?: string | null
           image_height?: number | null
           image_path?: string

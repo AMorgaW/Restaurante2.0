@@ -82,10 +82,10 @@ function seed() {
 
     insert into public.menu_items (
       id, restaurant_id, category_slug, slug, name, short_description, base_price,
-      available, featured, display_order, image_path
+      available, featured, display_order, image_path, is_independently_orderable
     ) values (
       '${ITEM_ID}', '${RESTAURANT_ID}', 'e11b7e2e-cat', '${ITEM_ID}', 'Plato E2E 11B7', 'ok', 20000,
-      true, true, 1, '/icon.svg'
+      true, true, 1, '/icon.svg', true
     );
 
     insert into public.branch_menu_items (branch_id, menu_item_id, price, available)

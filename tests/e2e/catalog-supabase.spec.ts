@@ -64,11 +64,11 @@ function seedCatalog() {
 
     insert into public.menu_items (
       id, restaurant_id, category_slug, slug, name, short_description, base_price,
-      available, featured, display_order, image_path
+      available, featured, display_order, image_path, is_independently_orderable
     ) values
-      ('${ITEM_ACTIVE}', '${RESTAURANT_ID}', 'e11b1a-carnes', '${ITEM_ACTIVE}', 'Plato activo E2E', 'ok', 20000, true, true, 1, '/icon.svg'),
-      ('${ITEM_INACTIVE}', '${RESTAURANT_ID}', 'e11b1a-carnes', '${ITEM_INACTIVE}', 'Plato inactivo E2E', 'off', 15000, false, false, 2, '/icon.svg'),
-      ('${ITEM_UNAVAILABLE}', '${RESTAURANT_ID}', 'e11b1a-carnes', '${ITEM_UNAVAILABLE}', 'Plato no disponible E2E', 'nd', 18000, true, false, 3, '/icon.svg');
+      ('${ITEM_ACTIVE}', '${RESTAURANT_ID}', 'e11b1a-carnes', '${ITEM_ACTIVE}', 'Plato activo E2E', 'ok', 20000, true, true, 1, '/icon.svg', true),
+      ('${ITEM_INACTIVE}', '${RESTAURANT_ID}', 'e11b1a-carnes', '${ITEM_INACTIVE}', 'Plato inactivo E2E', 'off', 15000, false, false, 2, '/icon.svg', true),
+      ('${ITEM_UNAVAILABLE}', '${RESTAURANT_ID}', 'e11b1a-carnes', '${ITEM_UNAVAILABLE}', 'Plato no disponible E2E', 'nd', 18000, true, false, 3, '/icon.svg', true);
 
     insert into public.branch_menu_items (branch_id, menu_item_id, price, available) values
       ('${BRANCH_ID}', '${ITEM_ACTIVE}', 22000, true),

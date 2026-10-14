@@ -18,6 +18,7 @@ export type CatalogMenuItemRow = {
   short_description: string | null;
   description: string | null;
   base_price: number;
+  is_independently_orderable?: boolean;
   available: boolean;
   featured: boolean;
   tags: string[] | null;
@@ -195,6 +196,7 @@ export function mapCatalogMenuItem(
     shortDescription: row.short_description ?? "",
     ...(row.description ? { description: row.description } : {}),
     price: commerce.price,
+    isIndependentlyOrderable: row.is_independently_orderable ?? row.category_slug !== "sopas",
     available: commerce.available,
     globalAvailable: row.available,
     branchAvailable: branchRow.available,

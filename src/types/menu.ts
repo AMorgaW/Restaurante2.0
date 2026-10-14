@@ -57,6 +57,8 @@ export interface MenuItem {
   description?: string;
   /** Precio base en unidades menores (COP no usa decimales). */
   price: number;
+  /** Regla comercial explícita: false también cubre sopas incluidas históricas. */
+  isIndependentlyOrderable?: boolean;
   /**
    * Comprable en la sucursal efectiva: `menu_items.available` AND
    * `branch_menu_items.available` (y fila de sucursal presente).

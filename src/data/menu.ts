@@ -34,6 +34,7 @@ function buildMenuItems(): MenuItem[] {
         ? { description: override.description ?? manifestItem.descriptionFromFilename }
         : {}),
       price: override.price ?? demoPriceFor(manifestItem.slug, categorySlug),
+      isIndependentlyOrderable: !isSoupItem({ categorySlug }),
       available: override.available ?? true,
       featured: override.featured ?? false,
       tags: override.tags ?? [],

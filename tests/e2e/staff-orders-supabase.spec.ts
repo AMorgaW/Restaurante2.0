@@ -130,16 +130,20 @@ function seed() {
     values
       ('${BRANCH_A}', '${RESTAURANT_ID}', 'Centro E2E', 'centro', 'active', true, true, 6000, 25000),
       ('${BRANCH_B}', '${RESTAURANT_ID}', 'Norte E2E', 'norte', 'active', true, false, 0, 0);
+    insert into public.opening_hours (branch_id, day_of_week, opening_time, closing_time, is_closed)
+    select branch_id, day, time '00:00', time '23:59', false
+    from (values ('${BRANCH_A}'::uuid), ('${BRANCH_B}'::uuid)) as branches(branch_id)
+    cross join generate_series(0, 6) as days(day);
 
     insert into public.categories (restaurant_id, name, slug, display_order, is_active)
     values ('${RESTAURANT_ID}', 'Cat', 'e11b3e2e-cat', 1, true);
 
     insert into public.menu_items (
       id, restaurant_id, category_slug, slug, name, short_description, base_price,
-      available, featured, display_order, image_path
+      available, featured, display_order, image_path, is_independently_orderable
     ) values (
       '${ITEM_ID}', '${RESTAURANT_ID}', 'e11b3e2e-cat', '${ITEM_ID}', 'Plato E2E 11B3', 'ok', 20000,
-      true, true, 1, '/icon.svg'
+      true, true, 1, '/icon.svg', true
     );
 
     insert into public.branch_menu_items (branch_id, menu_item_id, price, available)

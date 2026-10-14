@@ -52,12 +52,31 @@ insert into public.branches (
   'b2000000-0000-0000-0000-000000000001', 'b1000000-0000-0000-0000-000000000001',
   'Pension Test Branch', 'pen-test-branch', true, true, 6000, 25000, 'active', null
 );
+insert into public.opening_hours (branch_id, day_of_week, opening_time, closing_time, is_closed)
+select 'b2000000-0000-0000-0000-000000000001'::uuid, day, time '00:00', time '23:59', false
+from generate_series(0, 6) as day;
+do $$
+declare
+  utc_hour integer := floor(extract(hour from (pg_catalog.clock_timestamp() at time zone 'UTC')))::integer;
+  offset_hours integer := 12 - utc_hour;
+  fixture_timezone text;
+begin
+  fixture_timezone := case
+    when offset_hours = 0 then 'UTC'
+    when offset_hours > 0 then 'Etc/GMT-' || offset_hours::text
+    else 'Etc/GMT+' || abs(offset_hours)::text
+  end;
+  update public.branches
+  set timezone = fixture_timezone
+  where id = 'b2000000-0000-0000-0000-000000000001'::uuid;
+end;
+$$;
 insert into public.categories (id, restaurant_id, name, slug)
 values ('b3000000-0000-0000-0000-000000000001', 'b1000000-0000-0000-0000-000000000001', 'Platos', 'platos');
-insert into public.menu_items (id, restaurant_id, category_slug, slug, name, base_price, image_path, available) values
-  ('pen-included', 'b1000000-0000-0000-0000-000000000001', 'platos', 'pen-included', 'Pen Included', 20000, '/demo.jpg', true),
-  ('pen-sub', 'b1000000-0000-0000-0000-000000000001', 'platos', 'pen-sub', 'Pen Substitution', 45000, '/demo.jpg', true),
-  ('pen-std', 'b1000000-0000-0000-0000-000000000001', 'platos', 'pen-std', 'Pen Standard', 15000, '/demo.jpg', true);
+insert into public.menu_items (id, restaurant_id, category_slug, slug, name, base_price, image_path, available, is_independently_orderable) values
+  ('pen-included', 'b1000000-0000-0000-0000-000000000001', 'platos', 'pen-included', 'Pen Included', 20000, '/demo.jpg', true, true),
+  ('pen-sub', 'b1000000-0000-0000-0000-000000000001', 'platos', 'pen-sub', 'Pen Substitution', 45000, '/demo.jpg', true, true),
+  ('pen-std', 'b1000000-0000-0000-0000-000000000001', 'platos', 'pen-std', 'Pen Standard', 15000, '/demo.jpg', true, true);
 insert into public.branch_menu_items (branch_id, menu_item_id, price, available) values
   ('b2000000-0000-0000-0000-000000000001', 'pen-included', 20000, true),
   ('b2000000-0000-0000-0000-000000000001', 'pen-sub', 45000, true),
