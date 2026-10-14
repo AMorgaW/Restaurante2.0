@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { CatalogMasthead } from "@/components/menu/catalog-masthead";
 import { CategoryChips } from "@/components/menu/category-chips";
 import { LunchSoupBanner } from "@/components/menu/lunch-soup-banner";
@@ -13,12 +13,13 @@ import { filterMenuItems } from "@/features/menu/filtering";
 import { track } from "@/lib/analytics";
 import { useHydratedReducedMotion } from "@/hooks/use-hydrated-reduced-motion";
 import { useMenuItemsWithAdminOverrides } from "@/hooks/use-menu-items";
+import { useMenuScrollRestoration } from "@/hooks/use-menu-scroll-restoration";
 import { useServicePeriod } from "@/hooks/use-service-period";
 import { purchasableCatalogItems } from "@/lib/menu/flexible-orders";
 import { getIncludedLunchSoups } from "@/lib/menu/included-soups";
 import { shouldPlayResultsSettle } from "@/lib/menu/results-motion";
 import { DEFAULT_SERVICE_SNAPSHOT, type ServiceSnapshot } from "@/lib/menu/service-period";
-import { getMenuScrollStorageKey, type MenuViewScope } from "@/lib/menu/view-scope";
+import type { MenuViewScope } from "@/lib/menu/view-scope";
 import { useMenuViewStore, useSearchViewStore, type MenuSort } from "@/stores/menu-view";
 import type { CategoryInfo, MenuItem } from "@/types/menu";
 
@@ -117,28 +118,7 @@ export function MenuExplorer({
     if (searchQuery !== initialQuery) searchSetQuery(initialQuery);
   }, [initialQuery, searchQuery, searchSetQuery, viewScope]);
 
-  useLayoutEffect(() => {
-    let stored: string | null = null;
-    try {
-      stored = sessionStorage.getItem(getMenuScrollStorageKey(viewScope));
-    } catch {
-      return;
-    }
-    if (stored === null) return;
-    const y = Number(stored);
-    if (!Number.isFinite(y) || y <= 0) return;
-    // No borrar la clave hasta aplicar el scroll: en development React Strict Mode
-    // monta→limpia→remonta y cancelaría el rAF dejando el listado arriba.
-    const frame = requestAnimationFrame(() => {
-      window.scrollTo({ top: y, behavior: "instant" });
-      try {
-        sessionStorage.removeItem(getMenuScrollStorageKey(viewScope));
-      } catch {
-        /* ignore */
-      }
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [viewScope]);
+  useMenuScrollRestoration(viewScope);
 
   const catalogItems = useMemo(() => purchasableCatalogItems(items), [items]);
   const includedSoups = useMemo(() => getIncludedLunchSoups(items), [items]);

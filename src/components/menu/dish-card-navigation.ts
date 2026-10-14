@@ -2,7 +2,7 @@
 
 import type { MouseEvent } from "react";
 import { isWebKitBrowser } from "@/lib/browser-engine";
-import { getMenuScrollStorageKey, menuViewScopeForPathname } from "@/lib/menu/view-scope";
+import { getMenuScrollStorageKey, menuScrollScopeForPathname } from "@/lib/menu/view-scope";
 
 function plainPrimaryClick(event: MouseEvent<HTMLAnchorElement>): boolean {
   return event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
@@ -10,7 +10,7 @@ function plainPrimaryClick(event: MouseEvent<HTMLAnchorElement>): boolean {
 
 export function rememberMenuScroll(): void {
   try {
-    const scope = menuViewScopeForPathname(window.location.pathname);
+    const scope = menuScrollScopeForPathname(window.location.pathname);
     sessionStorage.setItem(getMenuScrollStorageKey(scope), String(window.scrollY));
   } catch {
     /* La navegación sigue funcionando aunque sessionStorage no esté disponible. */

@@ -10,6 +10,10 @@ describe("getCatalogMobilePresentation", () => {
     expect(getCatalogMobilePresentation({ kind: "search" })).toBe("compact");
   });
 
+  it("habilita compacto en favoritos", () => {
+    expect(getCatalogMobilePresentation({ kind: "favorites" })).toBe("compact");
+  });
+
   it("habilita cualquier categoría ya resuelta, sin una lista piloto", () => {
     expect(
       getCatalogMobilePresentation({

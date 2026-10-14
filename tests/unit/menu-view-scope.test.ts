@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getMenuScrollStorageKey,
   getMenuViewStorageKey,
+  menuScrollScopeForPathname,
   menuViewScopeForPathname,
 } from "@/lib/menu/view-scope";
 
@@ -11,6 +12,7 @@ describe("scope de vistas del catálogo", () => {
     expect(getMenuViewStorageKey("search")).toBe("rb-search-view");
     expect(getMenuScrollStorageKey("catalog")).toBe("rb-menu-scroll-y");
     expect(getMenuScrollStorageKey("search")).toBe("rb-search-scroll-y");
+    expect(getMenuScrollStorageKey("favorites")).toBe("rb-favorites-scroll-y");
   });
 
   it("resuelve solo /buscar como búsqueda aislada", () => {
@@ -19,5 +21,12 @@ describe("scope de vistas del catálogo", () => {
     expect(menuViewScopeForPathname("/menu")).toBe("catalog");
     expect(menuViewScopeForPathname("/menu/carnes")).toBe("catalog");
     expect(menuViewScopeForPathname("/favoritos")).toBe("catalog");
+  });
+
+  it("resuelve favoritos solo para el scroll, sin crear otro scope de filtros", () => {
+    expect(menuScrollScopeForPathname("/favoritos")).toBe("favorites");
+    expect(menuScrollScopeForPathname("/favoritos/")).toBe("favorites");
+    expect(menuScrollScopeForPathname("/menu/carnes")).toBe("catalog");
+    expect(menuScrollScopeForPathname("/buscar")).toBe("search");
   });
 });
