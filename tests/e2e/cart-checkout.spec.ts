@@ -59,6 +59,64 @@ test.describe("Carrito y checkout demo", () => {
     await expect(page.getByText("Tu carrito está vacío")).toBeVisible();
   });
 
+  test("reconcilia un snapshot antiguo sin conservar identidad CasaBrasa", async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem(
+        "rb-cart",
+        JSON.stringify({
+          state: {
+            items: [{
+              lineId: "legacy-line",
+              itemId: "legacy-item",
+              slug: "arroz-amarillo-carne-asada-frijoles",
+              nameSnapshot: "CasaBrasa · plato antiguo",
+              unitPriceSnapshot: 1,
+              quantity: 1,
+              notes: "",
+              modifiers: [],
+              imagePath: "/legacy/casa-brasa.jpg",
+            }],
+            branchId: "branch-centro",
+            fulfillmentType: "pickup",
+            couponCode: null,
+            tipPercent: 0,
+          },
+          version: 2,
+        }),
+      );
+    });
+    await page.goto("/carrito");
+    await expect(page.getByTestId("cart-reconciliation-notice")).toBeVisible();
+    await expect(page.getByText("Arroz amarillo, carne asada, frijoles")).toBeVisible();
+    await expect(page.getByText("Actualizamos nombre, fotografía o identidad")).toBeVisible();
+    await page.getByRole("button", { name: "Cerrar aviso de actualización del carrito" }).click();
+    await expect(page.getByTestId("cart-reconciliation-notice")).toBeHidden();
+    await expect(page.getByRole("button", { name: "Aumentar cantidad" })).toBeEnabled();
+  });
+
+  test("informa datos corruptos sin inventar un carrito vacío silencioso", async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem(
+        "rb-cart",
+        JSON.stringify({
+          state: {
+            items: [{ quantity: 0 }],
+            branchId: "branch-centro",
+            fulfillmentType: "pickup",
+            couponCode: null,
+            tipPercent: 0,
+          },
+          version: 2,
+        }),
+      );
+    });
+    await page.goto("/carrito");
+    await expect(page.getByText("Tu carrito está vacío")).toBeVisible();
+    await expect(page.getByTestId("cart-reconciliation-notice")).toContainText(
+      "Retiramos datos incompletos",
+    );
+  });
+
   test("checkout completo en modo demostración", async ({ page }) => {
     test.setTimeout(180_000);
     await addSimpleDishToCart(page);

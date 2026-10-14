@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, TicketPercent, Trash2 } from "lucide-react";
+import { ArrowRight, TicketPercent, Trash2, X } from "lucide-react";
 // Router plano (sin view transition): el salto carrito→checkout no comparte
 // elementos visuales y el snapshot de barras fijas con backdrop-blur es
 // inestable en WebKit (fallback estable previsto).
@@ -18,7 +18,7 @@ import { track } from "@/lib/analytics";
 import { useMenuItemsWithAdminOverrides } from "@/hooks/use-menu-items";
 import { useMounted } from "@/hooks/use-mounted";
 import { cn } from "@/lib/utils";
-import { useCartStore } from "@/stores/cart";
+import { consumeCartRepairNotice, useCartStore } from "@/stores/cart";
 import type { MenuItem } from "@/types/menu";
 
 /**
@@ -47,17 +47,43 @@ export function CartScreen({
   const branchId = useCartStore((state) => state.branchId);
   const clear = useCartStore((state) => state.clear);
   const reconcileWithMenu = useCartStore((state) => state.reconcileWithMenu);
+  const [persistHydrated, setPersistHydrated] = useState(
+    () => typeof window !== "undefined" && Boolean(useCartStore.persist?.hasHydrated()),
+  );
 
   const [couponInput, setCouponInput] = useState("");
   const [couponError, setCouponError] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [reconciliationNotice, setReconciliationNotice] = useState<string[]>([]);
+
+  useEffect(() => {
+    const persistApi = useCartStore.persist;
+    if (!persistApi) {
+      setPersistHydrated(true);
+      return;
+    }
+    if (persistApi.hasHydrated()) setPersistHydrated(true);
+    return persistApi.onFinishHydration(() => setPersistHydrated(true));
+  }, []);
 
   // Sincroniza snapshots con el menú vigente una sola vez tras montar.
   const reconciled = useRef(false);
   useEffect(() => {
-    if (!mounted || reconciled.current || items.length === 0) return;
+    if (!mounted || !persistHydrated || reconciled.current) return;
     reconciled.current = true;
-    const { priceChanged, removed } = reconcileWithMenu(adjustedMenu);
+    const persistedRepair = consumeCartRepairNotice();
+    const report = items.length > 0
+      ? reconcileWithMenu(adjustedMenu)
+      : {
+          priceChanged: [],
+          updated: [],
+          modified: [],
+          removed: [],
+          nonPurchasable: [],
+          invalid: [],
+          merged: [],
+        };
+    const { priceChanged, removed } = report;
     if (removed.length > 0) {
       toast({
         title: "Carrito actualizado",
@@ -71,7 +97,34 @@ export function CartScreen({
         description: `Cambió el precio de: ${priceChanged.join(", ")}.`,
       });
     }
-  }, [mounted, items.length, adjustedMenu, reconcileWithMenu, toast]);
+    const messages = [
+      ...(persistedRepair?.removed.length
+        ? [`Retiramos datos incompletos de ${persistedRepair.removed.join(", ")}.`]
+        : []),
+      ...(persistedRepair?.adjusted.length
+        ? [`Ajustamos cantidades o notas de ${persistedRepair.adjusted.join(", ")}.`]
+        : []),
+      ...(report.nonPurchasable.length
+        ? [`Retiramos productos que aún no se venden por separado: ${report.nonPurchasable.join(", ")}.`]
+        : []),
+      ...(report.removed.length
+        ? [`Retiramos productos que ya no están disponibles: ${report.removed.join(", ")}.`]
+        : []),
+      ...(report.priceChanged.length
+        ? [`Actualizamos el precio vigente de ${report.priceChanged.join(", ")}.`]
+        : []),
+      ...(report.updated.length
+        ? [`Actualizamos nombre, fotografía o identidad de ${report.updated.join(", ")}.`]
+        : []),
+      ...(report.modified.length
+        ? [`Revisamos opciones guardadas de ${report.modified.join(", ")}.`]
+        : []),
+      ...(report.merged.length
+        ? [`Unificamos líneas repetidas de ${report.merged.join(", ")}.`]
+        : []),
+    ];
+    setReconciliationNotice([...new Set(messages)]);
+  }, [mounted, persistHydrated, items.length, adjustedMenu, reconcileWithMenu, toast]);
 
   const activeCoupon = useMemo(
     () => coupons.find((coupon) => coupon.code === couponCode && coupon.active) ?? null,
@@ -108,7 +161,7 @@ export function CartScreen({
 
   if (!mounted) {
     return (
-      <div aria-busy="true" className="flex flex-col gap-3 px-4 pt-5 md:px-0">
+      <div aria-busy="true" className="cart-screen flex flex-col gap-3 px-4 pt-5 md:px-0">
         <div className="skeleton h-8 w-40 rounded-xl" />
         <div className="skeleton h-28 w-full rounded-card" />
         <div className="skeleton h-28 w-full rounded-card" />
@@ -116,10 +169,44 @@ export function CartScreen({
     );
   }
 
+  if (!persistHydrated) {
+    return (
+      <div aria-busy="true" className="cart-screen flex flex-col gap-3 px-4 pt-5 md:px-0">
+        <div className="skeleton h-8 w-40 rounded-xl" />
+        <div className="skeleton h-28 w-full rounded-card" />
+      </div>
+    );
+  }
+
+  const notice = reconciliationNotice.length > 0 ? (
+    <section
+      role="status"
+      aria-label="Actualizaciones del carrito"
+      data-testid="cart-reconciliation-notice"
+      className="cart-reconciliation-notice rounded-2xl border px-4 py-3 text-sm"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <p className="font-extrabold">Revisamos tu carrito</p>
+        <button
+          type="button"
+          aria-label="Cerrar aviso de actualización del carrito"
+          onClick={() => setReconciliationNotice([])}
+          className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-white/8 hover:text-foreground"
+        >
+          <X aria-hidden="true" className="size-4" />
+        </button>
+      </div>
+      <ul className="mt-1 flex list-disc flex-col gap-1 pl-5 text-[13px]">
+        {reconciliationNotice.map((message) => <li key={message}>{message}</li>)}
+      </ul>
+    </section>
+  ) : null;
+
   if (items.length === 0) {
     return (
-      <div className="px-4 pt-5 md:px-0">
+      <div className="cart-screen px-4 pt-5 md:px-0">
         <h1 className="text-screen-title font-extrabold tracking-tight">Carrito</h1>
+        {notice}
         <EmptyState
           title="Tu carrito está vacío"
           description="Explora el menú y añade tus platos favoritos."
@@ -134,7 +221,7 @@ export function CartScreen({
   }
 
   return (
-    <div className="flex flex-col gap-5 px-4 pt-5 pb-44 md:px-0 md:pb-8">
+    <div className="cart-screen flex flex-col gap-5 px-4 pt-5 pb-8 md:px-0">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-screen-title font-extrabold tracking-tight">Carrito</h1>
         <button
@@ -151,6 +238,8 @@ export function CartScreen({
         {cartItemCount(items)} {cartItemCount(items) === 1 ? "producto" : "productos"} ·{" "}
         {branch?.name}
       </p>
+
+      {notice}
 
       <ul className="flex flex-col gap-3">
         {items.map((item) => (
@@ -252,8 +341,8 @@ export function CartScreen({
         <CartSummary totals={totals} fulfillmentType={fulfillmentType} />
       </section>
 
-      {/* CTA fijo separado de la navegación flotante por 8 px. */}
-      <div className="fixed inset-x-0 bottom-[calc(5.125rem+env(safe-area-inset-bottom))] z-30 px-4 py-3 md:static md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+      {/* CTA en el flujo: queda después del resumen y no tapa líneas en teléfonos bajos. */}
+      <div className="cart-checkout-bar -mx-4 px-4 py-3 md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
         <div className="mx-auto max-w-lg md:max-w-none">
           <Button
             fullWidth

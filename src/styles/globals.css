@@ -675,6 +675,89 @@ body:has(.catalog-shell) {
   color: #ffffff;
   background-color: #020228;
 }
+
+/* Carrito — adaptación Sinú cálido acotada a su contenido.
+   La cabecera y el footer conservan la composición CasaBrasa existente;
+   esta superficie no cambia la configuración de marca ni otros flujos. */
+html:has(.cart-screen),
+body:has(.cart-screen) {
+  background-color: #fff6e8;
+  color-scheme: light;
+}
+.cart-screen {
+  --color-background: #fff6e8;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-action: #ff743d;
+  --color-action-foreground: #101d39;
+  --color-lime: #136a57;
+  --color-foreground: #101d39;
+  --color-muted: #3c4d68;
+  --color-faint: #3c4d68;
+  --color-border-soft: rgb(16 29 57 / 16%);
+  --color-border-strong: rgb(16 29 57 / 28%);
+  color: #101d39;
+  background-color: #fff6e8;
+  color-scheme: light;
+}
+.cart-screen :focus-visible {
+  outline-color: #136a57;
+}
+.cart-screen .cart-item-row {
+  border-color: rgb(19 106 87 / 18%);
+  background: linear-gradient(180deg, #ffffff 0%, #fffaf3 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 92%),
+    0 18px 34px -28px rgb(16 29 57 / 38%);
+}
+.cart-screen .cart-item-row .cart-remove-button,
+.cart-screen .cart-item-row [role="group"] button {
+  border-color: rgb(19 106 87 / 28%);
+  background-color: #ffffff;
+  color: #101d39;
+  box-shadow: 0 8px 16px -14px rgb(16 29 57 / 45%);
+}
+.cart-screen .cart-item-row .cart-remove-button:hover,
+.cart-screen .cart-item-row [role="group"] button:hover {
+  border-color: rgb(19 106 87 / 48%);
+  background-color: #f4fbf7;
+}
+@media (max-width: 25rem) {
+  .cart-screen .cart-item-meta {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .cart-screen .cart-item-meta > p {
+    margin-left: auto;
+  }
+}
+.cart-screen .cart-reconciliation-notice {
+  border-color: rgb(19 106 87 / 30%);
+  background-color: #f4fbf7;
+  color: #101d39;
+}
+.cart-screen .cart-reconciliation-notice p {
+  color: #136a57;
+}
+.cart-screen .cart-checkout-bar {
+  border-top: 1px solid rgb(19 106 87 / 14%);
+  background: rgb(255 246 232 / 94%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.cart-screen .text-lime {
+  color: #136a57;
+}
+.cart-screen textarea:focus,
+.cart-screen input:focus,
+.cart-screen textarea:focus-visible,
+.cart-screen input:focus-visible {
+  border-color: #136a57;
+  outline: 2px solid #136a57;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgb(217 246 90 / 72%);
+}
+
 .catalog-shell .catalog-header {
   border-bottom-color: rgb(19 106 87 / 16%);
   background-color: rgb(255 246 232 / 92%);

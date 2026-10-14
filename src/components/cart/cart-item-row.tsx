@@ -3,6 +3,7 @@
 import { NotebookPen, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
+import { IconButton } from "@/components/ui/button";
 import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { lineTotal } from "@/features/cart/calculations";
 import { formatCurrency } from "@/lib/format/currency";
@@ -18,7 +19,7 @@ export function CartItemRow({ item }: { item: CartItem }) {
   const [editingNotes, setEditingNotes] = useState(false);
 
   return (
-    <li className="rounded-card border border-border-soft bg-surface p-3.5">
+    <li data-testid="cart-item-row" className="cart-item-row rounded-card border border-border-soft bg-surface p-3.5">
       <div className="flex gap-3">
         <div className="relative size-20 shrink-0 overflow-hidden rounded-2xl">
           <Image
@@ -34,17 +35,18 @@ export function CartItemRow({ item }: { item: CartItem }) {
             <p className="min-w-0 break-words text-[15px] font-bold leading-snug line-clamp-2">
               {item.nameSnapshot}
             </p>
-            <button
-              type="button"
+            <IconButton
               aria-label={`Eliminar ${item.nameSnapshot} del carrito`}
+              size="sm"
+              variant="soft"
+              className="cart-remove-button"
               onClick={() => {
                 removeItem(item.lineId);
                 track("remove_from_cart", { item: item.slug });
               }}
-              className="rounded-full bg-white/6 p-2 text-muted transition-colors hover:bg-error/15 hover:text-error"
             >
               <Trash2 aria-hidden className="size-4" />
-            </button>
+            </IconButton>
           </div>
 
           {item.modifiers.length > 0 ? (
@@ -63,11 +65,11 @@ export function CartItemRow({ item }: { item: CartItem }) {
             </ul>
           ) : null}
 
-          <div className="mt-2.5 flex items-center justify-between gap-2">
+          <div className="cart-item-meta mt-2.5 flex items-center justify-between gap-2">
             <QuantitySelector
               value={item.quantity}
               onChange={(next) => updateQuantity(item.lineId, next)}
-              size="sm"
+              size="md"
               label={`Cantidad de ${item.nameSnapshot}`}
             />
             <p className="text-[15px] font-extrabold tabular-nums">
@@ -96,7 +98,7 @@ export function CartItemRow({ item }: { item: CartItem }) {
             <button
               type="button"
               onClick={() => setEditingNotes(false)}
-              className="self-end rounded-full bg-white/8 px-3.5 py-1.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-white/14"
+              className="self-end min-h-11 rounded-full bg-white/8 px-3.5 py-1.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-white/14"
             >
               Listo
             </button>
@@ -105,7 +107,7 @@ export function CartItemRow({ item }: { item: CartItem }) {
           <button
             type="button"
             onClick={() => setEditingNotes(true)}
-            className="flex items-center gap-1.5 text-[13px] font-semibold text-muted transition-colors hover:text-foreground"
+            className="flex min-h-11 items-center gap-1.5 text-left text-[13px] font-semibold text-muted transition-colors hover:text-foreground"
           >
             <NotebookPen aria-hidden className="size-4" />
             {item.notes ? (
