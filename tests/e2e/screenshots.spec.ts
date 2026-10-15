@@ -1,5 +1,7 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { addSimpleDishToCart, MODIFIER_DISH_SLUG, skipOnboarding } from "./helpers";
+import type { Order } from "@/types/order";
 
 /**
  * Capturas de revisión visual en los tamaños exigidos, guardadas en
@@ -17,6 +19,65 @@ const VIEWPORTS = [
 ] as const;
 
 const DIR = "artifacts/screenshots";
+
+const CONFIRMATION_SCREENSHOT_ORDER: Order = {
+  id: "order-screenshot-c1",
+  orderNumber: "CB-C1-SCREENSHOT",
+  branchId: "branch-centro",
+  status: "pending",
+  paymentStatus: "pending",
+  paymentMethod: "demo",
+  fulfillmentType: "pickup",
+  items: [
+    {
+      itemId: "dish-screenshot",
+      slug: "dish-screenshot",
+      nameSnapshot: "Arroz de coco con pescado",
+      unitPrice: 42000,
+      quantity: 2,
+      modifiers: [
+        {
+          groupId: "included-lunch-soup",
+          groupName: "Sopa incluida",
+          optionId: "soup-screenshot",
+          optionName: "Sopa de pescado",
+          priceSnapshot: 0,
+        },
+        {
+          groupId: "side",
+          groupName: "Acompañante",
+          optionId: "patacon",
+          optionName: "Patacón",
+          priceSnapshot: 2500,
+        },
+      ],
+      notes: "Sin cilantro",
+      total: 84500,
+    },
+  ],
+  totals: {
+    subtotal: 84500,
+    discount: 5000,
+    tax: 6360,
+    serviceFee: 0,
+    deliveryFee: 0,
+    tip: 0,
+    total: 85860,
+  },
+  currency: "COP",
+  customer: { name: "Ana Pérez", phone: "+57 300 123 4567", email: "ana@example.com" },
+  notes: "Llamar al llegar",
+  createdAt: "2026-10-14T12:00:00.000Z",
+};
+
+async function seedConfirmationOrder(page: import("@playwright/test").Page, order: Order) {
+  await page.evaluate((nextOrder) => {
+    window.localStorage.setItem(
+      "rb-orders",
+      JSON.stringify({ state: { orders: [nextOrder] }, version: 2 }),
+    );
+  }, order);
+}
 
 test.describe("Capturas de revisión visual", () => {
   // Recorre 8 viewports con capturas de página completa: necesita margen.
@@ -174,5 +235,65 @@ test.describe("Capturas de revisión visual", () => {
     await page.goto("/favoritos");
     await page.waitForTimeout(300);
     await page.screenshot({ path: `${DIR}/favoritos-vacio-390x844.png`, fullPage: true });
+  });
+
+  test("comprobante C1 en tamaños móviles y escritorio", async ({ page }) => {
+    await skipOnboarding(page);
+    await page.request.post("/__nextjs_disable_dev_indicator");
+    await page.addInitScript(() => {
+      const removeDevPortal = () => {
+        document.querySelectorAll("nextjs-portal").forEach((portal) => portal.remove());
+      };
+      removeDevPortal();
+      new MutationObserver(removeDevPortal).observe(document.documentElement, {
+        childList: true,
+        subtree: true,
+      });
+    });
+
+    for (const viewport of [
+      { name: "320x568", width: 320, height: 568 },
+      { name: "390x844", width: 390, height: 844 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/pedido/order-screenshot-c1");
+      await seedConfirmationOrder(page, CONFIRMATION_SCREENSHOT_ORDER);
+      await page.reload();
+      await expect(page.getByRole("heading", { name: "Pedido recibido" })).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(
+        true,
+      );
+      await page.screenshot({ path: `${DIR}/order-pending-${viewport.name}.png`, fullPage: true });
+    }
+
+    const a11yResults = await new AxeBuilder({ page }).analyze();
+    expect(
+      a11yResults.violations.filter((violation) =>
+        ["critical", "serious", "moderate"].includes(violation.impact ?? ""),
+      ),
+    ).toEqual([]);
+
+    const confirmed = { ...CONFIRMATION_SCREENSHOT_ORDER, status: "confirmed" as const };
+    await page.setViewportSize({ width: 390, height: 844 });
+    await seedConfirmationOrder(page, confirmed);
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Pedido confirmado" })).toBeVisible();
+    await expect(page.getByText("Sopa incluida: Sopa de pescado · COP 0")).toBeVisible();
+    await page.screenshot({ path: `${DIR}/order-confirmed-soup-390x844.png`, fullPage: true });
+
+    await page.evaluate(() => window.localStorage.removeItem("rb-orders"));
+    await page.reload();
+    await expect(
+      page.getByRole("heading", {
+        name: "No hay un comprobante guardado en este navegador para este enlace",
+      }),
+    ).toBeVisible();
+    await page.screenshot({ path: `${DIR}/order-missing-local-390x844.png`, fullPage: true });
+
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await seedConfirmationOrder(page, confirmed);
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Pedido confirmado" })).toBeVisible();
+    await page.screenshot({ path: `${DIR}/order-confirmed-1440x1000.png`, fullPage: true });
   });
 });

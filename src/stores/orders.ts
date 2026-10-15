@@ -22,14 +22,38 @@ interface OrdersState {
 
 const MAX_STORED_ORDERS = 20;
 
+/**
+ * QR tokens are only transport credentials for order creation. They must not
+ * survive in the browser receipt copy or in the persisted Zustand payload.
+ */
+function sanitizeOrderForLocalReceipt(order: Order): Order {
+  const { tableQrToken: _tableQrToken, ...safeOrder } = order;
+  return safeOrder;
+}
+
+function sanitizePersistedOrders(value: unknown): Order[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter(
+      (candidate): candidate is Order =>
+        Boolean(candidate) &&
+        typeof candidate === "object" &&
+        typeof (candidate as { id?: unknown }).id === "string",
+    )
+    .map(sanitizeOrderForLocalReceipt)
+    .slice(0, MAX_STORED_ORDERS);
+}
+
 export const useOrdersStore = create<OrdersState>()(
   persist(
     (set, get) => ({
       orders: [],
       addOrder: (order) => {
+        const safeOrder = sanitizeOrderForLocalReceipt(order);
         set((state) => {
-          const withoutDuplicate = state.orders.filter((existing) => existing.id !== order.id);
-          return { orders: [order, ...withoutDuplicate].slice(0, MAX_STORED_ORDERS) };
+          const withoutDuplicate = state.orders.filter((existing) => existing.id !== safeOrder.id);
+          return { orders: [safeOrder, ...withoutDuplicate].slice(0, MAX_STORED_ORDERS) };
         });
       },
       getById: (id) => get().orders.find((order) => order.id === id),
@@ -50,8 +74,17 @@ export const useOrdersStore = create<OrdersState>()(
     }),
     {
       name: "rb-orders",
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        orders: state.orders.map(sanitizeOrderForLocalReceipt),
+      }),
+      migrate: (persistedState, _version) => {
+        const persisted = persistedState as { orders?: unknown } | undefined;
+        return {
+          orders: sanitizePersistedOrders(persisted?.orders),
+        };
+      },
     },
   ),
 );

@@ -188,10 +188,18 @@ test.describe("Carrito y checkout demo", () => {
     await expect(page).toHaveURL(/\/pedido\//, { timeout: 45_000 });
 
     // Confirmación.
-    await expect(page.getByRole("heading", { name: "¡Pedido confirmado!" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Pedido confirmado" })).toBeVisible();
     // El número aparece en la página (y también en el toast): basta el primero.
-    await expect(page.getByText(/CB-[A-Z0-9]+/).first()).toBeVisible();
-    await expect(page.getByText(/no se realizó\s+ningún cobro real/i)).toBeVisible();
+    const orderReference = page.getByText(/CB-[A-Z0-9]+/).first();
+    await expect(orderReference).toBeVisible();
+    await expect(page.getByText("Demostración · sin cobro real").first()).toBeVisible();
+    await expect(page.getByText("Pagado (demostración)")).toHaveCount(0);
+
+    // La copia inmediata se conserva al recargar el mismo navegador.
+    const referenceText = await orderReference.textContent();
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Pedido confirmado" })).toBeVisible();
+    await expect(page.getByText(referenceText ?? "").first()).toBeVisible();
 
     // El carrito quedó vacío.
     await page.goto("/carrito");
@@ -248,8 +256,14 @@ test.describe("Carrito y checkout demo", () => {
     await expect(page.getByRole("heading", { name: "Tus datos" })).toBeVisible();
   });
 
-  test("un pedido inexistente muestra estado no encontrado", async ({ page }) => {
+  test("un pedido sin copia local muestra un estado neutral", async ({ page }) => {
     await page.goto("/pedido/00000000-0000-0000-0000-000000000000");
-    await expect(page.getByText("Pedido no encontrado")).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        name: "No hay un comprobante guardado en este navegador para este enlace",
+      }),
+    ).toBeVisible();
+    await expect(page.getByText(/no confirma ni descarta/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Volver al menú" })).toBeVisible();
   });
 });

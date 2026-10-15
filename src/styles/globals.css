@@ -1347,6 +1347,79 @@ body:has(.checkout-shell) {
   white-space: nowrap;
 }
 
+/* ============================================================
+   Comprobante — Sinú cálido. Mantiene la copia local del pedido
+   legible sin cambiar los tokens globales del resto del producto.
+   ============================================================ */
+html:has(.order-confirmation-shell),
+body:has(.order-confirmation-shell) {
+  background-color: #fff6e8;
+  color-scheme: light;
+}
+
+.order-confirmation-shell {
+  --color-background: #fff6e8;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-action: #ff743d;
+  --color-action-foreground: #101d39;
+  --color-lime: #d9f65a;
+  --color-foreground: #101d39;
+  --color-muted: #3c4d68;
+  --color-faint: #3c4d68;
+  --color-border-soft: rgb(16 29 57 / 16%);
+  --color-border-strong: rgb(16 29 57 / 28%);
+  color: #101d39;
+  background-color: #fff6e8;
+  color-scheme: light;
+}
+
+.order-confirmation-shell :focus-visible {
+  outline: 3px solid #136a57;
+  outline-offset: 3px;
+}
+
+.order-confirmation-shell .skeleton {
+  background: rgb(19 106 87 / 12%);
+}
+
+.order-confirmation-shell .order-confirmation-status-badge {
+  color: #101d39;
+  background: #ffffff;
+  border-color: rgb(16 29 57 / 24%);
+}
+
+.order-confirmation-shell .order-confirmation-status-badge.status-pending {
+  color: #9f1239;
+  background: #fff1f2;
+  border-color: rgb(159 18 57 / 30%);
+}
+
+.order-confirmation-shell .order-confirmation-status-badge.status-confirmed,
+.order-confirmation-shell .order-confirmation-status-badge.status-preparing,
+.order-confirmation-shell .order-confirmation-status-badge.status-ready,
+.order-confirmation-shell .order-confirmation-status-badge.status-delivered {
+  color: #136a57;
+  background: #edf8f2;
+  border-color: rgb(19 106 87 / 28%);
+}
+
+.order-confirmation-shell .order-confirmation-status-badge.status-cancelled {
+  color: #9f1239;
+  background: #fff1f2;
+  border-color: rgb(159 18 57 / 30%);
+}
+
+.order-confirmation-shell .order-confirmation-payment-badge {
+  color: #136a57;
+  background: #f2f8d8;
+  border-color: rgb(19 106 87 / 25%);
+}
+
+.order-confirmation-shell .text-lime {
+  color: #136a57;
+}
+
 @media (max-width: 30rem) and (max-height: 38.75rem) {
   .checkout-shell {
     gap: 1rem;
