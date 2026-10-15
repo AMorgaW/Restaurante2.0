@@ -2538,6 +2538,31 @@ export type Database = {
           total: number
         }[]
       }
+      create_customer_order_with_receipt: {
+        Args: {
+          p_address?: Json
+          p_branch_id: string
+          p_coupon_code?: string
+          p_customer_email: string
+          p_customer_name: string
+          p_customer_phone: string
+          p_fulfillment_type: string
+          p_idempotency_key: string
+          p_items: Json
+          p_notes?: string
+          p_receipt_key: string
+          p_table_qr_token?: string
+          p_tip_percent?: number
+        }
+        Returns: {
+          created_at: string
+          order_id: string
+          order_number: string
+          replay: boolean
+          status: string
+          total: number
+        }[]
+      }
       create_dining_table: {
         Args: { p_branch_id: string; p_code: string; p_name?: string }
         Returns: {
@@ -2568,6 +2593,26 @@ export type Database = {
           order_number: string
           replay: boolean
           status: string
+          total: number
+        }[]
+      }
+      read_guest_order_receipt: {
+        Args: { p_receipt_key: string }
+        Returns: {
+          branch_name: string | null
+          currency: string
+          delivery_fee: number
+          discount: number
+          fulfillment_type: string
+          items: Json
+          order_number: string
+          payment_method: string
+          payment_status: string
+          service_fee: number
+          status: string
+          subtotal: number
+          tax: number
+          tip: number
           total: number
         }[]
       }

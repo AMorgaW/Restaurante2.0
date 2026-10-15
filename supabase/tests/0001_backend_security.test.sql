@@ -47,9 +47,11 @@ select ok(not exists (
       'confirm_manual_order_payment',
       'confirm_manual_table_session_payment',
       'void_manual_payment_confirmation',
+      'create_customer_order_with_receipt',
       'list_dining_tables_for_staff',
       'get_table_session_account',
-      'get_manual_payment_history'
+      'get_manual_payment_history',
+      'read_guest_order_receipt'
     )
 ), 'no unexpected client-facing SECURITY DEFINER remains in public');
 
