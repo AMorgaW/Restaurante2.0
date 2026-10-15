@@ -194,11 +194,16 @@ export class SupabaseMenuRepository implements MenuRepository {
 }
 
 /**
- * Persistencia remota de pedidos vía RPC `create_customer_order` (11B-2B).
+ * Persistencia remota de pedidos vía RPC comercial vigente. Cuando C2.2 está
+ * habilitada, el servicio entrega `receiptKey` y se usa exclusivamente el
+ * wrapper `create_customer_order_with_receipt` (sin fallback silencioso).
  * Una sola llamada RPC por intento; sin INSERT directo ni service_role.
  */
 export class SupabaseOrderRepository implements OrderRepository {
-  async saveOrder(order: Order, options?: { tipPercent?: number }): Promise<Order> {
+  async saveOrder(
+    order: Order,
+    options?: { tipPercent?: number; receiptKey?: string },
+  ): Promise<Order> {
     const branchUuid = await resolveBranchUuid(order.branchId);
     const client = await createServerSupabaseClient();
 
@@ -212,7 +217,7 @@ export class SupabaseOrderRepository implements OrderRepository {
       modifier_option_ids: item.modifiers.map((modifier) => modifier.optionId),
     }));
 
-    const rpcArgs = {
+    const baseRpcArgs = {
       p_idempotency_key: idempotencyKey,
       p_branch_id: branchUuid,
       p_fulfillment_type: order.fulfillmentType,
@@ -233,24 +238,34 @@ export class SupabaseOrderRepository implements OrderRepository {
       ...(order.fulfillmentType === "local" && order.tableQrToken
         ? { p_table_qr_token: order.tableQrToken }
         : {}),
-    } as Database["public"]["Functions"]["create_customer_order"]["Args"];
+    };
+    const useReceiptWrapper = Boolean(options?.receiptKey);
+    const rpcArgs = (
+      useReceiptWrapper ? { ...baseRpcArgs, p_receipt_key: options?.receiptKey } : baseRpcArgs
+    ) as
+      | Database["public"]["Functions"]["create_customer_order"]["Args"]
+      | Database["public"]["Functions"]["create_customer_order_with_receipt"]["Args"];
 
     // createServerClient tipa Functions de forma incompleta frente a RETURNS TABLE;
     // el contrato Args/Returns vive en Database y se valida aquí en tiempo de compilación.
     type CreateOrderRpc = {
       rpc: (
-        fn: "create_customer_order",
-        args: Database["public"]["Functions"]["create_customer_order"]["Args"],
+        fn: "create_customer_order" | "create_customer_order_with_receipt",
+        args:
+          | Database["public"]["Functions"]["create_customer_order"]["Args"]
+          | Database["public"]["Functions"]["create_customer_order_with_receipt"]["Args"],
       ) => Promise<{
         data:
           | Database["public"]["Functions"]["create_customer_order"]["Returns"]
           | Array<Database["public"]["Functions"]["create_customer_order"]["Returns"]>
+          | Database["public"]["Functions"]["create_customer_order_with_receipt"]["Returns"]
+          | Array<Database["public"]["Functions"]["create_customer_order_with_receipt"]["Returns"]>
           | null;
         error: { message?: string; code?: string; details?: string; hint?: string } | null;
       }>;
     };
     const { data, error } = await (client as unknown as CreateOrderRpc).rpc(
-      "create_customer_order",
+      useReceiptWrapper ? "create_customer_order_with_receipt" : "create_customer_order",
       rpcArgs,
     );
 

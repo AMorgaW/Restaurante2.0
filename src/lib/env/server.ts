@@ -12,6 +12,8 @@ import {
 export type ServerEnv = {
   AUTH_MODE?: string;
   DATA_MODE?: string;
+  /** Interruptor servidor-only para C2.2; permanece desactivado por defecto. */
+  GUEST_RECEIPT_RECOVERY_ENABLED?: string;
   NEXT_PUBLIC_SITE_URL: string;
   NEXT_PUBLIC_SUPABASE_URL?: string;
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?: string;
@@ -37,6 +39,7 @@ export function getServerEnv(): ServerEnv {
   cachedEnv = {
     AUTH_MODE: process.env.AUTH_MODE,
     DATA_MODE: process.env.DATA_MODE,
+    GUEST_RECEIPT_RECOVERY_ENABLED: process.env.GUEST_RECEIPT_RECOVERY_ENABLED,
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
@@ -53,6 +56,14 @@ export function getServerEnv(): ServerEnv {
     EMAIL_FROM: process.env.EMAIL_FROM,
   };
   return cachedEnv;
+}
+
+/** La capacidad solo existe en Supabase y requiere activación explícita. */
+export function isGuestReceiptRecoveryEnabled(env: ServerEnv = getServerEnv()): boolean {
+  if (env.GUEST_RECEIPT_RECOVERY_ENABLED !== "true") return false;
+  if (env.DATA_MODE !== "supabase") return false;
+  const status = getDataModeStatusFromEnv(env);
+  return status.mode === "supabase" && status.configured;
 }
 
 /** Preferencia estricta: una clave publishable presente pero invalida no cae a anon. */

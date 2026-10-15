@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { restaurantConfig } from "@/config/restaurant";
+import { isCanonicalReceiptKey } from "@/features/checkout/guest-receipt-attempt";
 import { isValidPhone } from "@/lib/utils";
 
 /**
@@ -54,6 +55,11 @@ export const orderItemInputSchema = z.object({
 export const checkoutInputSchema = z
   .object({
     idempotencyKey: z.string().uuid("Clave de pedido inválida."),
+    /** Solo se usa cuando el servidor tiene habilitada la recuperación C2.2. */
+    receiptKey: z
+      .string()
+      .refine(isCanonicalReceiptKey, "Credencial de comprobante inválida.")
+      .optional(),
     branchId: z.string().min(1, "Selecciona una sucursal."),
     fulfillmentType: z.enum(["pickup", "delivery", "local"]),
     customer: customerSchema,

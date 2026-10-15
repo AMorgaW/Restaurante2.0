@@ -26,6 +26,15 @@ import { useToast } from "@/components/ui/toast";
 import { branches, coupons, restaurantConfig } from "@/config/restaurant";
 import { calculateTotals } from "@/features/cart/calculations";
 import { placeOrderRequest } from "@/features/checkout/place-order";
+import {
+  canUseGuestReceiptAttemptStorage,
+  markGuestReceiptAttemptConfirmed,
+  markGuestReceiptAttemptPrepared,
+  markGuestReceiptAttemptUncertain,
+  prepareGuestReceiptAttempt,
+} from "@/features/checkout/guest-receipt-attempt";
+import type { GuestReceiptAttempt } from "@/features/checkout/guest-receipt-attempt";
+import type { CheckoutInput } from "@/features/checkout/schema";
 import { INCLUDED_LUNCH_SOUP_GROUP_ID, NO_SOUP_OPTION_ID } from "@/lib/menu/included-soups";
 import { track } from "@/lib/analytics";
 import { formatCurrency } from "@/lib/format/currency";
@@ -34,6 +43,7 @@ import { useMounted } from "@/hooks/use-mounted";
 import { useCartStore } from "@/stores/cart";
 import { useOrdersStore } from "@/stores/orders";
 import { useTableContextStore } from "@/stores/table-context";
+import type { Order } from "@/types/order";
 
 const STEPS = ["Entrega", "Tus datos", "Revisión"] as const;
 
@@ -47,6 +57,19 @@ const CART_STALE_CODES = new Set([
   "modifier-too-many",
   "included-soup-invalid",
   "coupon-invalid",
+]);
+
+const CONFIRMATION_BLOCKED_CODES = new Set([
+  "idempotency-conflict",
+  "receipt-unavailable",
+  "receipt-key-invalid",
+  "receipt-recovery-required",
+  "receipt-recovery-unavailable",
+  "receipt-attempt-mismatch",
+  "receipt-capacity-exhausted",
+  "receipt-storage-unavailable",
+  "temporary",
+  "persistence-error",
 ]);
 
 const customerFormSchema = z.object({
@@ -66,7 +89,11 @@ type CheckoutFormValues = z.infer<typeof customerFormSchema>;
  * El servidor revalida y recalcula todo; la clave de idempotencia evita
  * pedidos duplicados ante reintentos.
  */
-export function CheckoutScreen() {
+export function CheckoutScreen({
+  guestReceiptRecoveryEnabled = false,
+}: {
+  guestReceiptRecoveryEnabled?: boolean;
+}) {
   const router = useRouter();
   const { toast } = useToast();
   const mounted = useMounted();
@@ -92,7 +119,9 @@ export function CheckoutScreen() {
   const [serverErrorCode, setServerErrorCode] = useState<string | null>(null);
   /** Una clave opaca por intento lógico; se reutiliza en retries del mismo intento. */
   const idempotencyKey = useRef<string>(crypto.randomUUID());
-  const inFlightRequest = useRef<ReturnType<typeof placeOrderRequest> | null>(null);
+  const inFlightRequest = useRef<Promise<void> | null>(null);
+  const receiptAttemptRef = useRef<GuestReceiptAttempt | null>(null);
+  const confirmedOrderAwaitingReceiptRef = useRef<Order | null>(null);
 
   const {
     register,
@@ -171,83 +200,169 @@ export function CheckoutScreen() {
   };
 
   const submitOrder = async () => {
-    if (submitting && inFlightRequest.current) {
+    if (inFlightRequest.current) {
       await inFlightRequest.current;
       return;
     }
     if (submitting) return;
-    setSubmitting(true);
-    setServerError(null);
-
-    const values = getValues();
-    const payload = {
-      idempotencyKey: idempotencyKey.current,
-      branchId: branch?.id ?? "",
-      fulfillmentType,
-      customer: {
-        name: values.name.trim(),
-        phone: values.phone.trim(),
-        email: values.email.trim(),
-      },
-      ...(fulfillmentType === "delivery"
-        ? {
-            address: {
-              street: values.street?.trim() ?? "",
-              details: values.details?.trim() ?? "",
-              neighborhood: values.neighborhood?.trim() ?? "",
-            },
-          }
-        : {}),
-      items: items.map((line) => ({
-        slug: line.slug,
-        quantity: line.quantity,
-        notes: line.notes,
-        modifiers: line.modifiers.map((modifier) => ({
-          groupId: modifier.groupId,
-          optionId: modifier.optionId,
-        })),
-      })),
-      ...(activeCoupon ? { couponCode: activeCoupon.code } : {}),
-      tipPercent,
-      notes: values.notes?.trim() ?? "",
-      ...(fulfillmentType === "local" && tableQrToken ? { tableQrToken } : {}),
-    };
-
-    const request = placeOrderRequest(payload);
-    inFlightRequest.current = request;
-    const result = await request;
-    inFlightRequest.current = null;
-
-    if (!result.ok) {
-      setSubmitting(false);
-      setServerError(result.error);
-      setServerErrorCode(result.code ?? null);
-      toast({
-        title: "No pudimos completar el pedido",
-        description: result.error,
-        variant: "error",
-      });
+    if (confirmedOrderAwaitingReceiptRef.current) {
+      setServerError(
+        "El servidor confirmó el pedido, pero no pudimos conservar de forma segura la credencial del comprobante. No vuelvas a enviarlo.",
+      );
+      setServerErrorCode("receipt-storage-unavailable");
       return;
     }
 
-    addOrder(result.order);
-    track("purchase", {
-      order: result.order.orderNumber,
-      total: result.order.totals.total,
-      items: result.order.items.length,
-    });
-    // Conservar contexto de mesa para pedidos adicionales en la misma session.
-    // Nuevo intento lógico a partir de aquí (por si el usuario vuelve a pedir).
-    idempotencyKey.current = crypto.randomUUID();
-    toast({
-      title: "¡Pedido confirmado!",
-      description: result.order.orderNumber,
-      variant: "success",
-    });
-    // Navegar antes de vaciar: si clearCart corre primero, el EmptyState remonta
-    // y puede cancelar el replace en WebKit/móvil.
-    router.replace(`/pedido/${result.order.id}`);
-    clearCart();
+    const operation = (async () => {
+      setSubmitting(true);
+      setServerError(null);
+      setServerErrorCode(null);
+
+      const values = getValues();
+      const commercialPayload = {
+        branchId: branch?.id ?? "",
+        fulfillmentType,
+        customer: {
+          name: values.name.trim(),
+          phone: values.phone.trim(),
+          email: values.email.trim(),
+        },
+        ...(fulfillmentType === "delivery"
+          ? {
+              address: {
+                street: values.street?.trim() ?? "",
+                details: values.details?.trim() ?? "",
+                neighborhood: values.neighborhood?.trim() ?? "",
+              },
+            }
+          : {}),
+        items: items.map((line) => ({
+          slug: line.slug,
+          quantity: line.quantity,
+          notes: line.notes ?? "",
+          modifiers: line.modifiers.map((modifier) => ({
+            groupId: modifier.groupId,
+            optionId: modifier.optionId,
+          })),
+        })),
+        ...(activeCoupon ? { couponCode: activeCoupon.code } : {}),
+        tipPercent,
+        notes: values.notes?.trim() ?? "",
+        ...(fulfillmentType === "local" && tableQrToken ? { tableQrToken } : {}),
+      } satisfies Omit<CheckoutInput, "idempotencyKey" | "receiptKey">;
+
+      let payload: CheckoutInput;
+      let receiptAttempt: Awaited<ReturnType<typeof prepareGuestReceiptAttempt>> | null = null;
+
+      if (guestReceiptRecoveryEnabled) {
+        if (!canUseGuestReceiptAttemptStorage()) {
+          setSubmitting(false);
+          setServerError(
+            "No podemos conservar de forma segura la credencial de este intento. No se envió ningún pedido. Revisa el almacenamiento de esta pestaña e inténtalo de nuevo.",
+          );
+          setServerErrorCode("receipt-storage-unavailable");
+          return;
+        }
+        try {
+          receiptAttempt = await prepareGuestReceiptAttempt(commercialPayload);
+          receiptAttemptRef.current = receiptAttempt;
+          markGuestReceiptAttemptUncertain(receiptAttempt);
+        } catch (error) {
+          setSubmitting(false);
+          const reason = error instanceof Error ? error.message : "";
+          if (reason === "guest-receipt-attempt-mismatch") {
+            setServerError(
+              "Este intento quedó pendiente con otros datos. Regresa para revisar la información antes de enviarlo de nuevo.",
+            );
+            setServerErrorCode("receipt-attempt-mismatch");
+          } else if (reason === "guest-receipt-capacity-exhausted") {
+            setServerError(
+              "Este navegador ya conserva el máximo de comprobantes pendientes. No se envió ningún pedido desde esta pestaña.",
+            );
+            setServerErrorCode("receipt-capacity-exhausted");
+          } else {
+            setServerError(
+              "No pudimos preparar de forma segura este intento. No se envió ningún pedido.",
+            );
+            setServerErrorCode("receipt-storage-unavailable");
+          }
+          return;
+        }
+        payload = {
+          ...commercialPayload,
+          idempotencyKey: receiptAttempt.idempotencyKey,
+          receiptKey: receiptAttempt.receiptKey,
+        };
+      } else {
+        payload = { ...commercialPayload, idempotencyKey: idempotencyKey.current };
+      }
+
+      const result = await placeOrderRequest(payload);
+
+      if (!result.ok) {
+        if (
+          guestReceiptRecoveryEnabled &&
+          receiptAttempt &&
+          CART_STALE_CODES.has(result.code ?? "")
+        ) {
+          try {
+            markGuestReceiptAttemptPrepared(receiptAttempt);
+          } catch {
+            // El intento sigue siendo seguro; no se convierte en un pedido nuevo.
+          }
+        }
+        setSubmitting(false);
+        setServerError(result.error);
+        setServerErrorCode(result.code ?? null);
+        toast({
+          title: "No pudimos completar el pedido",
+          description: result.error,
+          variant: "error",
+        });
+        return;
+      }
+
+      if (guestReceiptRecoveryEnabled && receiptAttempt) {
+        try {
+          markGuestReceiptAttemptConfirmed(receiptAttempt, result.order.id);
+          receiptAttemptRef.current = null;
+        } catch {
+          confirmedOrderAwaitingReceiptRef.current = result.order;
+          setSubmitting(false);
+          setServerError(
+            "El servidor respondió exitosamente, pero no fue posible conservar de forma segura la credencial del comprobante. No vuelvas a enviarlo.",
+          );
+          setServerErrorCode("receipt-storage-unavailable");
+          return;
+        }
+      }
+
+      addOrder(result.order);
+      track("purchase", {
+        order: result.order.orderNumber,
+        total: result.order.totals.total,
+        items: result.order.items.length,
+      });
+      // Conservar contexto de mesa para pedidos adicionales en la misma session.
+      // Nuevo intento lógico a partir de aquí (por si el usuario vuelve a pedir).
+      idempotencyKey.current = crypto.randomUUID();
+      toast({
+        title: "¡Pedido confirmado!",
+        description: result.order.orderNumber,
+        variant: "success",
+      });
+      // Navegar antes de vaciar: si clearCart corre primero, el EmptyState remonta
+      // y puede cancelar el replace en WebKit/móvil.
+      router.replace(`/pedido/${result.order.id}`);
+      clearCart();
+    })();
+
+    inFlightRequest.current = operation;
+    try {
+      await operation;
+    } finally {
+      inFlightRequest.current = null;
+    }
   };
 
   if (!mounted) {
@@ -627,7 +742,8 @@ export function CheckoutScreen() {
               <ArrowLeft aria-hidden className="size-5" />
               Atrás
             </Button>
-            {serverErrorCode !== "network" ? (
+            {serverErrorCode !== "network" &&
+            !CONFIRMATION_BLOCKED_CODES.has(serverErrorCode ?? "") ? (
               <Button
                 className="checkout-confirm-button min-w-0 flex-1 whitespace-normal px-3 text-center leading-tight sm:px-5"
                 loading={submitting}

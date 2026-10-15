@@ -17,6 +17,15 @@ describe("checkoutInputSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("valida una credencial de comprobante Base64URL canónica", () => {
+    expect(
+      checkoutInputSchema.safeParse({ ...validCheckout, receiptKey: "A".repeat(43) }).success,
+    ).toBe(true);
+    expect(
+      checkoutInputSchema.safeParse({ ...validCheckout, receiptKey: "A".repeat(42) }).success,
+    ).toBe(false);
+  });
+
   it("exige dirección cuando es domicilio", () => {
     const result = checkoutInputSchema.safeParse({
       ...validCheckout,

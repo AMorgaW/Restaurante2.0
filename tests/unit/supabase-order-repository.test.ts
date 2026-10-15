@@ -19,7 +19,11 @@ vi.mock("@/lib/supabase/client", () => ({
         eq: () => ({
           eq: () => ({
             maybeSingle: async () => ({
-              data: { id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", slug: "centro", status: "active" },
+              data: {
+                id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                slug: "centro",
+                status: "active",
+              },
               error: null,
             }),
           }),
@@ -160,6 +164,43 @@ describe("SupabaseOrderRepository create_customer_order", () => {
     expect(saved.replay).toBe(true);
     expect(saved.id).toBe("22222222-2222-4222-8222-222222222222");
     expect(saved.totals.total).toBe(10000);
+  });
+
+  it("usa el wrapper C2.2 cuando recibe una credencial, sin fallback", async () => {
+    rpc.call.mockResolvedValue({
+      data: [
+        {
+          order_id: "22222222-2222-4222-8222-222222222222",
+          order_number: "CB-0000002",
+          status: "pending",
+          total: 10000,
+          created_at: "2026-08-07T12:00:00+00:00",
+          replay: false,
+        },
+      ],
+      error: null,
+    });
+    const receiptKey = "A".repeat(43);
+    await new SupabaseOrderRepository().saveOrder(sampleOrder(), { receiptKey });
+    expect(rpc.call).toHaveBeenCalledWith(
+      "create_customer_order_with_receipt",
+      expect.objectContaining({
+        p_receipt_key: receiptKey,
+        p_idempotency_key: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        p_branch_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        p_fulfillment_type: "pickup",
+        p_customer_name: "Ana Pérez",
+        p_customer_phone: "3001234567",
+        p_customer_email: "ana@example.com",
+        p_items: [
+          { menu_item_id: "plato-1", quantity: 1, notes: "sin cebolla", modifier_option_ids: ["o1"] },
+        ],
+        p_address: null,
+        p_notes: "nota",
+        p_tip_percent: 0,
+        p_coupon_code: null,
+      }),
+    );
   });
 
   it("mapea conflicto de idempotencia de forma segura", async () => {

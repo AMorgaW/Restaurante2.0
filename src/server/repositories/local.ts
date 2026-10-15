@@ -26,7 +26,7 @@ export class LocalMenuRepository implements MenuRepository {
 }
 
 export class LocalOrderRepository implements OrderRepository {
-  async saveOrder(order: Order, _options?: { tipPercent?: number }): Promise<Order> {
+  async saveOrder(order: Order, _options?: { tipPercent?: number; receiptKey?: string }): Promise<Order> {
     return order;
   }
 

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { checkoutInputSchema } from "@/features/checkout/schema";
-import { getDataModeStatus } from "@/lib/env/server";
+import { getDataModeStatus, isGuestReceiptRecoveryEnabled } from "@/lib/env/server";
 import { OrderValidationError, placeOrder } from "@/server/services/orders";
 import { OrderPersistenceError } from "@/server/orders/rpc-errors";
 
@@ -9,10 +9,11 @@ export const dynamic = "force-dynamic";
 /**
  * Valida y crea un pedido.
  * - DATA_MODE=local: pedido demo (persistencia en el navegador).
- * - DATA_MODE=supabase: RPC `create_customer_order` (PostgreSQL autoridad).
+ * - DATA_MODE=supabase: RPC comercial (o wrapper C2.2 cuando está habilitado).
  */
 export async function POST(request: NextRequest) {
   const dataMode = getDataModeStatus();
+  const receiptRecoveryEnabled = isGuestReceiptRecoveryEnabled();
   if (dataMode.mode === "invalid" || (dataMode.mode === "supabase" && !dataMode.configured)) {
     return NextResponse.json(
       { error: "La configuracion de datos no permite crear pedidos.", code: "data-mode-invalid" },
@@ -36,6 +37,36 @@ export async function POST(request: NextRequest) {
       {
         error: "Los datos del pedido no son válidos.",
         details: parsed.error.flatten().fieldErrors,
+      },
+      { status: 422 },
+    );
+  }
+
+  if (dataMode.mode === "supabase" && receiptRecoveryEnabled && !parsed.data.receiptKey) {
+    return NextResponse.json(
+      {
+        error: "La recuperación del comprobante debe prepararse antes de enviar el pedido.",
+        code: "receipt-recovery-required",
+      },
+      { status: 503 },
+    );
+  }
+
+  if (dataMode.mode === "supabase" && !receiptRecoveryEnabled && parsed.data.receiptKey) {
+    return NextResponse.json(
+      {
+        error: "La recuperación del comprobante no está disponible en este entorno.",
+        code: "receipt-recovery-unavailable",
+      },
+      { status: 503 },
+    );
+  }
+
+  if (dataMode.mode === "local" && parsed.data.receiptKey) {
+    return NextResponse.json(
+      {
+        error: "La recuperación durable no está disponible en el modo de demostración.",
+        code: "receipt-recovery-unavailable",
       },
       { status: 422 },
     );

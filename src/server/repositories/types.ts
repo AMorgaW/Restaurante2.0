@@ -26,7 +26,7 @@ export type UpdateOrderStatusResult =
 
 export interface OrderRepository {
   /** Persiste un pedido ya validado. En supabase llama la RPC (tipPercent de la intención). */
-  saveOrder(order: Order, options?: { tipPercent?: number }): Promise<Order>;
+  saveOrder(order: Order, options?: { tipPercent?: number; receiptKey?: string }): Promise<Order>;
   getOrderById(id: string): Promise<Order | null>;
   /** Lectura operativa (staff) o propia (customer); RLS filtra el alcance. */
   listOrders(options?: { limit?: number }): Promise<Order[]>;

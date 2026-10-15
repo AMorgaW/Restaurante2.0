@@ -106,6 +106,34 @@ export function mapCreateCustomerOrderError(error: unknown): OrderPersistenceErr
   const rpc = (error ?? {}) as RpcErrorLike;
   const raw = `${rpc.message ?? ""} ${rpc.details ?? ""}`.trim();
 
+  if (
+    (rpc.code === "42501" && /comprobante|credencial|receipt/i.test(raw)) ||
+    /comprobante no disponible/i.test(raw)
+  ) {
+    return new OrderPersistenceError(
+      "No se pudo validar la credencial de este intento.",
+      "receipt-unavailable",
+      409,
+    );
+  }
+  if (rpc.code === "22023" && /comprobante|receipt|clave/i.test(raw)) {
+    return new OrderPersistenceError(
+      "La credencial del comprobante no es válida.",
+      "receipt-key-invalid",
+      422,
+    );
+  }
+  if (
+    rpc.code === "PGRST202" ||
+    /create_customer_order_with_receipt|funci[oó]n.*comprobante/i.test(raw)
+  ) {
+    return new OrderPersistenceError(
+      "La recuperación del comprobante no está disponible en este entorno.",
+      "receipt-recovery-unavailable",
+      503,
+    );
+  }
+
   for (const entry of MESSAGE_MAP) {
     if (entry.match.test(raw)) {
       return new OrderPersistenceError(entry.message, entry.code, entry.status ?? 409);

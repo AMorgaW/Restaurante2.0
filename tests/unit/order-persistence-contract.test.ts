@@ -12,6 +12,24 @@ describe("mapCreateCustomerOrderError", () => {
     );
   });
 
+  it("mantiene separados los errores de credencial, wrapper ausente e idempotencia", () => {
+    expect(
+      mapCreateCustomerOrderError({ code: "42501", message: "Comprobante no disponible" }),
+    ).toMatchObject({
+      code: "receipt-unavailable",
+      httpStatus: 409,
+    });
+    expect(
+      mapCreateCustomerOrderError({
+        code: "PGRST202",
+        message: "Could not find the function public.create_customer_order_with_receipt",
+      }).code,
+    ).toBe("receipt-recovery-unavailable");
+    expect(
+      mapCreateCustomerOrderError({ code: "23505", message: "Conflicto de idempotencia" }).code,
+    ).toBe("idempotency-conflict");
+  });
+
   it("oculta detalle interno", () => {
     const mapped = mapCreateCustomerOrderError({
       message: "unexpected",

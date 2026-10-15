@@ -1,7 +1,7 @@
 import { branches, coupons, restaurantConfig } from "@/config/restaurant";
 import { calculateTotals, buildLineId, lineTotal } from "@/features/cart/calculations";
 import type { CheckoutInput } from "@/features/checkout/schema";
-import { getResolvedDataMode, getResolvedPaymentProvider } from "@/lib/env/server";
+import { getResolvedDataMode, getResolvedPaymentProvider, isGuestReceiptRecoveryEnabled } from "@/lib/env/server";
 import { stableHash } from "@/lib/demo/pricing";
 import { getOpeningStatus } from "@/lib/menu/opening-hours";
 import {
@@ -10,6 +10,7 @@ import {
 } from "@/lib/menu/included-soups";
 import { resolveServicePeriod } from "@/lib/menu/service-period";
 import { getMenuRepository, getOrderRepository } from "@/server/repositories";
+import { OrderPersistenceError } from "@/server/orders/rpc-errors";
 import type { CartItem, Order } from "@/types/order";
 
 /** Error de negocio con mensaje seguro para mostrar al cliente. */
@@ -195,6 +196,21 @@ export async function placeOrder(input: CheckoutInput): Promise<Order> {
 
   const paymentProvider = getResolvedPaymentProvider();
   const isSupabase = dataMode === "supabase";
+  const receiptRecoveryEnabled = isSupabase && isGuestReceiptRecoveryEnabled();
+  if (receiptRecoveryEnabled && !input.receiptKey) {
+    throw new OrderPersistenceError(
+      "La recuperación del comprobante debe prepararse antes de enviar el pedido.",
+      "receipt-recovery-required",
+      503,
+    );
+  }
+  if (!receiptRecoveryEnabled && isSupabase && input.receiptKey) {
+    throw new OrderPersistenceError(
+      "La recuperación del comprobante no está disponible en este entorno.",
+      "receipt-recovery-unavailable",
+      503,
+    );
+  }
 
   const order: Order = {
     // Hasta persistir: id = clave de intento. Local lo conserva; supabase lo
@@ -226,5 +242,8 @@ export async function placeOrder(input: CheckoutInput): Promise<Order> {
     createdAt: new Date().toISOString(),
   };
 
-  return getOrderRepository().saveOrder(order, { tipPercent: input.tipPercent });
+  return getOrderRepository().saveOrder(order, {
+    tipPercent: input.tipPercent,
+    ...(receiptRecoveryEnabled && input.receiptKey ? { receiptKey: input.receiptKey } : {}),
+  });
 }
