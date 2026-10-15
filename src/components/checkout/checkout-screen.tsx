@@ -18,6 +18,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { CartSummary } from "@/components/cart/cart-summary";
+import { GuestReceiptKeyCard } from "@/components/checkout/guest-receipt-key-card";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { TextAreaField, TextField } from "@/components/ui/form-field";
@@ -730,6 +731,15 @@ export function CheckoutScreen({
                 </Button>
               ) : null}
             </div>
+          ) : null}
+
+          {serverErrorCode === "receipt-storage-unavailable" &&
+          confirmedOrderAwaitingReceiptRef.current &&
+          receiptAttemptRef.current ? (
+            <GuestReceiptKeyCard
+              enabled={guestReceiptRecoveryEnabled}
+              contingencyAttempt={receiptAttemptRef.current}
+            />
           ) : null}
 
           <div className="flex gap-2">

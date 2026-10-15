@@ -3,7 +3,6 @@ import type { CheckoutInput } from "@/features/checkout/schema";
 export const GUEST_RECEIPT_ATTEMPT_STORAGE_KEY = "rb-checkout-receipt-attempts";
 export const GUEST_RECEIPT_ATTEMPT_VERSION = 1 as const;
 export const MAX_GUEST_RECEIPT_RESERVATIONS = 8;
-const MAX_ATTEMPT_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 export type GuestReceiptAttemptState = "prepared" | "uncertain" | "confirmed";
 export type CommercialCheckoutPayload = Omit<CheckoutInput, "idempotencyKey" | "receiptKey">;
@@ -17,7 +16,16 @@ export type GuestReceiptAttempt = {
   createdAt: string;
   updatedAt: string;
   orderId?: string;
+  acknowledgedAt?: string;
 };
+
+/** Metadata used by the session manager before a user explicitly reveals a key. */
+export type GuestReceiptAttemptMetadata = Omit<GuestReceiptAttempt, "receiptKey">;
+
+export type ConfirmedGuestReceiptIdentity = Pick<
+  GuestReceiptAttempt,
+  "version" | "idempotencyKey" | "receiptKey" | "commercialFingerprint" | "createdAt" | "orderId"
+>;
 
 type AttemptEnvelope = {
   version: typeof GUEST_RECEIPT_ATTEMPT_VERSION;
@@ -47,7 +55,11 @@ function isUuid(value: unknown): value is string {
 }
 
 function isIsoDate(value: unknown): value is string {
-  return typeof value === "string" && Number.isFinite(Date.parse(value));
+  return (
+    typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/.test(value) &&
+    Number.isFinite(Date.parse(value))
+  );
 }
 
 function isCanonicalBase64Url(value: unknown, expectedBytes = 32): value is string {
@@ -79,6 +91,7 @@ function validateAttempt(
       "createdAt",
       "updatedAt",
       "orderId",
+      "acknowledgedAt",
     ])
   )
     return false;
@@ -92,6 +105,8 @@ function validateAttempt(
   if (value.orderId !== undefined && !isUuid(value.orderId)) return false;
   if (value.state === "confirmed" && !value.orderId) return false;
   if (value.state !== "confirmed" && value.orderId !== undefined) return false;
+  if (value.state !== "confirmed" && value.acknowledgedAt !== undefined) return false;
+  if (value.acknowledgedAt !== undefined && !isIsoDate(value.acknowledgedAt)) return false;
   return true;
 }
 
@@ -168,10 +183,11 @@ function readEnvelope(storage: Storage): AttemptEnvelope {
 }
 
 function cleanupEnvelope(envelope: AttemptEnvelope): AttemptEnvelope {
-  const now = Date.now();
-  const confirmed = envelope.confirmed
-    .filter((entry) => now - Date.parse(entry.updatedAt) < MAX_ATTEMPT_AGE_MS)
-    .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
+  // PostgreSQL is authoritative for the 30-day lifetime. Keep local copies
+  // until the user explicitly removes one, so capacity is never freed silently.
+  const confirmed = envelope.confirmed.sort(
+    (left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt),
+  );
   return { ...envelope, confirmed };
 }
 
@@ -369,6 +385,79 @@ export function markGuestReceiptAttemptConfirmed(attempt: AttemptIdentity, order
     )
   ) {
     throw new Error("guest-receipt-confirmation-not-persisted");
+  }
+}
+
+function sameConfirmedIdentity(
+  entry: GuestReceiptAttempt,
+  identity: ConfirmedGuestReceiptIdentity,
+): boolean {
+  return (
+    entry.state === "confirmed" &&
+    entry.orderId === identity.orderId &&
+    sameAttemptIdentity(entry, identity)
+  );
+}
+
+/** Lists confirmed entries without exposing any receipt key. */
+export function listConfirmedGuestReceiptAttemptMetadata(): GuestReceiptAttemptMetadata[] {
+  const storage = requireStorage();
+  return readEnvelope(storage).confirmed.map(({ receiptKey: _receiptKey, ...metadata }) => metadata);
+}
+
+/**
+ * Resolves one selected entry. Callers must supply the complete non-secret
+ * metadata returned by listConfirmedGuestReceiptAttemptMetadata.
+ */
+export function revealConfirmedGuestReceiptAttempt(
+  metadata: GuestReceiptAttemptMetadata,
+): GuestReceiptAttempt | null {
+  if (metadata.state !== "confirmed" || !metadata.orderId) {
+    throw new Error("guest-receipt-confirmation-missing");
+  }
+  const storage = requireStorage();
+  const entry = readEnvelope(storage).confirmed.find(
+    (candidate) =>
+      candidate.state === "confirmed" &&
+      candidate.orderId === metadata.orderId &&
+      candidate.version === metadata.version &&
+      candidate.idempotencyKey === metadata.idempotencyKey &&
+      candidate.commercialFingerprint === metadata.commercialFingerprint &&
+      candidate.createdAt === metadata.createdAt,
+  );
+  return entry ? { ...entry } : null;
+}
+
+export function acknowledgeGuestReceiptAttempt(identity: ConfirmedGuestReceiptIdentity): void {
+  if (!identity.orderId || !isUuid(identity.orderId)) throw new Error("invalid-order-id");
+  const storage = requireStorage();
+  const envelope = readEnvelope(storage);
+  const index = envelope.confirmed.findIndex((entry) => sameConfirmedIdentity(entry, identity));
+  if (index < 0) throw new Error("guest-receipt-confirmation-missing");
+  const acknowledgedAt = nowIso();
+  const confirmed = envelope.confirmed.map((entry, entryIndex) =>
+    entryIndex === index ? { ...entry, acknowledgedAt, updatedAt: acknowledgedAt } : entry,
+  );
+  writeEnvelope(storage, { ...envelope, confirmed });
+  const persisted = readEnvelope(storage);
+  const updated = persisted.confirmed.find((entry) => sameConfirmedIdentity(entry, identity));
+  if (!updated || updated.acknowledgedAt !== acknowledgedAt) {
+    throw new Error("guest-receipt-acknowledgement-not-persisted");
+  }
+}
+
+/** Removes only one confirmed local copy after explicit user confirmation. */
+export function removeConfirmedGuestReceiptAttempt(identity: ConfirmedGuestReceiptIdentity): void {
+  if (!identity.orderId || !isUuid(identity.orderId)) throw new Error("invalid-order-id");
+  const storage = requireStorage();
+  const envelope = readEnvelope(storage);
+  const index = envelope.confirmed.findIndex((entry) => sameConfirmedIdentity(entry, identity));
+  if (index < 0) throw new Error("guest-receipt-confirmation-missing");
+  const confirmed = envelope.confirmed.filter((_entry, entryIndex) => entryIndex !== index);
+  writeEnvelope(storage, { ...envelope, confirmed });
+  const persisted = readEnvelope(storage);
+  if (persisted.confirmed.some((entry) => sameConfirmedIdentity(entry, identity))) {
+    throw new Error("guest-receipt-removal-not-persisted");
   }
 }
 

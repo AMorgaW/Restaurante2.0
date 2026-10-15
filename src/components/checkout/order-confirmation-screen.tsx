@@ -12,6 +12,7 @@ import {
 import { m, useReducedMotion } from "motion/react";
 import { useTransitionRouter } from "next-view-transitions";
 import { CartSummary } from "@/components/cart/cart-summary";
+import { GuestReceiptKeyCard } from "@/components/checkout/guest-receipt-key-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/states";
@@ -113,7 +114,13 @@ function paymentLabel(order: Order) {
  * Comprobante inmediato. En DATA_MODE=local solo refleja la copia guardada
  * en rb-orders; no consulta ni confirma la existencia de una orden remota.
  */
-export function OrderConfirmationScreen({ orderId }: { orderId: string }) {
+export function OrderConfirmationScreen({
+  orderId,
+  guestReceiptRecoveryEnabled = false,
+}: {
+  orderId: string;
+  guestReceiptRecoveryEnabled?: boolean;
+}) {
   const router = useTransitionRouter();
   const mounted = useMounted();
   const reduced = useReducedMotion() ?? false;
@@ -152,6 +159,7 @@ export function OrderConfirmationScreen({ orderId }: { orderId: string }) {
             </div>
           }
         />
+        <GuestReceiptKeyCard enabled={guestReceiptRecoveryEnabled} orderId={orderId} />
       </div>
     );
   }
@@ -199,6 +207,8 @@ export function OrderConfirmationScreen({ orderId }: { orderId: string }) {
           <Badge variant="muted">{fulfillmentLabel(order)}</Badge>
         </div>
       </header>
+
+      <GuestReceiptKeyCard enabled={guestReceiptRecoveryEnabled} orderId={orderId} />
 
       {branch ? (
         <section

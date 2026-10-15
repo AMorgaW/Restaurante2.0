@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Request, type Route } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 
 const ATTEMPT_KEY = "rb-checkout-receipt-attempts";
 const ORDER_ID = "11111111-1111-4111-8111-111111111111";
@@ -112,9 +113,56 @@ test.describe("C2.2 checkout con servidor simulado", () => {
     expect(capturedBody.receiptKey).toEqual(expect.stringMatching(/^[A-Za-z0-9_-]{43}$/));
     expect(capturedBody.idempotencyKey).toEqual(expect.stringMatching(/^[0-9a-f-]{36}$/i));
     expect(JSON.stringify(requestBody)).not.toContain("rb-checkout-receipt");
+    await expect(page.getByRole("button", { name: "Mostrar clave" })).toBeVisible();
+    await expect(page.getByText(capturedBody.receiptKey as string, { exact: true })).not.toBeVisible();
+    await page.getByRole("button", { name: "Mostrar clave" }).click();
+    await expect(page.getByText(capturedBody.receiptKey as string, { exact: true })).toBeVisible();
     const stored = await page.evaluate((key) => sessionStorage.getItem(key), ATTEMPT_KEY);
     expect(stored).toContain('"state":"confirmed"');
     expect(await page.evaluate(() => localStorage.getItem("rb-orders"))).not.toContain("receiptKey");
+  });
+
+  test("mantiene contraste AA en la eliminación confirmada", async ({ page }) => {
+    await page.route("**/api/orders", async (route) => {
+      await fulfillSuccess(route);
+    });
+    await openReview(page);
+    await page.getByRole("button", { name: /confirmar pedido/i }).click();
+    await expect(page).toHaveURL(new RegExp(`/pedido/${ORDER_ID}`));
+    await page.getByRole("button", { name: "Mostrar clave" }).click();
+    await page.getByRole("button", { name: "Eliminar clave de este navegador" }).click();
+    const removeButton = page.getByRole("button", { name: "Eliminar de este navegador" });
+    await expect(removeButton).toBeVisible();
+    const contrast = await removeButton.evaluate((element) => {
+      const parse = (value: string) => value.match(/\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+      const luminance = (value: string) => {
+        const [r = 0, g = 0, b = 0] = parse(value).map((channel) => {
+          const normalized = channel / 255;
+          return normalized <= 0.04045
+            ? normalized / 12.92
+            : ((normalized + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      };
+      const style = getComputedStyle(element);
+      const foreground = luminance(style.color);
+      const background = luminance(style.backgroundColor);
+      const lighter = Math.max(foreground, background);
+      const darker = Math.min(foreground, background);
+      (element as HTMLElement).focus({ focusVisible: true } as FocusOptions);
+      return {
+        ratio: (lighter + 0.05) / (darker + 0.05),
+        color: style.color,
+        backgroundColor: style.backgroundColor,
+        outlineStyle: getComputedStyle(element).outlineStyle,
+      };
+    });
+    expect(contrast.ratio).toBeGreaterThanOrEqual(4.5);
+    expect(contrast.color).toBe("rgb(255, 255, 255)");
+    expect(contrast.backgroundColor).toBe("rgb(159, 18, 57)");
+    expect(contrast.outlineStyle).not.toBe("none");
+    const accessibility = await new AxeBuilder({ page }).include(".guest-receipt-key-card").analyze();
+    expect(accessibility.violations.filter((violation) => ["critical", "serious", "moderate"].includes(violation.impact ?? ""))).toEqual([]);
   });
 
   test("doble toque comparte el mismo POST lógico", async ({ page }) => {
@@ -126,6 +174,7 @@ test.describe("C2.2 checkout con servidor simulado", () => {
     });
     await openReview(page);
     const confirm = page.getByRole("button", { name: /confirmar pedido/i });
+    await expect(confirm).toBeEnabled();
     await Promise.all([confirm.click(), confirm.click()]);
     await expect(page).toHaveURL(new RegExp(`/pedido/${ORDER_ID}`));
     expect(bodies).toHaveLength(1);

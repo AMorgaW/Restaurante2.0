@@ -1,9 +1,15 @@
 import { renderWithProviders } from "./render";
 import { OrderConfirmationScreen } from "@/components/checkout/order-confirmation-screen";
+import {
+  clearGuestReceiptAttemptStorageForTests,
+  markGuestReceiptAttemptConfirmed,
+  markGuestReceiptAttemptUncertain,
+  prepareGuestReceiptAttempt,
+} from "@/features/checkout/guest-receipt-attempt";
 import { useOrdersStore } from "@/stores/orders";
 import type { Order } from "@/types/order";
-import { screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 function createOrder(overrides: Partial<Order> = {}): Order {
   return {
@@ -61,6 +67,7 @@ function createOrder(overrides: Partial<Order> = {}): Order {
 describe("OrderConfirmationScreen", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    clearGuestReceiptAttemptStorageForTests();
     useOrdersStore.setState({ orders: [] });
   });
 
@@ -107,6 +114,158 @@ describe("OrderConfirmationScreen", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "Pedido confirmado" })).toBeVisible());
     expect(screen.getByText("Confirmado")).toBeVisible();
     expect(screen.getByText("Sin sopa · COP 0")).toBeVisible();
+  });
+
+  it("revela y copia la clave solo después de una acción explícita", async () => {
+    const orderId = "99999999-9999-4999-8999-999999999999";
+    const attempt = await prepareGuestReceiptAttempt({
+      branchId: "branch-centro",
+      fulfillmentType: "pickup",
+      customer: { name: "Ana Pérez", phone: "3001234567", email: "ana@example.com" },
+      items: [{ slug: "carne-asada", quantity: 1, notes: "", modifiers: [] }],
+      tipPercent: 0,
+      notes: "",
+    });
+    markGuestReceiptAttemptUncertain(attempt);
+    markGuestReceiptAttemptConfirmed(attempt, orderId);
+    useOrdersStore.getState().addOrder(createOrder({ id: orderId }));
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+
+    renderWithProviders(
+      <OrderConfirmationScreen orderId={orderId} guestReceiptRecoveryEnabled />,
+    );
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Mostrar clave" })).toBeVisible());
+    expect(screen.queryByText(attempt.receiptKey)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Mostrar clave" }));
+    expect(screen.getByText(attempt.receiptKey)).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Copiar clave" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(attempt.receiptKey));
+    await waitFor(() => expect(screen.getByText("Clave copiada. Guárdala fuera del navegador.")).toBeVisible());
+  });
+
+  it("gestiona varias credenciales con handles efímeros y cambia la clave seleccionada", async () => {
+    const firstOrderId = "12121212-1212-4121-8121-121212121212";
+    const secondOrderId = "23232323-2323-4232-8232-232323232323";
+    const commercialPayload = {
+      branchId: "branch-centro",
+      fulfillmentType: "pickup" as const,
+      customer: { name: "Ana Pérez", phone: "3001234567", email: "ana@example.com" },
+      items: [{ slug: "carne-asada", quantity: 1, notes: "", modifiers: [] }],
+      tipPercent: 0,
+      notes: "",
+    };
+    const first = await prepareGuestReceiptAttempt({ ...commercialPayload, notes: "primera" });
+    markGuestReceiptAttemptUncertain(first);
+    markGuestReceiptAttemptConfirmed(first, firstOrderId);
+    const second = await prepareGuestReceiptAttempt({ ...commercialPayload, notes: "segunda" });
+    markGuestReceiptAttemptUncertain(second);
+    markGuestReceiptAttemptConfirmed(second, secondOrderId);
+    useOrdersStore.getState().addOrder(createOrder({ id: firstOrderId, orderNumber: "CB-FIRST" }));
+    useOrdersStore.getState().addOrder(createOrder({ id: secondOrderId, orderNumber: "CB-SECOND" }));
+
+    renderWithProviders(
+      <OrderConfirmationScreen orderId={firstOrderId} guestReceiptRecoveryEnabled />,
+    );
+    const selector = await waitFor(() => screen.getByRole("combobox", { name: "Comprobantes guardados en esta sesión" }));
+    const select = selector as HTMLSelectElement;
+    const optionValues = Array.from(select.options).map((option) => option.value);
+    expect(optionValues).toHaveLength(2);
+    expect(optionValues.every((value) => /^receipt-\d+$/.test(value))).toBe(true);
+    expect(select.outerHTML).not.toContain(firstOrderId);
+    expect(select.outerHTML).not.toContain(secondOrderId);
+    expect(select.outerHTML).not.toContain(first.receiptKey);
+    expect(select.outerHTML).not.toContain(second.receiptKey);
+    expect(select).toHaveTextContent("CB-FIRST");
+    expect(select).toHaveTextContent("CB-SECOND");
+
+    const secondHandle = Array.from(select.options).find((option) => option.textContent?.includes("CB-SECOND"))?.value;
+    expect(secondHandle).toMatch(/^receipt-\d+$/);
+    fireEvent.change(select, { target: { value: secondHandle } });
+    expect(screen.queryByText(second.receiptKey)).not.toBeInTheDocument();
+    expect(screen.queryByText(first.receiptKey)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Mostrar clave" }));
+    await waitFor(() => expect(screen.getByText(second.receiptKey)).toBeVisible());
+    expect(screen.queryByText(first.receiptKey)).not.toBeInTheDocument();
+    fireEvent.change(select, { target: { value: "receipt-obsolete" } });
+    expect(screen.queryByRole("button", { name: "Mostrar clave" })).not.toBeInTheDocument();
+  });
+
+  it("oculta la tarjeta cuando la capacidad no está habilitada", async () => {
+    const orderId = "34343434-3434-4343-8343-343434343434";
+    const attempt = await prepareGuestReceiptAttempt({
+      branchId: "branch-centro",
+      fulfillmentType: "pickup",
+      customer: { name: "Ana Pérez", phone: "3001234567", email: "ana@example.com" },
+      items: [{ slug: "carne-asada", quantity: 1, notes: "", modifiers: [] }],
+      tipPercent: 0,
+      notes: "",
+    });
+    markGuestReceiptAttemptUncertain(attempt);
+    markGuestReceiptAttemptConfirmed(attempt, orderId);
+    useOrdersStore.getState().addOrder(createOrder({ id: orderId }));
+
+    renderWithProviders(<OrderConfirmationScreen orderId={orderId} />);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Pedido recibido" })).toBeVisible());
+    expect(screen.queryByRole("region", { name: "Clave de recuperación del comprobante" })).not.toBeInTheDocument();
+  });
+
+  it("reconoce y elimina solo la copia local después de confirmación explícita", async () => {
+    const orderId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const attempt = await prepareGuestReceiptAttempt({
+      branchId: "branch-centro",
+      fulfillmentType: "pickup",
+      customer: { name: "Ana Pérez", phone: "3001234567", email: "ana@example.com" },
+      items: [{ slug: "carne-asada", quantity: 1, notes: "", modifiers: [] }],
+      tipPercent: 0,
+      notes: "",
+    });
+    markGuestReceiptAttemptUncertain(attempt);
+    markGuestReceiptAttemptConfirmed(attempt, orderId);
+    useOrdersStore.getState().addOrder(createOrder({ id: orderId }));
+
+    renderWithProviders(
+      <OrderConfirmationScreen orderId={orderId} guestReceiptRecoveryEnabled />,
+    );
+    await waitFor(() => fireEvent.click(screen.getByRole("button", { name: "Mostrar clave" })));
+    fireEvent.click(screen.getByRole("button", { name: "Ya guardé mi clave" }));
+    expect(sessionStorage.getItem("rb-checkout-receipt-attempts")).toContain("acknowledgedAt");
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar clave de este navegador" }));
+    expect(screen.getByRole("button", { name: "Mantener copia" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar de este navegador" }));
+    await waitFor(() => expect(sessionStorage.getItem("rb-checkout-receipt-attempts")).toContain('"confirmed":[]'));
+  });
+
+  it("informa un fallo de Clipboard API sin afirmar que copió la clave", async () => {
+    const orderId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const attempt = await prepareGuestReceiptAttempt({
+      branchId: "branch-centro",
+      fulfillmentType: "pickup",
+      customer: { name: "Ana Pérez", phone: "3001234567", email: "ana@example.com" },
+      items: [{ slug: "carne-asada", quantity: 1, notes: "", modifiers: [] }],
+      tipPercent: 0,
+      notes: "",
+    });
+    markGuestReceiptAttemptUncertain(attempt);
+    markGuestReceiptAttemptConfirmed(attempt, orderId);
+    useOrdersStore.getState().addOrder(createOrder({ id: orderId }));
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: vi.fn().mockRejectedValue(new Error("clipboard blocked")) },
+    });
+
+    renderWithProviders(
+      <OrderConfirmationScreen orderId={orderId} guestReceiptRecoveryEnabled />,
+    );
+    await waitFor(() => expect(screen.getByRole("button", { name: "Mostrar clave" })).toBeVisible());
+    fireEvent.click(screen.getByRole("button", { name: "Mostrar clave" }));
+    fireEvent.click(screen.getByRole("button", { name: "Copiar clave" }));
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("copia automática falló"),
+    );
+    expect(screen.queryByText("No pudimos copiarla automáticamente. Selecciónala y cópiala manualmente.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Clave copiada. Guárdala fuera del navegador.")).not.toBeInTheDocument();
   });
 
   it("presenta domicilio y mesa QR sin exponer el token", async () => {

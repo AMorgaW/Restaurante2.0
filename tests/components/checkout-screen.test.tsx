@@ -314,6 +314,9 @@ describe("CheckoutScreen", () => {
       expect(harness.placeOrderRequest).toHaveBeenCalledTimes(1);
       expect(useCartStore.getState().items).toHaveLength(1);
       expect(sessionStorage.getItem("rb-checkout-receipt-attempts")).toContain('"state":"uncertain"');
+      expect(screen.queryByText(/^[A-Za-z0-9_-]{43}$/)).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Mostrar clave" }));
+      expect(screen.getByText(/^[A-Za-z0-9_-]{43}$/)).toBeVisible();
     } finally {
       setItem.mockRestore();
     }

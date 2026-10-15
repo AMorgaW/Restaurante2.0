@@ -38,7 +38,25 @@ export default defineConfig({
     },
   },
   projects: [
-    { name: "c2-2-chromium", use: { ...devices["Pixel 7"] } },
-    { name: "c2-2-webkit", use: { ...devices["iPhone 13"] } },
+    {
+      name: "c2-3a-chromium-320",
+      use: { ...devices["Pixel 7"], viewport: { width: 320, height: 568 } },
+    },
+    {
+      name: "c2-3a-webkit-320",
+      use: { ...devices["iPhone 13"], viewport: { width: 320, height: 568 } },
+    },
+    {
+      name: "c2-3a-chromium-390",
+      use: { ...devices["Pixel 7"], viewport: { width: 390, height: 844 } },
+    },
+    {
+      name: "c2-3a-webkit-390",
+      use: { ...devices["iPhone 13"], viewport: { width: 390, height: 844 } },
+    },
+    {
+      name: "c2-3a-desktop",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
+    },
   ],
 });

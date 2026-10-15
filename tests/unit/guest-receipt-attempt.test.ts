@@ -7,9 +7,13 @@ import {
   generateReceiptKey,
   GUEST_RECEIPT_ATTEMPT_STORAGE_KEY,
   canUseGuestReceiptAttemptStorage,
+  acknowledgeGuestReceiptAttempt,
+  listConfirmedGuestReceiptAttemptMetadata,
   markGuestReceiptAttemptConfirmed,
   markGuestReceiptAttemptUncertain,
   prepareGuestReceiptAttempt,
+  removeConfirmedGuestReceiptAttempt,
+  revealConfirmedGuestReceiptAttempt,
 } from "@/features/checkout/guest-receipt-attempt";
 
 const commercialPayload = {
@@ -197,5 +201,90 @@ describe("guest receipt attempt continuity", () => {
     expect(stored.confirmed).toHaveLength(1);
     expect(stored.confirmed[0].receiptKey).toBe(first.receiptKey);
     expect(stored.pending.receiptKey).toBe(second.receiptKey);
+  });
+
+  it("acepta registros confirmados v1 sin acknowledgedAt", async () => {
+    const attempt = await prepareGuestReceiptAttempt(commercialPayload);
+    markGuestReceiptAttemptUncertain(attempt);
+    markGuestReceiptAttemptConfirmed(attempt, "55555555-5555-4555-8555-555555555555");
+
+    const metadata = listConfirmedGuestReceiptAttemptMetadata();
+    expect(metadata).toHaveLength(1);
+    expect(metadata[0]).not.toHaveProperty("receiptKey");
+    expect(metadata[0]).not.toHaveProperty("acknowledgedAt");
+  });
+
+  it("valida acknowledgedAt solo en confirmados", async () => {
+    const attempt = await prepareGuestReceiptAttempt(commercialPayload);
+    sessionStorage.setItem(
+      GUEST_RECEIPT_ATTEMPT_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        pending: { ...attempt, acknowledgedAt: new Date().toISOString() },
+        confirmed: [],
+      }),
+    );
+    expect(() => listConfirmedGuestReceiptAttemptMetadata()).toThrow("guest-receipt-storage-corrupt");
+  });
+
+  it("rechaza fechas de reconocimiento que no sean ISO 8601", async () => {
+    const attempt = await prepareGuestReceiptAttempt(commercialPayload);
+    markGuestReceiptAttemptUncertain(attempt);
+    markGuestReceiptAttemptConfirmed(attempt, "99999999-9999-4999-8999-999999999999");
+    const stored = JSON.parse(sessionStorage.getItem(GUEST_RECEIPT_ATTEMPT_STORAGE_KEY) ?? "{}");
+    stored.confirmed[0].acknowledgedAt = "October 15, 2026";
+    sessionStorage.setItem(GUEST_RECEIPT_ATTEMPT_STORAGE_KEY, JSON.stringify(stored));
+
+    expect(() => listConfirmedGuestReceiptAttemptMetadata()).toThrow("guest-receipt-storage-corrupt");
+  });
+
+  it("conserva una confirmación antigua hasta una eliminación explícita", async () => {
+    const attempt = await prepareGuestReceiptAttempt(commercialPayload);
+    markGuestReceiptAttemptUncertain(attempt);
+    markGuestReceiptAttemptConfirmed(attempt, "66666666-6666-4666-8666-666666666666");
+    const stored = JSON.parse(sessionStorage.getItem(GUEST_RECEIPT_ATTEMPT_STORAGE_KEY) ?? "{}");
+    stored.confirmed[0].createdAt = "2020-01-01T00:00:00.000Z";
+    stored.confirmed[0].updatedAt = "2020-01-01T00:00:00.000Z";
+    sessionStorage.setItem(GUEST_RECEIPT_ATTEMPT_STORAGE_KEY, JSON.stringify(stored));
+
+    expect(listConfirmedGuestReceiptAttemptMetadata()).toHaveLength(1);
+  });
+
+  it("reconoce sin liberar capacidad y elimina solo la entrada seleccionada", async () => {
+    const first = await prepareGuestReceiptAttempt({ ...commercialPayload, notes: "uno" });
+    markGuestReceiptAttemptUncertain(first);
+    markGuestReceiptAttemptConfirmed(first, "77777777-7777-4777-8777-777777777777");
+    const second = await prepareGuestReceiptAttempt({ ...commercialPayload, notes: "dos" });
+    markGuestReceiptAttemptUncertain(second);
+    markGuestReceiptAttemptConfirmed(second, "88888888-8888-4888-8888-888888888888");
+
+    const [firstMetadata] = listConfirmedGuestReceiptAttemptMetadata().filter(
+      (entry) => entry.orderId === "77777777-7777-4777-8777-777777777777",
+    );
+    if (!firstMetadata) throw new Error("missing fixture metadata");
+    const revealed = revealConfirmedGuestReceiptAttempt(firstMetadata);
+    if (!revealed) throw new Error("missing revealed fixture");
+
+    acknowledgeGuestReceiptAttempt({
+      version: revealed.version,
+      idempotencyKey: revealed.idempotencyKey,
+      receiptKey: revealed.receiptKey,
+      commercialFingerprint: revealed.commercialFingerprint,
+      createdAt: revealed.createdAt,
+      orderId: revealed.orderId,
+    });
+    expect(listConfirmedGuestReceiptAttemptMetadata()).toHaveLength(2);
+    removeConfirmedGuestReceiptAttempt({
+      version: revealed.version,
+      idempotencyKey: revealed.idempotencyKey,
+      receiptKey: revealed.receiptKey,
+      commercialFingerprint: revealed.commercialFingerprint,
+      createdAt: revealed.createdAt,
+      orderId: revealed.orderId,
+    });
+
+    const remaining = listConfirmedGuestReceiptAttemptMetadata();
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0]?.orderId).toBe("88888888-8888-4888-8888-888888888888");
   });
 });
