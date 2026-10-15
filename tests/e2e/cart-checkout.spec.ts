@@ -1,5 +1,22 @@
 import { expect, test } from "@playwright/test";
-import { addSimpleDishToCart, SIMPLE_DISH_NAME, skipOnboarding } from "./helpers";
+import {
+  addSimpleDishToCart,
+  expectNoHorizontalScroll,
+  SIMPLE_DISH_NAME,
+  skipOnboarding,
+} from "./helpers";
+
+async function gotoCartAfterProductAdd(page: import("@playwright/test").Page): Promise<void> {
+  try {
+    await page.goto("/carrito");
+  } catch {
+    // WebKit puede conservar una transición de desarrollo del detalle justo
+    // cuando se inicia la navegación al carrito; el segundo intento no cambia
+    // el estado del carrito y evita convertir esa carrera en un falso fallo.
+    await page.waitForTimeout(300);
+    await page.goto("/carrito");
+  }
+}
 
 test.describe("Carrito y checkout demo", () => {
   test.beforeEach(async ({ page }) => {
@@ -39,9 +56,7 @@ test.describe("Carrito y checkout demo", () => {
 
     // Cantidad + eliminar línea.
     await page.getByRole("button", { name: "Aumentar cantidad" }).click();
-    await page
-      .getByRole("button", { name: `Eliminar ${SIMPLE_DISH_NAME} del carrito` })
-      .click();
+    await page.getByRole("button", { name: `Eliminar ${SIMPLE_DISH_NAME} del carrito` }).click();
     await expect(page.getByText("Tu carrito está vacío")).toBeVisible();
   });
 
@@ -65,17 +80,19 @@ test.describe("Carrito y checkout demo", () => {
         "rb-cart",
         JSON.stringify({
           state: {
-            items: [{
-              lineId: "legacy-line",
-              itemId: "legacy-item",
-              slug: "arroz-amarillo-carne-asada-frijoles",
-              nameSnapshot: "CasaBrasa · plato antiguo",
-              unitPriceSnapshot: 1,
-              quantity: 1,
-              notes: "",
-              modifiers: [],
-              imagePath: "/legacy/casa-brasa.jpg",
-            }],
+            items: [
+              {
+                lineId: "legacy-line",
+                itemId: "legacy-item",
+                slug: "arroz-amarillo-carne-asada-frijoles",
+                nameSnapshot: "CasaBrasa · plato antiguo",
+                unitPriceSnapshot: 1,
+                quantity: 1,
+                notes: "",
+                modifiers: [],
+                imagePath: "/legacy/casa-brasa.jpg",
+              },
+            ],
             branchId: "branch-centro",
             fulfillmentType: "pickup",
             couponCode: null,
@@ -119,8 +136,8 @@ test.describe("Carrito y checkout demo", () => {
 
   test("checkout completo en modo demostración", async ({ page }) => {
     test.setTimeout(180_000);
-    await addSimpleDishToCart(page);
-    await page.goto("/carrito");
+    await addSimpleDishToCart(page, { service: "dinner" });
+    await gotoCartAfterProductAdd(page);
     await expect(page.getByRole("button", { name: "Continuar con el pedido" })).toBeEnabled();
     await Promise.all([
       page.waitForURL(/\/checkout/, { timeout: 45_000 }),
@@ -132,6 +149,7 @@ test.describe("Carrito y checkout demo", () => {
       "aria-checked",
       "true",
     );
+    expect(await expectNoHorizontalScroll(page)).toBe(true);
     await page.getByRole("button", { name: "Continuar" }).click();
 
     // Paso 2: datos con validación.
@@ -145,13 +163,23 @@ test.describe("Carrito y checkout demo", () => {
 
     // Paso 3: pago demo + confirmación.
     await expect(page.getByText("Pago de demostración")).toBeVisible();
-    await expect(page.getByText("Requiere configuración")).toBeVisible();
+    await expect(page.getByText(/Stripe|Mercado Pago|Requiere configuración/)).toHaveCount(0);
     const confirm = page.getByRole("button", { name: /confirmar pedido/i });
     await expect(confirm).toBeEnabled();
+    expect(await expectNoHorizontalScroll(page)).toBe(true);
+    expect(
+      await confirm.evaluate((button) => {
+        const rect = button.getBoundingClientRect();
+        return (
+          button.scrollWidth <= button.clientWidth + 1 &&
+          button.scrollHeight <= button.clientHeight + 1 &&
+          rect.left >= -1 &&
+          rect.right <= window.innerWidth + 1
+        );
+      }),
+    ).toBe(true);
     const orderPost = page.waitForResponse(
-      (response) =>
-        response.request().method() === "POST" &&
-        /\/api\/orders/.test(response.url()),
+      (response) => response.request().method() === "POST" && /\/api\/orders/.test(response.url()),
       { timeout: 60_000 },
     );
     await confirm.click();
@@ -173,6 +201,51 @@ test.describe("Carrito y checkout demo", () => {
   test("checkout con carrito vacío muestra estado claro", async ({ page }) => {
     await page.goto("/checkout");
     await expect(page.getByText("No hay nada para pagar")).toBeVisible();
+  });
+
+  test("domicilio exige dirección y conserva el desglose", async ({ page }) => {
+    await addSimpleDishToCart(page);
+    await page.goto("/carrito");
+    await page.getByRole("button", { name: "Continuar con el pedido" }).click();
+    await page.getByRole("radio", { name: /domicilio/i }).click();
+    await page.getByRole("button", { name: "Continuar" }).click();
+
+    await page.getByLabel("Nombre completo").fill("Ana Pérez");
+    await page.getByLabel("Teléfono").fill("+57 300 123 4567");
+    await page.getByLabel("Correo electrónico").fill("ana@example.com");
+    await page.getByRole("button", { name: "Continuar" }).click();
+    await expect(page.getByText("Escribe la dirección de entrega.")).toBeVisible();
+
+    await page.getByLabel("Dirección").fill("Calle 10 # 5-51");
+    await page.getByRole("button", { name: "Continuar" }).click();
+    await expect(page.getByText(/Sopa incluida:/)).toBeVisible();
+    await expect(page.getByText("Domicilio", { exact: true })).toBeVisible();
+    await expect(page.getByText("Total", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: /confirmar pedido/i })).toBeEnabled();
+    expect(await expectNoHorizontalScroll(page)).toBe(true);
+  });
+
+  test("mesa QR conserva el contexto y bloquea el cambio de modalidad", async ({ page }) => {
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem(
+        "rb-table-context",
+        JSON.stringify({
+          tableQrToken: "table-token-for-local-demo",
+          tableCode: "M1",
+          tableName: "Mesa 1",
+          branchConfigId: "branch-centro",
+        }),
+      );
+    });
+    await addSimpleDishToCart(page);
+    await page.goto("/carrito");
+    await page.getByRole("button", { name: "Continuar con el pedido" }).click();
+
+    await expect(page.getByText("Pedido en mesa")).toBeVisible();
+    await expect(page.getByText("Mesa M1")).toBeVisible();
+    await expect(page.getByRole("button", { name: /recoger en tienda/i })).not.toBeVisible();
+    await page.getByRole("button", { name: "Continuar" }).click();
+    await expect(page.getByRole("heading", { name: "Tus datos" })).toBeVisible();
   });
 
   test("un pedido inexistente muestra estado no encontrado", async ({ page }) => {

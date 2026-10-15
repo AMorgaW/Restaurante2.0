@@ -87,6 +87,66 @@ test.describe("Capturas de revisión visual", () => {
       await page.waitForTimeout(400);
       await page.screenshot({ path: `${DIR}/checkout-${viewport.name}.png`, fullPage: true });
 
+      if (viewport.name === "320x568" || viewport.name === "390x844") {
+        // Estados del checkout que revisamos manualmente en los tamaños objetivo.
+        await page.getByRole("button", { name: "Continuar" }).click();
+        await page.getByLabel("Nombre completo").fill("Ana Pérez");
+        await page.getByLabel("Teléfono").fill("+57 300 123 4567");
+        await page.getByLabel("Correo electrónico").fill("ana@example.com");
+        await page.screenshot({
+          path: `${DIR}/checkout-datos-${viewport.name}.png`,
+          fullPage: true,
+        });
+        await page.getByRole("button", { name: "Continuar" }).click();
+        await page.screenshot({
+          path: `${DIR}/checkout-revision-${viewport.name}.png`,
+          fullPage: true,
+        });
+
+        const confirm = page.getByRole("button", { name: /confirmar pedido/i });
+        await expect(confirm).toBeVisible();
+        await expect(page.getByText(/Stripe|Mercado Pago|Requiere configuración/)).toHaveCount(0);
+        expect(
+          await confirm.evaluate((button) => {
+            const rect = button.getBoundingClientRect();
+            return (
+              button.scrollWidth <= button.clientWidth + 1 &&
+              button.scrollHeight <= button.clientHeight + 1 &&
+              rect.left >= -1 &&
+              rect.right <= window.innerWidth + 1
+            );
+          }),
+        ).toBe(true);
+
+        await page.route("**/api/orders", (route) =>
+          route.fulfill({
+            status: 503,
+            contentType: "application/json",
+            body: JSON.stringify({
+              error: "Sin conexión con el servidor. Revisa tu red e intenta de nuevo.",
+              code: "network",
+            }),
+          }),
+        );
+        await page.getByRole("button", { name: /confirmar pedido/i }).click();
+        await expect(page.getByRole("button", { name: "Reintentar" })).toBeVisible();
+        await expect(page.getByRole("button", { name: /confirmar pedido/i })).toHaveCount(0);
+        await expect(page.getByRole("button", { name: "Reintentar" })).toHaveCount(1);
+        const errorColors = await page.locator(".checkout-error-alert").evaluate((alert) => {
+          const message = alert.querySelector("p") ?? alert;
+          return {
+            text: getComputedStyle(message).color,
+            background: getComputedStyle(alert).backgroundColor,
+          };
+        });
+        expect(errorColors.text).toBe("rgb(159, 18, 57)");
+        expect(errorColors.background).toMatch(/^(rgba?|oklab)\(/);
+        await page.screenshot({
+          path: `${DIR}/checkout-error-${viewport.name}.png`,
+          fullPage: true,
+        });
+        await page.unroute("**/api/orders");
+      }
     }
   });
 

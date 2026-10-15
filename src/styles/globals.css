@@ -1281,6 +1281,87 @@ body:has(.product-detail-shell) {
   box-shadow: none;
 }
 
+/* ============================================================
+   Checkout — Sinú cálido. Aísla la superficie del flujo para que
+   la navegación y las demás rutas conserven sus tokens actuales.
+   ============================================================ */
+html:has(.checkout-shell),
+body:has(.checkout-shell) {
+  background-color: #fff6e8;
+  color-scheme: light;
+}
+
+.checkout-shell {
+  --color-background: #fff6e8;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-action: #ff743d;
+  --color-action-foreground: #101d39;
+  --color-lime: #d9f65a;
+  --color-foreground: #101d39;
+  --color-muted: #3c4d68;
+  --color-faint: #3c4d68;
+  --color-border-soft: rgb(16 29 57 / 16%);
+  --color-border-strong: rgb(16 29 57 / 28%);
+  --checkout-identity: #136a57;
+  color: #101d39;
+  background-color: #fff6e8;
+  color-scheme: light;
+}
+
+.checkout-shell :focus-visible {
+  outline-color: var(--checkout-identity);
+}
+
+.checkout-shell .checkout-identity {
+  color: var(--checkout-identity);
+}
+
+.checkout-shell .checkout-error-alert {
+  color: #9f1239;
+}
+
+.checkout-shell .checkout-confirm-button {
+  min-width: 0;
+  min-height: 3.5rem;
+  height: auto;
+  white-space: normal;
+  line-height: 1.15;
+}
+
+.checkout-shell .checkout-confirm-button > span {
+  min-width: 0;
+  overflow-wrap: normal;
+}
+
+.checkout-shell .checkout-confirm-label {
+  display: inline-flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0 0.25rem;
+}
+
+.checkout-shell .checkout-confirm-label > span {
+  white-space: nowrap;
+}
+
+@media (max-width: 30rem) and (max-height: 38.75rem) {
+  .checkout-shell {
+    gap: 1rem;
+  }
+
+  .checkout-shell .rounded-card {
+    padding: 0.875rem;
+  }
+
+  .checkout-shell .checkout-confirm-button {
+    padding-block: 0.75rem;
+    font-size: 0.875rem;
+  }
+}
+
 @media (max-height: 38.75rem) and (max-width: 30rem) {
   .detail-topbar { min-height: 3.25rem; padding-top: max(env(safe-area-inset-top), 0.2rem); }
   .detail-hero { height: max(14rem, 42dvh); border-radius: 1.25rem; }
