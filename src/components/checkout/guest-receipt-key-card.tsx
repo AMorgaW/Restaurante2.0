@@ -2,6 +2,7 @@
 
 import { Check, Clipboard, Eye, EyeOff, ShieldCheck, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   acknowledgeGuestReceiptAttempt,
@@ -206,6 +207,9 @@ export function GuestReceiptKeyCard({
           <p className="mt-1 text-sm text-muted">{description}</p>
         </div>
       </div>
+      <Link href="/pedido/recuperar" className="mt-3 inline-flex min-h-11 items-center text-sm font-bold text-[#136A57] underline-offset-4 hover:underline">
+        Consultar un comprobante desde otro navegador
+      </Link>
 
       {activeMetadata && metadata.length > 1 ? (
         <label className="mt-4 block text-sm font-semibold text-[#101D39]">

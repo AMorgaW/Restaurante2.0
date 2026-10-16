@@ -53,6 +53,11 @@ const nextConfig: NextConfig = {
         headers: securityHeaders,
       },
       {
+        // La consulta de comprobantes nunca debe enviar el origen de la navegación.
+        source: "/api/order-receipt",
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      },
+      {
         // El service worker debe poder actualizarse de inmediato.
         source: "/sw.js",
         headers: [

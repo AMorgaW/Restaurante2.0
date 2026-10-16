@@ -1379,6 +1379,36 @@ body:has(.order-confirmation-shell) {
   outline-offset: 3px;
 }
 
+/* Recuperación remota — conserva la superficie cálida sin alterar los
+   tokens globales de las demás rutas. */
+html:has(.guest-receipt-recovery-shell),
+body:has(.guest-receipt-recovery-shell) {
+  background-color: #fff6e8;
+  color-scheme: light;
+}
+
+.guest-receipt-recovery-shell {
+  --color-background: #fff6e8;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-action: #ff743d;
+  --color-action-foreground: #101d39;
+  --color-lime: #d9f65a;
+  --color-foreground: #101d39;
+  --color-muted: #3c4d68;
+  --color-faint: #3c4d68;
+  --color-border-soft: rgb(16 29 57 / 16%);
+  --color-border-strong: rgb(16 29 57 / 28%);
+  color: #101d39;
+  background-color: #fff6e8;
+  color-scheme: light;
+}
+
+.guest-receipt-recovery-shell :focus-visible {
+  outline: 3px solid #136a57;
+  outline-offset: 3px;
+}
+
 .order-confirmation-shell .skeleton {
   background: rgb(19 106 87 / 12%);
 }
