@@ -21,6 +21,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:db": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-supabase-p0-gate.ps1",
+    "test:http": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-supabase-p0-gate.ps1 -ValidateHttpGate",
     "test:db:concurrency": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-supabase-concurrency.ps1",
     "test:e2e": "playwright test --project=mobile-chromium && playwright test --project=mobile-webkit && playwright test --project=desktop",
     "test:e2e:ui": "playwright test --ui",

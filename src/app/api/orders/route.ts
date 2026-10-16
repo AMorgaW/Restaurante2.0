@@ -94,9 +94,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: 409 });
     }
     if (error instanceof OrderPersistenceError) {
+      const headers =
+        error.code === "public-order-intake-closed" ? { "Cache-Control": "no-store" } : undefined;
       return NextResponse.json(
         { error: error.message, code: error.code },
-        { status: error.httpStatus },
+        { status: error.httpStatus, ...(headers ? { headers } : {}) },
       );
     }
     console.error("[api/orders] Error inesperado creando pedido");

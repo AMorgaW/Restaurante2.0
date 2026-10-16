@@ -11,6 +11,18 @@ const env = vi.hoisted(() => ({
   publicIntakeEnabled: true,
 }));
 const placeOrder = vi.hoisted(() => vi.fn());
+const persistenceErrors = vi.hoisted(() => ({
+  OrderPersistenceError: class extends Error {
+    readonly code: string;
+    readonly httpStatus: number;
+
+    constructor(message: string, code: string, httpStatus: number) {
+      super(message);
+      this.code = code;
+      this.httpStatus = httpStatus;
+    }
+  },
+}));
 
 vi.mock("@/lib/env/server", () => ({
   getDataModeStatus: () => env.dataMode,
@@ -22,7 +34,7 @@ vi.mock("@/server/services/orders", () => ({
   placeOrder,
 }));
 vi.mock("@/server/orders/rpc-errors", () => ({
-  OrderPersistenceError: class extends Error {},
+  OrderPersistenceError: persistenceErrors.OrderPersistenceError,
 }));
 
 import { POST } from "@/app/api/orders/route";
@@ -63,6 +75,29 @@ describe("API orders C2.2 capability gate", () => {
     });
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(placeOrder).not.toHaveBeenCalled();
+  });
+
+  it("conserva no-store cuando PostgreSQL devuelve el cierre de recepción", async () => {
+    env.enabled = false;
+    placeOrder.mockRejectedValue(
+      new persistenceErrors.OrderPersistenceError(
+        "La recepción de pedidos no está disponible temporalmente.",
+        "public-order-intake-closed",
+        503,
+      ),
+    );
+
+    const response = await POST(request(validBody) as never);
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const body = await response.json();
+    expect(body).toEqual({
+      error: "La recepción de pedidos no está disponible temporalmente.",
+      code: "public-order-intake-closed",
+    });
+    expect(placeOrder).toHaveBeenCalledWith(validBody);
+    expect(body.order).toBeUndefined();
   });
 
   it("exige receiptKey antes de invocar el servicio cuando está habilitado", async () => {
