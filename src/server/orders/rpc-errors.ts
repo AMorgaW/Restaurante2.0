@@ -23,6 +23,12 @@ type RpcErrorLike = {
 
 const MESSAGE_MAP: Array<{ match: RegExp; code: string; message: string; status?: number }> = [
   {
+    match: /recepci[oó]n de pedidos no est[aá] disponible/i,
+    code: "public-order-intake-closed",
+    message: "La recepción de pedidos no está disponible temporalmente.",
+    status: 503,
+  },
+  {
     match: /venta independiente/i,
     code: "item-not-orderable",
     message: "Uno de los platos no está habilitado para compra independiente.",

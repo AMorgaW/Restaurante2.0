@@ -2,7 +2,12 @@ import type { Metadata } from "next";
 import { PensionSupabaseWorkspace } from "@/components/pension/pension-supabase-workspace";
 import { PensionWorkspace } from "@/components/pension/pension-workspace";
 import { createServiceSnapshot } from "@/lib/menu/service-period";
-import { getAuthModeStatus, getResolvedDataMode } from "@/lib/env/server";
+import {
+  getAuthModeStatus,
+  getDataModeStatus,
+  getResolvedDataMode,
+  isPublicOrderIntakeEnabled,
+} from "@/lib/env/server";
 import { resolveServerSession } from "@/lib/session/server-resolver";
 import { loadCustomerPensionForUi } from "@/server/pension/load";
 import { redirect } from "next/navigation";
@@ -26,7 +31,13 @@ export default async function PensionadoPage() {
     if (getResolvedDataMode() === "supabase") {
       const loaded = await loadCustomerPensionForUi(session.userId);
       return (
-        <PensionSupabaseWorkspace snapshot={loaded.snapshot} loadError={loaded.error} />
+        <PensionSupabaseWorkspace
+          snapshot={loaded.snapshot}
+          loadError={loaded.error}
+          publicOrderIntakeEnabled={
+            getDataModeStatus().mode === "local" || isPublicOrderIntakeEnabled()
+          }
+        />
       );
     }
   }

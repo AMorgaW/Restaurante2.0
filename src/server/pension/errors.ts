@@ -86,6 +86,16 @@ export function mapPensionRpcError(error: unknown): PensionPersistenceError {
   const rpc = (error ?? {}) as RpcErrorLike;
   const raw = `${rpc.message ?? ""} ${rpc.details ?? ""}`.trim();
 
+  // The public intake gate is intentionally matched by the exact SQLSTATE and
+  // message emitted by PostgreSQL. Other P0001 errors must remain generic.
+  if (rpc.code === "P0001" && rpc.message === "La recepción de pedidos no está disponible") {
+    return new PensionPersistenceError(
+      "La recepción de pedidos no está disponible temporalmente.",
+      "public-order-intake-closed",
+      503,
+    );
+  }
+
   for (const entry of MESSAGE_MAP) {
     if (entry.match.test(raw)) {
       return new PensionPersistenceError(entry.message, entry.code, entry.status ?? 409);

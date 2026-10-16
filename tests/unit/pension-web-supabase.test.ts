@@ -121,6 +121,21 @@ describe("mapPensionRpcError", () => {
     expect(conflict.httpStatus).toBe(409);
   });
 
+  it("mapea únicamente el P0001 exacto de compuerta cerrada", () => {
+    const closed = mapPensionRpcError({
+      code: "P0001",
+      message: "La recepción de pedidos no está disponible",
+      details: "sin detalles públicos",
+    });
+    expect(closed.code).toBe("public-order-intake-closed");
+    expect(closed.httpStatus).toBe(503);
+    expect(closed.message).toBe("La recepción de pedidos no está disponible temporalmente.");
+
+    const otherP0001 = mapPensionRpcError({ code: "P0001", message: "Otra regla comercial" });
+    expect(otherP0001.code).toBe("persistence-error");
+    expect(otherP0001.httpStatus).toBe(503);
+  });
+
   it("nunca filtra SQL/hint/key en errores genéricos", () => {
     const mapped = mapPensionRpcError({
       message: "relation pg_temp._pension_lines does not exist",

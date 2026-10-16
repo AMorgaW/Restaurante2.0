@@ -30,6 +30,19 @@ describe("mapCreateCustomerOrderError", () => {
     ).toBe("idempotency-conflict");
   });
 
+  it("mapea el cierre de recepción pública a una indisponibilidad neutral", () => {
+    expect(
+      mapCreateCustomerOrderError({
+        code: "P0001",
+        message: "La recepción de pedidos no está disponible",
+      }),
+    ).toMatchObject({
+      code: "public-order-intake-closed",
+      httpStatus: 503,
+      message: "La recepción de pedidos no está disponible temporalmente.",
+    });
+  });
+
   it("oculta detalle interno", () => {
     const mapped = mapCreateCustomerOrderError({
       message: "unexpected",

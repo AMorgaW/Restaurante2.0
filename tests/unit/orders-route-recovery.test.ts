@@ -8,12 +8,14 @@ const env = vi.hoisted(() => ({
     invalid: string[];
   },
   enabled: true,
+  publicIntakeEnabled: true,
 }));
 const placeOrder = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/env/server", () => ({
   getDataModeStatus: () => env.dataMode,
   isGuestReceiptRecoveryEnabled: () => env.enabled,
+  isPublicOrderIntakeEnabled: () => env.publicIntakeEnabled,
 }));
 vi.mock("@/server/services/orders", () => ({
   OrderValidationError: class extends Error {},
@@ -47,7 +49,20 @@ describe("API orders C2.2 capability gate", () => {
   beforeEach(() => {
     env.dataMode = { mode: "supabase", configured: true, missing: [], invalid: [] };
     env.enabled = true;
+    env.publicIntakeEnabled = true;
     placeOrder.mockReset();
+  });
+
+  it("cierra antes de leer el cuerpo cuando la recepción pública está desactivada", async () => {
+    env.publicIntakeEnabled = false;
+    const response = await POST(request({ invalid: true }) as never);
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({
+      error: "La recepción de pedidos no está disponible temporalmente.",
+      code: "public-order-intake-closed",
+    });
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(placeOrder).not.toHaveBeenCalled();
   });
 
   it("exige receiptKey antes de invocar el servicio cuando está habilitado", async () => {
@@ -72,6 +87,19 @@ describe("API orders C2.2 capability gate", () => {
     expect(response.status).toBe(422);
     await expect(response.json()).resolves.toMatchObject({ code: "receipt-recovery-unavailable" });
     expect(placeOrder).not.toHaveBeenCalled();
+  });
+
+  it("conserva el pedido demo local sin activar la compuerta Supabase", async () => {
+    env.dataMode = { mode: "local", configured: false, missing: [], invalid: [] };
+    env.enabled = false;
+    const order = { id: "33333333-3333-4333-8333-333333333333", orderNumber: "LOCAL-1" };
+    placeOrder.mockResolvedValue(order);
+
+    const response = await POST(request(validBody) as never);
+
+    expect(response.status).toBe(201);
+    expect(placeOrder).toHaveBeenCalledWith(validBody);
+    await expect(response.json()).resolves.toEqual({ order });
   });
 
   it("deja pasar la entrada válida al servicio sin cambiar el contrato de Order", async () => {

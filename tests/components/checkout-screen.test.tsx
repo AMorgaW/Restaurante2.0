@@ -53,6 +53,7 @@ const checkoutItem: CartItem = {
 async function renderCheckout(
   item: CartItem = checkoutItem,
   guestReceiptRecoveryEnabled = false,
+  publicOrderIntakeEnabled = true,
 ) {
   useCartStore.setState({
     items: [item],
@@ -63,7 +64,12 @@ async function renderCheckout(
   });
   useTableContextStore.getState().clear();
   await act(async () => {
-    renderWithProviders(<CheckoutScreen guestReceiptRecoveryEnabled={guestReceiptRecoveryEnabled} />);
+    renderWithProviders(
+      <CheckoutScreen
+        guestReceiptRecoveryEnabled={guestReceiptRecoveryEnabled}
+        publicOrderIntakeEnabled={publicOrderIntakeEnabled}
+      />,
+    );
   });
 }
 
@@ -99,6 +105,18 @@ afterEach(() => {
 });
 
 describe("CheckoutScreen", () => {
+  it("bloquea la recepción Supabase antes de enviar y lo anuncia de forma accesible", async () => {
+    await renderCheckout(checkoutItem, false, false);
+
+    await advanceToReview();
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      /recepción de pedidos no está disponible temporalmente/i,
+    );
+    expect(screen.getByRole("button", { name: /confirmar pedido/i })).toBeDisabled();
+    expect(harness.placeOrderRequest).not.toHaveBeenCalled();
+  });
+
   it("resume la línea completa y distingue sopa incluida a COP 0", async () => {
     await renderCheckout();
     await advanceToReview();

@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { CheckoutScreen } from "@/components/checkout/checkout-screen";
-import { isGuestReceiptRecoveryEnabled } from "@/lib/env/server";
+import {
+  getDataModeStatus,
+  isGuestReceiptRecoveryEnabled,
+  isPublicOrderIntakeEnabled,
+} from "@/lib/env/server";
 
 export const metadata: Metadata = {
   title: "Finalizar pedido",
@@ -13,5 +17,13 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default function CheckoutPage() {
-  return <CheckoutScreen guestReceiptRecoveryEnabled={isGuestReceiptRecoveryEnabled()} />;
+  const dataMode = getDataModeStatus();
+  const publicOrderIntakeEnabled =
+    dataMode.mode === "local" || isPublicOrderIntakeEnabled();
+  return (
+    <CheckoutScreen
+      guestReceiptRecoveryEnabled={isGuestReceiptRecoveryEnabled()}
+      publicOrderIntakeEnabled={publicOrderIntakeEnabled}
+    />
+  );
 }

@@ -98,9 +98,11 @@ function statusCopy(status: PensionMembershipStatus): { title: string; text: str
 export function PensionSupabaseWorkspace({
   snapshot,
   loadError,
+  publicOrderIntakeEnabled = true,
 }: {
   snapshot: PensionCustomerSnapshot;
   loadError: string | null;
+  publicOrderIntakeEnabled?: boolean;
 }) {
   const membership = snapshot.membership;
   const planName =
@@ -218,7 +220,18 @@ export function PensionSupabaseWorkspace({
                 endsAt={membership.endsAt}
                 agreedPrice={membership.agreedPrice}
               />
-              <PensionOrderForm snapshot={snapshot} />
+              {!publicOrderIntakeEnabled ? (
+                <div
+                  role="alert"
+                  className="rounded-card border border-warning/40 bg-warning/10 p-4 text-sm font-semibold text-warning"
+                >
+                  La recepción de pedidos pensionados no está disponible temporalmente. No se enviará ningún pedido.
+                </div>
+              ) : null}
+              <PensionOrderForm
+                snapshot={snapshot}
+                publicOrderIntakeEnabled={publicOrderIntakeEnabled}
+              />
             </>
           )}
         </div>
@@ -326,7 +339,13 @@ function ActiveMembershipCard({
   );
 }
 
-function PensionOrderForm({ snapshot }: { snapshot: PensionCustomerSnapshot }) {
+function PensionOrderForm({
+  snapshot,
+  publicOrderIntakeEnabled,
+}: {
+  snapshot: PensionCustomerSnapshot;
+  publicOrderIntakeEnabled: boolean;
+}) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const idempotencyKeyRef = useRef(crypto.randomUUID());
@@ -352,6 +371,7 @@ function PensionOrderForm({ snapshot }: { snapshot: PensionCustomerSnapshot }) {
   const [notes, setNotes] = useState("");
   const [fieldErrors, setFieldErrors] = useState<PensionOrderFieldErrors>({});
   const [lastOrder, setLastOrder] = useState<CreatePensionOrderResult | null>(null);
+  const [serverIntakeClosed, setServerIntakeClosed] = useState(false);
 
   useEffect(() => {
     hydrateTableContext();
@@ -361,11 +381,16 @@ function PensionOrderForm({ snapshot }: { snapshot: PensionCustomerSnapshot }) {
     if (tableQrToken) setFulfillmentType("local");
   }, [tableQrToken]);
 
+  useEffect(() => {
+    if (publicOrderIntakeEnabled) setServerIntakeClosed(false);
+  }, [publicOrderIntakeEnabled]);
+
   const menu: PensionMenuView | null =
     period === "lunch" ? (day?.lunch ?? null) : (day?.dinner ?? null);
   const consumed =
     period === "lunch" ? Boolean(day?.lunchConsumed) : Boolean(day?.dinnerConsumed);
   const published = menu?.status === "published";
+  const intakeEnabled = publicOrderIntakeEnabled && !serverIntakeClosed;
 
   const requiredCategories = useMemo(
     () => (menu?.categories ?? []).filter((category) => category.isRequired),
@@ -466,6 +491,14 @@ function PensionOrderForm({ snapshot }: { snapshot: PensionCustomerSnapshot }) {
 
   /** Autoridad de creación del pedido; no duplicar lógica aquí. */
   function submit() {
+    if (!intakeEnabled) {
+      toast({
+        title: "Pedidos no disponibles",
+        description: "La recepción de pedidos está cerrada temporalmente. No se envió ningún pedido.",
+        variant: "error",
+      });
+      return;
+    }
     if (!menu || !selectionComplete) return;
     const pensionMenuItemIds = Object.values(selections);
     startTransition(async () => {
@@ -490,6 +523,9 @@ function PensionOrderForm({ snapshot }: { snapshot: PensionCustomerSnapshot }) {
         ...(fulfillmentType === "local" && tableQrToken ? { tableQrToken } : {}),
       });
       if (!result.ok) {
+        if (result.code === "public-order-intake-closed") {
+          setServerIntakeClosed(true);
+        }
         toast({ title: "No se pudo crear el pedido", description: result.message, variant: "error" });
         return;
       }
@@ -505,7 +541,16 @@ function PensionOrderForm({ snapshot }: { snapshot: PensionCustomerSnapshot }) {
 
   function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (consumed || isPending) return;
+    if (consumed || isPending || !intakeEnabled) {
+      if (!intakeEnabled && !isPending) {
+        toast({
+          title: "Pedidos no disponibles",
+          description: "La recepción de pedidos está cerrada temporalmente. No se envió ningún pedido.",
+          variant: "error",
+        });
+      }
+      return;
+    }
     const errors = collectClientErrors();
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
@@ -867,10 +912,15 @@ function PensionOrderForm({ snapshot }: { snapshot: PensionCustomerSnapshot }) {
                 fullWidth
                 size="lg"
                 className="sm:w-auto"
-                disabled={consumed || isPending}
+                disabled={consumed || isPending || !intakeEnabled}
               >
                 {isPending ? "Enviando…" : "Confirmar pedido pensionado"}
               </Button>
+              {serverIntakeClosed ? (
+                <p role="alert" className="text-sm font-semibold text-warning">
+                  La recepción de pedidos pensionados no está disponible temporalmente. No se envió ningún pedido.
+                </p>
+              ) : null}
             </div>
           </form>
         </>

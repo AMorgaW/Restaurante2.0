@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { checkoutInputSchema } from "@/features/checkout/schema";
-import { getDataModeStatus, isGuestReceiptRecoveryEnabled } from "@/lib/env/server";
+import {
+  getDataModeStatus,
+  isGuestReceiptRecoveryEnabled,
+  isPublicOrderIntakeEnabled,
+} from "@/lib/env/server";
 import { OrderValidationError, placeOrder } from "@/server/services/orders";
 import { OrderPersistenceError } from "@/server/orders/rpc-errors";
 
@@ -18,6 +22,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: "La configuracion de datos no permite crear pedidos.", code: "data-mode-invalid" },
       { status: 503 },
+    );
+  }
+
+  if (dataMode.mode === "supabase" && !isPublicOrderIntakeEnabled()) {
+    return NextResponse.json(
+      {
+        error: "La recepción de pedidos no está disponible temporalmente.",
+        code: "public-order-intake-closed",
+      },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }
 

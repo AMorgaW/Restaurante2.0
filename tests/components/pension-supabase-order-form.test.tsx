@@ -76,10 +76,14 @@ function buildSnapshot(): PensionCustomerSnapshot {
   };
 }
 
-function renderForm() {
+function renderForm(publicOrderIntakeEnabled = true) {
   return render(
     <ToastProvider>
-      <PensionSupabaseWorkspace snapshot={buildSnapshot()} loadError={null} />
+      <PensionSupabaseWorkspace
+        snapshot={buildSnapshot()}
+        loadError={null}
+        publicOrderIntakeEnabled={publicOrderIntakeEnabled}
+      />
     </ToastProvider>,
   );
 }
@@ -94,6 +98,16 @@ describe("formulario semantico de pedido pensionado (H-01)", () => {
       tableName: "Mesa 1",
       branchConfigId: "77777777-7777-4777-8777-777777777777",
     });
+  });
+
+  it("anuncia cierre de recepción y bloquea el envío pensionado", () => {
+    renderForm(false);
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      /recepción de pedidos pensionados no está disponible temporalmente/i,
+    );
+    expect(screen.getByRole("button", { name: /Confirmar pedido pensionado/i })).toBeDisabled();
+    expect(placePensionOrderAction).not.toHaveBeenCalled();
   });
 
   it("usa form con submit semantico y no crea pedido si faltan campos", async () => {
@@ -159,5 +173,31 @@ describe("formulario semantico de pedido pensionado (H-01)", () => {
       tableQrToken: "test-table-qr-token-abcdef",
     });
     expect((await screen.findAllByText(/Pedido P-100/i)).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("bloquea nuevos envíos después de que PostgreSQL cierre la recepción", async () => {
+    const user = userEvent.setup();
+    placePensionOrderAction.mockResolvedValue({
+      ok: false,
+      message: "La recepción de pedidos no está disponible temporalmente.",
+      code: "public-order-intake-closed",
+    });
+
+    renderForm();
+    await user.click(screen.getByLabelText(/Sancocho/i));
+    await user.type(screen.getByRole("textbox", { name: /Nombre/i }), "Ana Perez");
+    await user.type(screen.getByRole("textbox", { name: /Tel.fono/i }), "3001234567");
+    await user.type(screen.getByRole("textbox", { name: /Correo/i }), "ana@example.com");
+
+    const form = screen.getByRole("form", { name: /Pedido pensionado/i });
+    fireEvent.submit(form);
+    await waitFor(() => expect(placePensionOrderAction).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText(/No se envió ningún pedido/i)).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: /Confirmar pedido pensionado|Enviando/i }),
+    ).toBeDisabled();
+
+    fireEvent.submit(form);
+    await waitFor(() => expect(placePensionOrderAction).toHaveBeenCalledTimes(1));
   });
 });

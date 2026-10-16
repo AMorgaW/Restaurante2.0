@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getDataModeStatus, isPublicOrderIntakeEnabled } from "@/lib/env/server";
 import { toSafePensionMessage } from "@/server/pension/errors";
 import { placePensionOrder } from "@/server/pension/service";
 import type { CreatePensionOrderResult } from "@/server/pension/types";
@@ -12,6 +13,15 @@ export type PlacePensionOrderActionResult =
 export async function placePensionOrderAction(
   input: unknown,
 ): Promise<PlacePensionOrderActionResult> {
+  const dataMode = getDataModeStatus();
+  if (dataMode.mode !== "supabase" || !isPublicOrderIntakeEnabled()) {
+    return {
+      ok: false,
+      message: "La recepción de pedidos no está disponible temporalmente.",
+      code: "public-order-intake-closed",
+    };
+  }
+
   try {
     const data = await placePensionOrder(input);
     revalidatePath("/pensionado");

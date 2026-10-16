@@ -61,6 +61,7 @@ const CART_STALE_CODES = new Set([
 ]);
 
 const CONFIRMATION_BLOCKED_CODES = new Set([
+  "public-order-intake-closed",
   "idempotency-conflict",
   "receipt-unavailable",
   "receipt-key-invalid",
@@ -92,8 +93,10 @@ type CheckoutFormValues = z.infer<typeof customerFormSchema>;
  */
 export function CheckoutScreen({
   guestReceiptRecoveryEnabled = false,
+  publicOrderIntakeEnabled = true,
 }: {
   guestReceiptRecoveryEnabled?: boolean;
+  publicOrderIntakeEnabled?: boolean;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -201,6 +204,11 @@ export function CheckoutScreen({
   };
 
   const submitOrder = async () => {
+    if (!publicOrderIntakeEnabled) {
+      setServerError("La recepción de pedidos no está disponible temporalmente. No se envió ningún pedido.");
+      setServerErrorCode("public-order-intake-closed");
+      return;
+    }
     if (inFlightRequest.current) {
       await inFlightRequest.current;
       return;
@@ -396,6 +404,15 @@ export function CheckoutScreen({
   return (
     <div className="checkout-shell mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 pb-8 pt-2 sm:px-6">
       <PageHeader title="Finalizar pedido" backHref="/carrito" className="px-0" />
+
+      {!publicOrderIntakeEnabled ? (
+        <div
+          role="alert"
+          className="rounded-2xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm font-semibold text-warning"
+        >
+          La recepción de pedidos no está disponible temporalmente. Puedes revisar tu carrito, pero no se enviará ningún pedido.
+        </div>
+      ) : null}
 
       {/* Progreso */}
       <ol aria-label="Progreso del pedido" className="flex items-center gap-2">
@@ -757,6 +774,7 @@ export function CheckoutScreen({
               <Button
                 className="checkout-confirm-button min-w-0 flex-1 whitespace-normal px-3 text-center leading-tight sm:px-5"
                 loading={submitting}
+                disabled={!publicOrderIntakeEnabled}
                 onClick={submitOrder}
               >
                 {submitting ? (

@@ -12,6 +12,8 @@ import {
 export type ServerEnv = {
   AUTH_MODE?: string;
   DATA_MODE?: string;
+  /** Compuerta server-only; nunca se expone como NEXT_PUBLIC_. */
+  PUBLIC_ORDER_INTAKE_ENABLED?: string;
   /** Interruptor servidor-only para C2.2; permanece desactivado por defecto. */
   GUEST_RECEIPT_RECOVERY_ENABLED?: string;
   NEXT_PUBLIC_SITE_URL: string;
@@ -39,6 +41,7 @@ export function getServerEnv(): ServerEnv {
   cachedEnv = {
     AUTH_MODE: process.env.AUTH_MODE,
     DATA_MODE: process.env.DATA_MODE,
+    PUBLIC_ORDER_INTAKE_ENABLED: process.env.PUBLIC_ORDER_INTAKE_ENABLED,
     GUEST_RECEIPT_RECOVERY_ENABLED: process.env.GUEST_RECEIPT_RECOVERY_ENABLED,
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -62,6 +65,17 @@ export function getServerEnv(): ServerEnv {
 export function isGuestReceiptRecoveryEnabled(env: ServerEnv = getServerEnv()): boolean {
   if (env.GUEST_RECEIPT_RECOVERY_ENABLED !== "true") return false;
   if (env.DATA_MODE !== "supabase") return false;
+  const status = getDataModeStatusFromEnv(env);
+  return status.mode === "supabase" && status.configured;
+}
+
+/**
+ * Capacidad de recepción pública en Supabase. El valor debe ser true de forma
+ * explícita y la configuración de datos debe ser válida; en modo local el
+ * checkout demo conserva su comportamiento anterior.
+ */
+export function isPublicOrderIntakeEnabled(env: ServerEnv = getServerEnv()): boolean {
+  if (env.PUBLIC_ORDER_INTAKE_ENABLED !== "true" || env.DATA_MODE !== "supabase") return false;
   const status = getDataModeStatusFromEnv(env);
   return status.mode === "supabase" && status.configured;
 }
